@@ -215,7 +215,7 @@ exports.loginWithEmail = (req, res) => {
   });
 };
 exports.resendOtp = (req, res) => {
-  const { customer_id } = req.body;
+  const {customer_id} = req.body;
   if (!customer_id) {
     return res.status(400).json({ error_msg: "Customer ID is required" });
   }
@@ -269,3 +269,54 @@ exports.resendOtp = (req, res) => {
     });
   });
 };
+exports.getAllRestaurantWithTime = (req, res) => {
+  const selectQuery = `
+    SELECT users.*, service_time.*
+    FROM users
+    JOIN service_time ON users.id = service_time.userId
+    WHERE users.is_deleted = 0`;
+
+  db.query(selectQuery, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+};
+exports.getrestrodaydetails = (req, res) => {
+  const selectQuery = `
+    SELECT service_time.*, days_listing.day_name, users.id AS userId
+    FROM service_time
+    JOIN days_listing ON service_time.day_id = days_listing.day_id
+    JOIN users ON service_time.userId = users.id
+    WHERE users.is_deleted = 0`;
+
+  db.query(selectQuery, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    // Group results by userId and rename it to id
+    const groupedData = results.reduce((acc, row) => {
+      if (!acc[row.userId]) {
+        acc[row.userId] = {
+          id: row.userId,  // Rename userId to id here
+          days: []
+        };
+      }
+
+      acc[row.userId].days.push({
+        day_name: row.day_name,
+        start_time: row.start_time,
+        end_time: row.end_time,
+        status: row.status,
+        is_deleted: row.is_deleted
+      });
+
+      return acc;
+    }, {});
+
+    // Convert the grouped data object to an array
+    const resultArray = Object.values(groupedData);
+    res.status(200).json(resultArray);
+  });
+};
+

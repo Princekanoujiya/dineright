@@ -1,5 +1,4 @@
 const express = require('express');
-
 //superadmin
 const { loginSuperadmin,getGuests ,updateUserStatusAndCommission,updateCommissionStatus } = require('../controllers/superadmin/superadmin_authcontroller');
 
@@ -8,7 +7,7 @@ const { insertOrUpdateCuisineSection,getAllCuisinsSections ,getCuisionSectionByI
 
 
 //restroadmin
-const { createOrUpdateOneStep, stepTwo, sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, insertDiningTable,getUserInfo,getTimingData,getDiningAreas,getDiningTables,getUsersInfo} = require('../controllers/authController');
+const { createOrUpdateOneStep, stepTwo, sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, loginWithOtp,verifyLoginOtp,stepTwoAndSendOtp,insertOrUpdateTimingData,restro_guest_time_duration,insertDiningTable,getUserInfo,getTimingData,getDiningAreas,getDiningTables,getUsersInfo} = require('../controllers/authController');
 const { createOrUpdateCourse,getAllCourses,DeleteCourse,getCourseById} = require('../controllers/coursesController');
 const { createOrUpdateMenu,getMenu,DeleteMenu} = require('../controllers/menusController');
 const { createOrUpdateMenuItem,getMenuItem,deleteMenuItem,softDeleteMenuItem} = require('../controllers/menuItemsController');
@@ -23,11 +22,12 @@ const uploadGalleryController = require('../controllers/uploadGalleryController'
 const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
 const razorpayController = require('../controllers/razorpayController');
+const enquiryController = require('../controllers/enquiryController');
 
 // const booking_controller = require('../controllers/booking_controller');
 
 //user
-const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInfo,loginWithEmail,resendOtp} = require('../controllers/app_user_authcontroller');
+const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInfo,loginWithEmail,resendOtp,getAllRestaurantWithTime,getrestrodaydetails} = require('../controllers/app_user_authcontroller');
 
 
 
@@ -43,12 +43,17 @@ const router = express.Router();
 router.post('/createOrUpdate', createOrUpdateOneStep);
 router.post('/step-two', stepTwo);
 router.post('/send-otp', sendOtp);
+router.post('/stepTwoAndSendOtp', stepTwoAndSendOtp);
 router.post('/verify-otp', verifyOtp);
 router.post('/set-password', setPassword);
+router.post('/restro_guest_time_duration', restro_guest_time_duration);
 router.post('/insert-service', insertTimingData);
 router.post('/insert-dining-area', insertDiningArea);
 router.post('/insert-dining-table', insertDiningTable);
+router.post('/insertOrUpdateTimingData', insertOrUpdateTimingData);
 router.get('/getUsersInfo', getUsersInfo);
+router.post('/loginWithOtp', loginWithOtp);
+router.post('/verifyLoginOtp', verifyLoginOtp);
 router.post('/login', login);
 
 router.get('/user/:userId', getUserInfo);//done
@@ -118,7 +123,7 @@ router.get('/getMasterBeverage',getMasterBeverage);
 router.post('/book_product',verifyCustomerToken,book_product);
 
 
-
+router.post('/enquiry',enquiry);
 
 //superadmin
 router.post('/superadminlogin', loginSuperadmin);

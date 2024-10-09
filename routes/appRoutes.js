@@ -32,9 +32,6 @@ const enquiryController = require('../controllers/enquiryController');
 const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInfo,loginWithEmail,resendOtp,getAllRestaurantWithTime,getrestrodaydetails} = require('../controllers/app_user_authcontroller');
 
 
-
-
-
 const { verifyCustomerToken } = require('../middlewares/userMiddleware');
 
 const { verifyToken } = require('../middlewares/authMiddleware');
@@ -119,7 +116,7 @@ router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done
 router.post('/customer_resend_otp', resendOtp); //done
-router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
+// router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
 router.get('/getMasterCard',getMasterCard);
 router.get('/getMasterBeverage',getMasterBeverage);
 router.get('/getAllRestaurantWithTime',getAllRestaurantWithTime);

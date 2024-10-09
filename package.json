@@ -16,8 +16,8 @@
     "razorpay": "^2.9.4"
   },
   "scripts": {
-    "start": "node server.js"
-
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "",

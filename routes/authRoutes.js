@@ -119,12 +119,11 @@ router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done
 router.post('/customer_resend_otp', resendOtp); //done
-router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
+// router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
 router.get('/getMasterCard',getMasterCard);
 router.get('/getMasterBeverage',getMasterBeverage);
-router.get('/getAllRestaurantWithTime',getAllRestaurantWithTime);
-router.get('/getrestrodaydetails',getrestrodaydetails);
 router.post('/book_product',verifyCustomerToken,book_product);
+
 
 router.post('/enquiry',enquiry);
 

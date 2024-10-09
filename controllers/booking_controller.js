@@ -86,46 +86,6 @@ exports.getMasterBeverage = (req, res) => {
 
 
 
-// exports.book_product = (req, res) => {
-//   const { userId, booking_date, booking_time, booking_no_of_guest } = req.body;
-//   const customer_id = req.customer_id; // Get customer_id from the verified token middleware
-
-//   if (req.body.booking_id) {
-//     // Update existing booking
-//     const updateQuery = `
-//         UPDATE bookings 
-//         SET userId = ?, customer_id = ?, booking_date = ?, booking_time = ?, booking_no_of_guest = ?
-//         WHERE booking_id = ?
-//     `;
-//     db.query(updateQuery, [userId, customer_id, booking_date, booking_time, booking_no_of_guest, req.body.booking_id], (err, result) => {
-//       if (err) {
-//         return res.status(500).json({ error: "Failed to update booking", details: err.message });
-//       }
-//       if (result.affectedRows === 0) {
-//         return res.status(404).json({ error_msg: "Booking not found" });
-//       }
-//       return res.json({ success_msg: "Booking updated successfully", booking_id: req.body.booking_id });
-//     });
-//   } else {
-//     // Insert new booking
-//     const insertQuery = `
-//         INSERT INTO bookings (userId, customer_id, booking_date, booking_time, booking_no_of_guest) 
-//         VALUES (?, ?, ?, ?, ?)
-//     `;
-//     db.query(insertQuery, [userId, customer_id, booking_date, booking_time, booking_no_of_guest], (err, result) => {
-//       if (err) {
-//         return res.status(500).json({ error: "Failed to create booking", details: err.message });
-//       }
-//       return res.status(201).json({ success_msg: "Booking created successfully", booking_id: result.insertId });
-//     });
-//   }
-// };
-
-
-
-// Function to insert connected products
-
-
 // Function to create or update a booking
 exports.book_product = (req, res) => {
   const { userId, booking_date, booking_time, booking_no_of_guest, items } = req.body;

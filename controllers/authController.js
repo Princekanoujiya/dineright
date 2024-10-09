@@ -403,6 +403,75 @@ exports.sendOtp = (req, res) => {
 };
 
 
+exports.stepTwoAndSendOtp = (req, res) => {
+  const { userId, restaurantName, restaurantAddress } = req.body;
+
+  // Step 1: Update user information (restaurantName and restaurantAddress)
+  const updateQuery = `UPDATE users SET restaurantName=?, restaurantAddress=? WHERE id=?`;
+  db.query(updateQuery, [restaurantName, restaurantAddress, userId], (err, result) => {
+    if (err) {
+      console.error('Database error during update:', err); // Log database error
+      return res.status(500).json({ error: 'Error updating user information', details: err.message });
+    }
+    const emailQuery = `SELECT email FROM users WHERE id=?`;
+    db.query(emailQuery, [userId], (err, result) => {
+      if (err) {
+        console.error('Database error during email fetch:', err); // Log database error
+        return res.status(500).json({ error: 'Error fetching email', details: err.message });
+      }
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const email = result[0].email;
+
+      // Step 3: Generate OTP
+      const otp = Math.floor(1000 + Math.random() * 9000);
+      console.log('Generated OTP:', otp); // Log OTP for debugging
+
+      // Step 4: Send email with OTP
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_SERVICE,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+        tls: {
+          rejectUnauthorized: false // Allow self-signed certificates
+        }
+      });
+
+      const mailOptions = {
+        from: `DineRight <${process.env.EMAIL_SERVICE}>`,
+        to: email,
+        subject: 'OTP Verification',
+        text: `Your OTP is ${otp}`,
+      };
+
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending email:', error); // Log email error
+          return res.status(500).json({ error: 'Error sending OTP', details: error.message });
+        }
+
+        // Step 5: Save OTP to database
+        const otpQuery = `UPDATE users SET otp=? WHERE id=?`;
+        db.query(otpQuery, [otp, userId], (err, result) => {
+          if (err) {
+            console.error('Database error during OTP update:', err); // Log database error
+            return res.status(500).json({ error: 'Error saving OTP', details: err.message });
+          }
+
+          console.log('OTP sent to email:', email); // Log success
+          res.status(200).json({ message: 'User data updated and OTP sent to email' });
+        });
+      });
+    });
+  });
+};
+
+
 
 // Step 4: Verify OTP 
 exports.verifyOtp = (req, res) => {
@@ -429,8 +498,47 @@ exports.verifyOtp = (req, res) => {
   });
 };
 
+exports.restro_guest_time_duration = (req, res) => {
+  const { userId, restro_guest, restro_spending_time } = req.body;
 
-// Step 5: Set Password
+  // Step 1: Check if the record already exists for the given userId
+  const checkQuery = 'SELECT * FROM restro_guest_time_duration WHERE userId = ?';
+  db.query(checkQuery, [userId], (err, result) => {
+    if (err) {
+      console.error('Database error during check:', err); // Log the error
+      return res.status(500).json({ error: 'Database error during record check' });
+    }
+
+    if (result.length > 0) {
+      // Step 2: If record exists, update the existing record
+      const updateQuery = 'UPDATE restro_guest_time_duration SET restro_guest = ?, restro_spending_time = ? WHERE userId = ?';
+      db.query(updateQuery, [restro_guest, restro_spending_time, userId], (err, result) => {
+        if (err) {
+          console.error('Database error during update:', err); // Log the error
+          return res.status(500).json({ error: 'Database error while updating timing data' });
+        }
+
+        // Record updated successfully
+        res.status(200).json({ message: 'Timing data updated successfully' });
+      });
+    } else {
+      // Step 3: If no record exists, insert a new record
+      const insertQuery = 'INSERT INTO restro_guest_time_duration (userId, restro_guest, restro_spending_time) VALUES (?, ?, ?)';
+      db.query(insertQuery, [userId, restro_guest, restro_spending_time], (err, result) => {
+        if (err) {
+          console.error('Database error during insert:', err); // Log the error
+          return res.status(500).json({ error: 'Database error while inserting timing data' });
+        }
+
+        // Record inserted successfully
+        res.status(200).json({ message: 'Timing data inserted successfully', restro_guest_time_duration_id: result.insertId });
+      });
+    }
+  });
+};
+
+
+
 exports.setPassword = (req, res) => {
   const { userId, password, confirmPassword } = req.body;
 
@@ -459,12 +567,12 @@ exports.setPassword = (req, res) => {
 };
 
 exports.insertTimingData = (req, res) => {
-  const { userId, day_id, start_time, end_time } = req.body;
+  const { userId, day_id, start_time, end_time ,status} = req.body;
 
   // Insert timing data into service_time table
-  const timingQuery = 'INSERT INTO service_time (userId, day_id, start_time, end_time) VALUES (?, ?, ?, ?)';
+  const timingQuery = 'INSERT INTO service_time (userId, day_id, start_time, end_time,status) VALUES (?, ?, ?, ?,?)';
   
-  db.query(timingQuery, [userId, day_id, start_time, end_time], (err, result) => {
+  db.query(timingQuery, [userId, day_id, start_time, end_time,status], (err, result) => {
     if (err) {
       console.error('Database error:', err); // Log the database error for debugging
       return res.status(500).json({ error: 'Database error while inserting timing data' });
@@ -472,6 +580,44 @@ exports.insertTimingData = (req, res) => {
 
     // Timing data inserted successfully
     res.status(200).json({ message: 'Timing data inserted successfully', service_time_id: result.insertId });
+  });
+};
+exports.insertOrUpdateTimingData = (req, res) => {
+  const { userId, day_id, start_time, end_time, status } = req.body;
+
+  // Step 1: Check if the timing data already exists for the given userId and day_id
+  const checkQuery = 'SELECT * FROM service_time WHERE userId = ? AND day_id = ?';
+  db.query(checkQuery, [userId, day_id], (err, result) => {
+    if (err) {
+      console.error('Database error during check:', err); // Log the error
+      return res.status(500).json({ error: 'Database error during record check' });
+    }
+
+    if (result.length > 0) {
+      // Step 2: If record exists, update the existing record
+      const updateQuery = 'UPDATE service_time SET start_time = ?, end_time = ?, status = ? WHERE userId = ? AND day_id = ?';
+      db.query(updateQuery, [start_time, end_time, status, userId, day_id], (err, result) => {
+        if (err) {
+          console.error('Database error during update:', err); // Log the error
+          return res.status(500).json({ error: 'Database error while updating timing data' });
+        }
+
+        // Timing data updated successfully
+        res.status(200).json({ message: 'Timing data updated successfully' });
+      });
+    } else {
+      // Step 3: If no record exists, insert a new record
+      const insertQuery = 'INSERT INTO service_time (userId, day_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)';
+      db.query(insertQuery, [userId, day_id, start_time, end_time, status], (err, result) => {
+        if (err) {
+          console.error('Database error during insert:', err); // Log the error
+          return res.status(500).json({ error: 'Database error while inserting timing data' });
+        }
+
+        // Timing data inserted successfully
+        res.status(200).json({ message: 'Timing data inserted successfully', service_time_id: result.insertId });
+      });
+    }
   });
 };
 
@@ -564,6 +710,7 @@ The Dine Right Team
   });
 };
 
+
 // Step 6: login
 exports.login = (req, res) => {
   const { email, password } = req.body;
@@ -621,8 +768,10 @@ exports.getUserInfo = (req, res) => {
   });
 };
 exports.getUsersInfo = (req, res) => {
-  const query = 'SELECT * FROM users';
-  db.query(query, (err, results) => {
+  const query = 'SELECT * FROM users WHERE status = ?';
+  const status = 'Activated';
+
+  db.query(query, [status], (err, results) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: 'Database error', details: err.message });
@@ -633,6 +782,7 @@ exports.getUsersInfo = (req, res) => {
     res.status(200).json({ users: results });
   });
 };
+
 
 exports.getTimingData = (req, res) => {
   const { userId } = req.params;
@@ -680,4 +830,98 @@ exports.getDiningTables = (req, res) => {
 };
 
 
-  
+exports.loginWithOtp = (req, res) => {
+  const { email } = req.body;
+
+  // Step 1: Query to check if the email exists
+  const query = `SELECT * FROM users WHERE email=?`;
+  db.query(query, [email], (err, results) => {
+    if (err) {
+      console.error('Database error:', err); // Log the error for debugging
+      return res.status(500).json({ error: 'Database error during email check', details: err.message });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'User not found. Please register first.' });
+    }
+
+    const user = results[0];
+
+    // Step 2: Generate OTP
+    const otp = Math.floor(1000 + Math.random() * 9000); // Generate a 4-digit OTP
+    console.log('Generated OTP:', otp); // Log OTP for debugging
+
+    // Step 3: Send OTP via email
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_SERVICE,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_SERVICE,
+      to: email,
+      subject: 'Your OTP for Login',
+      text: `Your OTP is ${otp}`,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Error sending email:', error); // Log email error
+        return res.status(500).json({ error: 'Error sending OTP', details: error.message });
+      }
+
+      // Step 4: Save OTP to the database for future verification
+      const otpQuery = `UPDATE users SET otp=? WHERE email=?`;
+      db.query(otpQuery, [otp, email], (err, result) => {
+        if (err) {
+          console.error('Database error during OTP save:', err); // Log error
+          return res.status(500).json({ error: 'Database error while saving OTP', details: err.message });
+        }
+
+        // Step 5: Send response after successful OTP generation and email
+        res.status(200).json({ message: 'OTP sent to email successfully. Please verify OTP to complete login.' });
+      });
+    });
+  });
+};
+
+// OTP verification function
+exports.verifyLoginOtp = (req, res) => {
+  const { email, otp } = req.body;
+
+  // Step 1: Query to check if the provided OTP matches the one in the database
+  const query = `SELECT * FROM users WHERE email=? AND otp=?`;
+  db.query(query, [email, otp], (err, results) => {
+    if (err) {
+      console.error('Database error during OTP check:', err); // Log error
+      return res.status(500).json({ error: 'Database error during OTP verification', details: err.message });
+    }
+
+    if (results.length === 0) {
+      return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
+    }
+
+    const user = results[0];
+
+    // Step 2: OTP is valid, create JWT token
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Clear OTP after successful verification
+    const clearOtpQuery = `UPDATE users SET otp=NULL WHERE email=?`;
+    db.query(clearOtpQuery, [email], (err, result) => {
+      if (err) {
+        console.error('Database error during OTP clearing:', err); // Log error
+        return res.status(500).json({ error: 'Database error while clearing OTP', details: err.message });
+      }
+
+      // Step 3: Send success response with token
+      res.status(200).json({ message: 'Login successful', token });
+    });
+  });
+};

@@ -14,6 +14,7 @@ const { createOrUpdateMenuItem,getMenuItem,deleteMenuItem,softDeleteMenuItem} = 
 const { getCourseMenu,getCourseMenuGroupByCourseId} = require('../controllers/master_card');
 const { insertOrUpdateBookingTable,getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
 const { enquiry} = require('../controllers/enquiryController');
+const { getRestaurantType,getCuisines} = require('../controllers/filtersController');
 
 
 const menuItemsController = require('../controllers/menuItems_with_token');
@@ -151,4 +152,8 @@ router.get('/cuisins/:frontend_cuisins_section_id', getCuisionSectionById);
 router.post('/create-order', razorpayController.createOrder);
 router.post('/verify-payment', razorpayController.verifyPayment);
 
+
+//filters
+router.get('/getRestaurantType',getRestaurantType);
+router.get('/getcuisines',getCuisines);
 module.exports = router;

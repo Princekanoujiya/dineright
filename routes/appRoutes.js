@@ -12,7 +12,7 @@ const { createOrUpdateCourse,getAllCourses,DeleteCourse,getCourseById} = require
 const { createOrUpdateMenu,getMenu,DeleteMenu} = require('../controllers/menusController');
 const { createOrUpdateMenuItem,getMenuItem,deleteMenuItem,softDeleteMenuItem} = require('../controllers/menuItemsController');
 const { getCourseMenu,getCourseMenuGroupByCourseId} = require('../controllers/master_card');
-const { insertOrUpdateBookingTable,getMasterCard,getMasterBeverage} = require('../controllers/booking_controller');
+const { getMasterCard,getMasterBeverage} = require('../controllers/booking_controller');
 
 
 const menuItemsController = require('../controllers/menuItems_with_token');
@@ -27,9 +27,6 @@ const razorpayController = require('../controllers/razorpayController');
 
 //user
 const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInfo,loginWithEmail,resendOtp} = require('../controllers/app_user_authcontroller');
-
-
-
 
 
 const { verifyCustomerToken } = require('../middlewares/userMiddleware');
@@ -111,7 +108,7 @@ router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done
 router.post('/customer_resend_otp', resendOtp); //done
-router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
+// router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
 router.get('/getMasterCard',getMasterCard);
 router.get('/getMasterBeverage',getMasterBeverage);
 

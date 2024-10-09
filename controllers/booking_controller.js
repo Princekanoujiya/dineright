@@ -89,8 +89,7 @@ exports.book_product = (req, res) => {
         FROM dining_areas AS d
         LEFT JOIN all_tables AS a 
         ON d.dining_area_id = a.dining_area_id 
-        WHERE d.dining_area_id = ? AND a.userId = ? 
-        AND a.is_available = 'yes'
+        WHERE d.dining_area_id = ? AND a.userId = ?
       `;
 
       // Execute the query

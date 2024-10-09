@@ -403,73 +403,73 @@ exports.sendOtp = (req, res) => {
 };
 
 
-exports.stepTwoAndSendOtp = (req, res) => {
-  const { userId, restaurantName, restaurantAddress } = req.body;
+// exports.stepTwoAndSendOtp = (req, res) => {
+//   const { userId, restaurantName, restaurantAddress } = req.body;
 
-  // Step 1: Update user information (restaurantName and restaurantAddress)
-  const updateQuery = `UPDATE users SET restaurantName=?, restaurantAddress=? WHERE id=?`;
-  db.query(updateQuery, [restaurantName, restaurantAddress, userId], (err, result) => {
-    if (err) {
-      console.error('Database error during update:', err); // Log database error
-      return res.status(500).json({ error: 'Error updating user information', details: err.message });
-    }
-    const emailQuery = `SELECT email FROM users WHERE id=?`;
-    db.query(emailQuery, [userId], (err, result) => {
-      if (err) {
-        console.error('Database error during email fetch:', err); // Log database error
-        return res.status(500).json({ error: 'Error fetching email', details: err.message });
-      }
+//   // Step 1: Update user information (restaurantName and restaurantAddress)
+//   const updateQuery = `UPDATE users SET restaurantName=?, restaurantAddress=? WHERE id=?`;
+//   db.query(updateQuery, [restaurantName, restaurantAddress, userId], (err, result) => {
+//     if (err) {
+//       console.error('Database error during update:', err); // Log database error
+//       return res.status(500).json({ error: 'Error updating user information', details: err.message });
+//     }
+//     const emailQuery = `SELECT email FROM users WHERE id=?`;
+//     db.query(emailQuery, [userId], (err, result) => {
+//       if (err) {
+//         console.error('Database error during email fetch:', err); // Log database error
+//         return res.status(500).json({ error: 'Error fetching email', details: err.message });
+//       }
 
-      if (result.length === 0) {
-        return res.status(404).json({ error: 'User not found' });
-      }
+//       if (result.length === 0) {
+//         return res.status(404).json({ error: 'User not found' });
+//       }
 
-      const email = result[0].email;
+//       const email = result[0].email;
 
-      // Step 3: Generate OTP
-      const otp = Math.floor(1000 + Math.random() * 9000);
-      console.log('Generated OTP:', otp); // Log OTP for debugging
+//       // Step 3: Generate OTP
+//       const otp = Math.floor(1000 + Math.random() * 9000);
+//       console.log('Generated OTP:', otp); // Log OTP for debugging
 
-      // Step 4: Send email with OTP
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_SERVICE,
-          pass: process.env.EMAIL_PASSWORD,
-        },
-        tls: {
-          rejectUnauthorized: false // Allow self-signed certificates
-        }
-      });
+//       // Step 4: Send email with OTP
+//       const transporter = nodemailer.createTransport({
+//         service: 'gmail',
+//         auth: {
+//           user: process.env.EMAIL_SERVICE,
+//           pass: process.env.EMAIL_PASSWORD,
+//         },
+//         tls: {
+//           rejectUnauthorized: false // Allow self-signed certificates
+//         }
+//       });
 
-      const mailOptions = {
-        from: `DineRight <${process.env.EMAIL_SERVICE}>`,
-        to: email,
-        subject: 'OTP Verification',
-        text: `Your OTP is ${otp}`,
-      };
+//       const mailOptions = {
+//         from: `DineRight <${process.env.EMAIL_SERVICE}>`,
+//         to: email,
+//         subject: 'OTP Verification',
+//         text: `Your OTP is ${otp}`,
+//       };
 
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          console.error('Error sending email:', error); // Log email error
-          return res.status(500).json({ error: 'Error sending OTP', details: error.message });
-        }
+//       transporter.sendMail(mailOptions, (error, info) => {
+//         if (error) {
+//           console.error('Error sending email:', error); // Log email error
+//           return res.status(500).json({ error: 'Error sending OTP', details: error.message });
+//         }
 
-        // Step 5: Save OTP to database
-        const otpQuery = `UPDATE users SET otp=? WHERE id=?`;
-        db.query(otpQuery, [otp, userId], (err, result) => {
-          if (err) {
-            console.error('Database error during OTP update:', err); // Log database error
-            return res.status(500).json({ error: 'Error saving OTP', details: err.message });
-          }
+//         // Step 5: Save OTP to database
+//         const otpQuery = `UPDATE users SET otp=? WHERE id=?`;
+//         db.query(otpQuery, [otp, userId], (err, result) => {
+//           if (err) {
+//             console.error('Database error during OTP update:', err); // Log database error
+//             return res.status(500).json({ error: 'Error saving OTP', details: err.message });
+//           }
 
-          console.log('OTP sent to email:', email); // Log success
-          res.status(200).json({ message: 'User data updated and OTP sent to email' });
-        });
-      });
-    });
-  });
-};
+//           console.log('OTP sent to email:', email); // Log success
+//           res.status(200).json({ message: 'User data updated and OTP sent to email' });
+//         });
+//       });
+//     });
+//   });
+// };
 
 
 
@@ -925,3 +925,287 @@ exports.verifyLoginOtp = (req, res) => {
     });
   });
 };
+
+
+
+exports.stepTwoAndSendOtp = (req, res) => {
+  const { userId, restaurantName, restaurantAddress, restaurant_type_id, cuisine_id } = req.body;
+
+  // Step 1: Update user information (restaurantName and restaurantAddress)
+  const updateQuery = `UPDATE users SET restaurantName=?, restaurantAddress=? WHERE id=?`;
+  db.query(updateQuery, [restaurantName, restaurantAddress, userId], (err, result) => {
+    if (err) {
+      console.error('Database error during update:', err);
+      return res.status(500).json({ error: 'Error updating user information', details: err.message });
+    }
+
+    // Step 2: Insert multiple restaurant_type_id and userId into the restaurant_types table
+    const restaurantTypeInsertPromises = restaurant_type_id.map(typeId => {
+      const restaurantTypeQuery = `INSERT INTO selected_restaurant_types (restaurant_type_id, userId) VALUES (?, ?) ON DUPLICATE KEY UPDATE restaurant_type_id=?`;
+      return new Promise((resolve, reject) => {
+        db.query(restaurantTypeQuery, [typeId, userId, typeId], (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        });
+      });
+    });
+
+    // Step 3: Insert multiple cuisine_id and userId into the cuisines table
+    const cuisineInsertPromises = cuisine_id.map(cuisineId => {
+      const cuisinesQuery = `INSERT INTO selected_cuisines (cuisine_id, userId) VALUES (?, ?) ON DUPLICATE KEY UPDATE cuisine_id=?`;
+      return new Promise((resolve, reject) => {
+        db.query(cuisinesQuery, [cuisineId, userId, cuisineId], (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        });
+      });
+    });
+
+    // Execute both insertion processes (restaurant types and cuisines)
+    Promise.all([...restaurantTypeInsertPromises, ...cuisineInsertPromises])
+      .then(() => {
+        // Step 4: Fetch email from users table for OTP
+        const emailQuery = `SELECT email FROM users WHERE id=?`;
+        db.query(emailQuery, [userId], (err, result) => {
+          if (err) {
+            console.error('Database error during email fetch:', err);
+            return res.status(500).json({ error: 'Error fetching email', details: err.message });
+          }
+
+          if (result.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+          }
+
+          const email = result[0].email;
+
+          // Step 5: Generate OTP
+          const otp = Math.floor(1000 + Math.random() * 9000);
+          console.log('Generated OTP:', otp);
+
+          // Step 6: Send email with OTP
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: process.env.EMAIL_SERVICE,
+              pass: process.env.EMAIL_PASSWORD,
+            },
+            tls: {
+              rejectUnauthorized: false // Allow self-signed certificates
+            }
+          });
+
+          const mailOptions = {
+            from: `DineRight <${process.env.EMAIL_SERVICE}>`,
+            to: email,
+            subject: 'OTP Verification',
+            text: `Your OTP is ${otp}`,
+          };
+
+          transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+              console.error('Error sending email:', error);
+              return res.status(500).json({ error: 'Error sending OTP', details: error.message });
+            }
+
+            // Step 7: Save OTP to database
+            const otpQuery = `UPDATE users SET otp=? WHERE id=?`;
+            db.query(otpQuery, [otp, userId], (err, result) => {
+              if (err) {
+                console.error('Database error during OTP update:', err);
+                return res.status(500).json({ error: 'Error saving OTP', details: err.message });
+              }
+
+              console.log('OTP sent to email:', email);
+              res.status(200).json({ message: 'User data updated and OTP sent to email' });
+            });
+          });
+        });
+      })
+      .catch(err => {
+        console.error('Error during multiple inserts:', err);
+        res.status(500).json({ error: 'Error inserting restaurant type or cuisine information', details: err.message });
+      });
+  });
+};
+
+
+
+//restaurant details with cuisins and restaurant types
+
+
+
+
+
+exports.getSelectedCuisines = (req, res) => {
+  // Query to join selected_cuisines with cuisines table and group by userId
+  const query = `
+    SELECT sc.userId, c.cuisine_id, c.cuisine_name 
+    FROM selected_cuisines sc
+    JOIN cuisines c ON sc.cuisine_id = c.cuisine_id
+    ORDER BY sc.userId;
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Database error', details: err.message });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'No cuisines found' });
+    }
+
+    // Group cuisines by userId
+    const groupedResults = results.reduce((acc, row) => {
+      const { userId, cuisine_id, cuisine_name } = row;
+
+      // If userId doesn't exist in the accumulator, initialize it
+      if (!acc[userId]) {
+        acc[userId] = {
+          userId: userId,
+          cuisines: [],
+        };
+      }
+
+      // Push the current cuisine to the respective userId's array
+      acc[userId].cuisines.push({
+        cuisine_id,
+        cuisine_name,
+      });
+
+      return acc;
+    }, {});
+
+    // Convert the grouped object into an array
+    const finalResults = Object.values(groupedResults);
+
+    res.status(200).json(finalResults);
+  });
+};
+
+
+exports.getSelectedRestaurantTypes = (req, res) => {
+  // Query to join selected_restaurant_types with restaurant_types table and group by userId
+  const query = `
+    SELECT sr.userId, rt.restaurant_type_id, rt.restaurant_type_name 
+    FROM selected_restaurant_types sr
+    JOIN restaurant_types rt ON sr.restaurant_type_id = rt.restaurant_type_id
+    ORDER BY sr.userId;
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Database error', details: err.message });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'No restaurant types found' });
+    }
+
+    // Group restaurant types by userId
+    const groupedResults = results.reduce((acc, row) => {
+      const { userId, restaurant_type_id, restaurant_type_name } = row;
+
+      // If userId doesn't exist in the accumulator, initialize it
+      if (!acc[userId]) {
+        acc[userId] = {
+          userId: userId,
+          restaurant_types: [], // Changed from cuisines to restaurant_types
+        };
+      }
+
+      // Push the current restaurant type to the respective userId's array
+      acc[userId].restaurant_types.push({ // Updated to match the correct key
+        restaurant_type_id, // Corrected field names
+        restaurant_type_name,
+      });
+
+      return acc;
+    }, {});
+
+    // Convert the grouped object into an array
+    const finalResults = Object.values(groupedResults);
+
+    res.status(200).json(finalResults);
+  });
+};
+exports.getRestroInfo = (req, res) => {
+  const query = 'SELECT * FROM users';
+
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Database error', details: err.message });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'No users found' });
+    }
+    res.status(200).json({ users: results });
+  });
+};
+
+
+
+exports.getUserInfoWithCuisinesAndRestaurantTypes = (req, res) => {
+  // Query to join users with selected_cuisines and selected_restaurant_types
+  const query = `
+    SELECT u.*, 
+           c.cuisine_id, c.cuisine_name,
+           rt.restaurant_type_id, rt.restaurant_type_name
+    FROM users u
+    LEFT JOIN selected_cuisines sc ON u.id = sc.userId
+    LEFT JOIN cuisines c ON sc.cuisine_id = c.cuisine_id
+    LEFT JOIN selected_restaurant_types srt ON u.id = srt.userId
+    LEFT JOIN restaurant_types rt ON srt.restaurant_type_id = rt.restaurant_type_id
+    ORDER BY u.id;
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Database error', details: err.message });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'No data found' });
+    }
+
+    // Group data by userId
+    const groupedResults = results.reduce((acc, row) => {
+      const { id: userId, name, email, phone, address, cuisine_id, cuisine_name, restaurant_type_id, restaurant_type_name } = row;
+
+      // If userId doesn't exist in the accumulator, initialize it
+      if (!acc[userId]) {
+        acc[userId] = {
+          userId,
+          name,
+          email,
+          phone,
+          address,
+          cuisines: [],
+          restaurant_types: []
+        };
+      }
+
+      // If the current row has a cuisine, add it to the cuisines array
+      if (cuisine_id && cuisine_name) {
+        acc[userId].cuisines.push({ cuisine_id, cuisine_name });
+      }
+
+      // If the current row has a restaurant type, add it to the restaurant_types array
+      if (restaurant_type_id && restaurant_type_name) {
+        acc[userId].restaurant_types.push({ restaurant_type_id, restaurant_type_name });
+      }
+
+      return acc;
+    }, {});
+
+    // Convert the grouped object into an array
+    const finalResults = Object.values(groupedResults);
+
+    res.status(200).json(finalResults);
+  });
+};
+

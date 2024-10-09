@@ -7,7 +7,10 @@ const { insertOrUpdateCuisineSection,getAllCuisinsSections ,getCuisionSectionByI
 
 
 //restroadmin
-const { createOrUpdateOneStep, stepTwo, sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, loginWithOtp,verifyLoginOtp,stepTwoAndSendOtp,insertOrUpdateTimingData,restro_guest_time_duration,insertDiningTable,getUserInfo,getTimingData,getDiningAreas,getDiningTables,getUsersInfo} = require('../controllers/authController');
+const { createOrUpdateOneStep, stepTwo, sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, loginWithOtp,verifyLoginOtp,stepTwoAndSendOtp,insertOrUpdateTimingData,restro_guest_time_duration,insertDiningTable,getUserInfo,getTimingData,getDiningAreas,getDiningTables,getUsersInfo,getSelectedCuisines,getSelectedRestaurantTypes,getRestroInfo,getUserInfoWithCuisinesAndRestaurantTypes} = require('../controllers/authController');
+
+
+
 const { createOrUpdateCourse,getAllCourses,DeleteCourse,getCourseById} = require('../controllers/coursesController');
 const { createOrUpdateMenu,getMenu,DeleteMenu} = require('../controllers/menusController');
 const { createOrUpdateMenuItem,getMenuItem,deleteMenuItem,softDeleteMenuItem} = require('../controllers/menuItemsController');
@@ -32,6 +35,9 @@ const enquiryController = require('../controllers/enquiryController');
 const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInfo,loginWithEmail,resendOtp,getAllRestaurantWithTime,getrestrodaydetails} = require('../controllers/app_user_authcontroller');
 
 
+
+
+
 const { verifyCustomerToken } = require('../middlewares/userMiddleware');
 
 const { verifyToken } = require('../middlewares/authMiddleware');
@@ -54,6 +60,7 @@ router.get('/getUsersInfo', getUsersInfo);
 router.post('/loginWithOtp', loginWithOtp);
 router.post('/verifyLoginOtp', verifyLoginOtp);
 router.post('/login', login);
+router.get('/getSelectedCuisines', getSelectedCuisines);
 
 router.get('/user/:userId', getUserInfo);//done
 router.get('/timing/:userId',getTimingData);//done
@@ -119,9 +126,10 @@ router.post('/customer_resend_otp', resendOtp); //done
 // router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
 router.get('/getMasterCard',getMasterCard);
 router.get('/getMasterBeverage',getMasterBeverage);
-router.get('/getAllRestaurantWithTime',getAllRestaurantWithTime);
-router.get('/getrestrodaydetails',getrestrodaydetails);
 router.post('/book_product',verifyCustomerToken,book_product);
+router.get('/getrestrodaydetails',getrestrodaydetails);
+router.get('/getAllRestaurantWithTime',getAllRestaurantWithTime);
+
 
 router.post('/enquiry',enquiry);
 
@@ -153,4 +161,7 @@ router.post('/verify-payment', razorpayController.verifyPayment);
 //filters
 router.get('/getRestaurantType',getRestaurantType);
 router.get('/getcuisines',getCuisines);
+router.get('/getSelectedRestaurantTypes',getSelectedRestaurantTypes);
+router.get('/getRestroInfo',getRestroInfo);
+router.get('/getUserInfoWithCuisinesAndRestaurantTypes',getUserInfoWithCuisinesAndRestaurantTypes);
 module.exports = router;

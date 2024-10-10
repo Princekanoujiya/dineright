@@ -1,18 +1,28 @@
 // server.js
 const express = require('express');
+const path = require('path');
 const dotenv = require('dotenv');
 const authRoutes = require('./routes/authRoutes');
 const appRoutes = require('./routes/appRoutes');
 const paymentRoutes = require('./routes/payment'); 
 const db = require('./config');  
+
+
 // Load environment variables
 dotenv.config();
 
 // Initialize the app
 const app = express();
 
+app.use(express.static('uploads'));
+app.use('/uploads', express.static('uploads'));
+
+// view engine setup
+app.set('views', path.join(__dirname, 'views'));
+
 // Middleware to parse incoming JSON requests
 app.use(express.json());
+
 // Use payment routes
 app.use('/api/payment', paymentRoutes);
 

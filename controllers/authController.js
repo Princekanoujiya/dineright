@@ -20,7 +20,11 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage: storage }).single('image');
+// Allow multiple files for 'image' and 'license_image'
+const upload = multer({ storage: storage }).fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'license_image', maxCount: 1 }
+]);
 
 // Check if email exists
 const checkEmailExists = (email, id = null) => {
@@ -40,18 +44,19 @@ const checkEmailExists = (email, id = null) => {
 // Insert or Update a user (restaurant)
 exports.createOrUpdateOneStep = async (req, res) => {
   console.log('Request Body:', req.body);
-  console.log('Uploaded File:', req.file);
+  console.log('Uploaded Files:', req.files);
 
-  // Handle file upload first
+  // Handle file uploads first
   upload(req, res, async function (err) {
     if (err instanceof multer.MulterError) {
       return res.status(500).json({ error: 'Multer error', details: err.message });
     } else if (err) {
-      return res.status(500).json({ error: 'Error uploading file', details: err.message });
+      return res.status(500).json({ error: 'Error uploading files', details: err.message });
     }
 
     const { id, username, email, phone, pancard, gst_no } = req.body;
-    const image = req.file ? req.file.filename : null;
+    const image = req.files['image'] ? req.files['image'][0].filename : null;
+    const licenseImage = req.files['license_image'] ? req.files['license_image'][0].filename : null;
 
     if (!username) {
       return res.status(400).json({ error: 'Username is required' });
@@ -66,7 +71,7 @@ exports.createOrUpdateOneStep = async (req, res) => {
 
       if (id) {
         // Update user if id is provided
-        const getUserQuery = 'SELECT image FROM users WHERE id = ?';
+        const getUserQuery = 'SELECT image, license_image FROM users WHERE id = ?';
         db.query(getUserQuery, [id], (err, result) => {
           if (err) {
             return res.status(500).json({ error: 'Database error during user retrieval', details: err.message });
@@ -76,45 +81,25 @@ exports.createOrUpdateOneStep = async (req, res) => {
           }
 
           const oldImage = result[0].image;
+          const oldLicenseImage = result[0].license_image;
           const updateQuery = `
             UPDATE users 
-            SET username = ?, email = ?, phone = ?, pancard = ?, image = ?, gst_no = ? 
+            SET username = ?, email = ?, phone = ?, pancard = ?, image = ?, license_image = ?, gst_no = ? 
             WHERE id = ?`;
-          db.query(updateQuery, [username, email, phone, pancard, image || oldImage, gst_no, id], (err) => {
+          db.query(updateQuery, [username, email, phone, pancard, image || oldImage, licenseImage || oldLicenseImage, gst_no, id], (err) => {
             if (err) {
               return res.status(500).json({ error: 'Database error during update', details: err.message });
             }
 
-            // Move the file if a new image is uploaded
-            if (req.file) {
-              const dir = `uploads/registered_restaurants/${id}`;
-              if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-              }
-
-              const tempPath = req.file.path; // Path where multer saves the file initially
-              const newPath = path.join(dir, req.file.filename);
-
-              fs.rename(tempPath, newPath, (err) => {
-                if (err) {
-                  return res.status(500).json({ error: 'Error moving file', details: err.message });
-                }
-
-                // Remove old image file if it exists and is different
-                if (oldImage && oldImage !== image) {
-                  const oldImagePath = path.join(dir, oldImage);
-                  fs.unlink(oldImagePath, (err) => {
-                    if (err) {
-                      console.warn('Warning: Failed to delete old image', err.message);
-                    }
-                  });
-                }
-
-                res.status(200).json({ message: 'User (restaurant) updated successfully', id });
-              });
-            } else {
-              res.status(200).json({ message: 'User (restaurant) updated successfully', id });
+            // Move the files if new images are uploaded
+            if (req.files['image']) {
+              handleFileMove(req.files['image'][0], 'image', id, oldImage);
             }
+            if (req.files['license_image']) {
+              handleFileMove(req.files['license_image'][0], 'license_image', id, oldLicenseImage);
+            }
+
+            res.status(200).json({ message: 'User (restaurant) updated successfully', id });
           });
         });
       } else {
@@ -129,37 +114,15 @@ exports.createOrUpdateOneStep = async (req, res) => {
 
           const newId = result.insertId; // Get the newly inserted id
 
-          // Create the directory and move the file if uploaded
-          const dir = `uploads/registered_restaurants/${newId}`;
-          if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
+          // Move the uploaded files and update the database
+          if (req.files['image']) {
+            handleFileMove(req.files['image'][0], 'image', newId);
+          }
+          if (req.files['license_image']) {
+            handleFileMove(req.files['license_image'][0], 'license_image', newId);
           }
 
-          if (req.file) {
-            const tempPath = req.file.path; // Path where multer saves the file initially
-            const newPath = path.join(dir, req.file.filename);
-
-            fs.rename(tempPath, newPath, (err) => {
-              if (err) {
-                return res.status(500).json({ error: 'Error moving file', details: err.message });
-              }
-
-              // Update the user record with the image filename
-              const updateImageQuery = `
-                UPDATE users 
-                SET image = ? 
-                WHERE id = ?`;
-              db.query(updateImageQuery, [req.file.filename, newId], (err) => {
-                if (err) {
-                  return res.status(500).json({ error: 'Database error during image update', details: err.message });
-                }
-
-                res.status(201).json({ message: 'User (restaurant) created successfully', id: newId });
-              });
-            });
-          } else {
-            res.status(201).json({ message: 'User (restaurant) created successfully', id: newId });
-          }
+          res.status(201).json({ message: 'User (restaurant) created successfully', id: newId });
         });
       }
     } catch (error) {
@@ -168,184 +131,45 @@ exports.createOrUpdateOneStep = async (req, res) => {
   });
 };
 
+// Helper function to move the file and update database
+const handleFileMove = (file, field, id, oldFile = null) => {
+  const dir = `uploads/registered_restaurants/${id}`;
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  const tempPath = file.path; // Path where multer saves the file initially
+  const newPath = path.join(dir, file.filename);
+
+  fs.rename(tempPath, newPath, (err) => {
+    if (err) {
+      return res.status(500).json({ error: `Error moving ${field}`, details: err.message });
+    }
+
+    // Remove old file if it exists and is different
+    if (oldFile && oldFile !== file.filename) {
+      const oldFilePath = path.join(dir, oldFile);
+      fs.unlink(oldFilePath, (err) => {
+        if (err) {
+          console.warn(`Warning: Failed to delete old ${field}`, err.message);
+        }
+      });
+    }
+
+    // Update the user record with the new file name
+    const updateFileQuery = `
+      UPDATE users 
+      SET ${field} = ? 
+      WHERE id = ?`;
+    db.query(updateFileQuery, [file.filename, id], (err) => {
+      if (err) {
+        return res.status(500).json({ error: `Database error during ${field} update`, details: err.message });
+      }
+    });
+  });
+};
 
 
-
-
-
-
-
-
-// const storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     // Temporary upload directory
-//     cb(null, 'uploads/');
-//   },
-//   filename: function (req, file, cb) {
-//     // Create a unique filename
-//     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-//     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-//   }
-// });
-
-// const upload = multer({ storage: storage }).single('image');
-
-// // Check if email exists
-// const checkEmailExists = (email, userId = null) => {
-//   return new Promise((resolve, reject) => {
-//     const query = userId ? 'SELECT userId FROM users WHERE email = ? AND userId != ?' : 'SELECT userId FROM users WHERE email = ?';
-//     const params = userId ? [email, userId] : [email];
-//     db.query(query, params, (err, result) => {
-//       if (err) {
-//         reject(err);
-//       } else {
-//         resolve(result.length > 0);
-//       }
-//     });
-//   });
-// };
-
-// // Insert or Update a user (restaurant)
-// exports.createOrUpdateOneStep = async (req, res) => {
-//   console.log('Request Body:', req.body);
-//   console.log('Uploaded File:', req.file);
-
-//   // Handle file upload first
-//   upload(req, res, async function (err) {
-//     if (err instanceof multer.MulterError) {
-//       return res.status(500).json({ error: 'Multer error', details: err.message });
-//     } else if (err) {
-//       return res.status(500).json({ error: 'Error uploading file', details: err.message });
-//     }
-
-//     const { userId, username, email, phone, pancard, gst_no } = req.body;
-//     const image = req.file ? req.file.filename : null;
-
-//     if (!username) {
-//       return res.status(400).json({ error: 'Username is required' });
-//     }
-
-//     try {
-//       // Check if the email is already in use
-//       const emailExists = await checkEmailExists(email, userId);
-//       if (emailExists) {
-//         return res.status(400).json({ error: 'Email is already in use' });
-//       }
-
-//       if (userId) {
-//         // Update user if userId is provided
-//         const getUserQuery = 'SELECT image FROM users WHERE userId = ?';
-//         db.query(getUserQuery, [userId], (err, result) => {
-//           if (err) {
-//             return res.status(500).json({ error: 'Database error during user retrieval', details: err.message });
-//           }
-//           if (result.length === 0) {
-//             return res.status(404).json({ error: 'User (restaurant) not found' });
-//           }
-
-//           const oldImage = result[0].image;
-//           const updateQuery = `
-//             UPDATE users 
-//             SET username = ?, email = ?, phone = ?, pancard = ?, image = ?, gst_no = ? 
-//             WHERE userId = ?`;
-//           db.query(updateQuery, [username, email, phone, pancard, image || oldImage, gst_no, userId], (err) => {
-//             if (err) {
-//               return res.status(500).json({ error: 'Database error during update', details: err.message });
-//             }
-
-//             // Move the file if a new image is uploaded
-//             if (req.file) {
-//               const dir = `uploads/registered_restaurants/${userId}`;
-//               if (!fs.existsSync(dir)) {
-//                 fs.mkdirSync(dir, { recursive: true });
-//               }
-
-//               const tempPath = req.file.path; // Path where multer saves the file initially
-//               const newPath = path.join(dir, req.file.filename);
-
-//               fs.rename(tempPath, newPath, (err) => {
-//                 if (err) {
-//                   return res.status(500).json({ error: 'Error moving file', details: err.message });
-//                 }
-
-//                 // Remove old image file if it exists and is different
-//                 if (oldImage && oldImage !== image) {
-//                   const oldImagePath = path.join(dir, oldImage);
-//                   fs.unlink(oldImagePath, (err) => {
-//                     if (err) {
-//                       console.warn('Warning: Failed to delete old image', err.message);
-//                     }
-//                   });
-//                 }
-
-//                 res.status(200).json({ message: 'User (restaurant) updated successfully', userId });
-//               });
-//             } else {
-//               res.status(200).json({ message: 'User (restaurant) updated successfully', userId });
-//             }
-//           });
-//         });
-//       } else {
-//         // Insert new user if userId is not provided
-//         const insertQuery = `
-//           INSERT INTO users (username, email, phone, pancard, gst_no) 
-//           VALUES (?, ?, ?, ?, ?)`;
-//         db.query(insertQuery, [username, email, phone, pancard, gst_no], (err, result) => {
-//           if (err) {
-//             return res.status(500).json({ error: 'Database error during insertion', details: err.message });
-//           }
-
-//           const newUserId = result.insertId; // Get the newly inserted userId
-
-//           // Create the directory and move the file if uploaded
-//           const dir = `uploads/registered_restaurants/${newUserId}`;
-//           if (!fs.existsSync(dir)) {
-//             fs.mkdirSync(dir, { recursive: true });
-//           }
-
-//           if (req.file) {
-//             const tempPath = req.file.path; // Path where multer saves the file initially
-//             const newPath = path.join(dir, req.file.filename);
-
-//             fs.rename(tempPath, newPath, (err) => {
-//               if (err) {
-//                 return res.status(500).json({ error: 'Error moving file', details: err.message });
-//               }
-
-//               // Update the user record with the image filename
-//               const updateImageQuery = `
-//                 UPDATE users 
-//                 SET image = ? 
-//                 WHERE userId = ?`;
-//               db.query(updateImageQuery, [req.file.filename, newUserId], (err) => {
-//                 if (err) {
-//                   return res.status(500).json({ error: 'Database error during image update', details: err.message });
-//                 }
-
-//                 res.status(201).json({ message: 'User (restaurant) created successfully', userId: newUserId });
-//               });
-//             });
-//           } else {
-//             res.status(201).json({ message: 'User (restaurant) created successfully', userId: newUserId });
-//           }
-//         });
-//       }
-//     } catch (error) {
-//       res.status(500).json({ error: 'Unexpected error', details: error.message });
-//     }
-//   });
-// };
-
-// Step 2: Restaurant Information
-// exports.stepTwo = (req, res) => {
-//   const { userId, restaurantName, restaurantAddress } = req.body;
-
-//   const query = `UPDATE users SET restaurantName=?, restaurantAddress=? WHERE id=?`;
-//   db.query(query, [restaurantName, restaurantAddress, userId], (err, result) => {
-//     if (err) throw err;
-//     res.status(200).json({ message: 'Step 2 completed',userId });
-//   });
-// };
 exports.stepTwo = (req, res) => {
   const { userId, restaurantName, restaurantAddress } = req.body;
 
@@ -401,77 +225,6 @@ exports.sendOtp = (req, res) => {
     });
   });
 };
-
-
-// exports.stepTwoAndSendOtp = (req, res) => {
-//   const { userId, restaurantName, restaurantAddress } = req.body;
-
-//   // Step 1: Update user information (restaurantName and restaurantAddress)
-//   const updateQuery = `UPDATE users SET restaurantName=?, restaurantAddress=? WHERE id=?`;
-//   db.query(updateQuery, [restaurantName, restaurantAddress, userId], (err, result) => {
-//     if (err) {
-//       console.error('Database error during update:', err); // Log database error
-//       return res.status(500).json({ error: 'Error updating user information', details: err.message });
-//     }
-//     const emailQuery = `SELECT email FROM users WHERE id=?`;
-//     db.query(emailQuery, [userId], (err, result) => {
-//       if (err) {
-//         console.error('Database error during email fetch:', err); // Log database error
-//         return res.status(500).json({ error: 'Error fetching email', details: err.message });
-//       }
-
-//       if (result.length === 0) {
-//         return res.status(404).json({ error: 'User not found' });
-//       }
-
-//       const email = result[0].email;
-
-//       // Step 3: Generate OTP
-//       const otp = Math.floor(1000 + Math.random() * 9000);
-//       console.log('Generated OTP:', otp); // Log OTP for debugging
-
-//       // Step 4: Send email with OTP
-//       const transporter = nodemailer.createTransport({
-//         service: 'gmail',
-//         auth: {
-//           user: process.env.EMAIL_SERVICE,
-//           pass: process.env.EMAIL_PASSWORD,
-//         },
-//         tls: {
-//           rejectUnauthorized: false // Allow self-signed certificates
-//         }
-//       });
-
-//       const mailOptions = {
-//         from: `DineRight <${process.env.EMAIL_SERVICE}>`,
-//         to: email,
-//         subject: 'OTP Verification',
-//         text: `Your OTP is ${otp}`,
-//       };
-
-//       transporter.sendMail(mailOptions, (error, info) => {
-//         if (error) {
-//           console.error('Error sending email:', error); // Log email error
-//           return res.status(500).json({ error: 'Error sending OTP', details: error.message });
-//         }
-
-//         // Step 5: Save OTP to database
-//         const otpQuery = `UPDATE users SET otp=? WHERE id=?`;
-//         db.query(otpQuery, [otp, userId], (err, result) => {
-//           if (err) {
-//             console.error('Database error during OTP update:', err); // Log database error
-//             return res.status(500).json({ error: 'Error saving OTP', details: err.message });
-//           }
-
-//           console.log('OTP sent to email:', email); // Log success
-//           res.status(200).json({ message: 'User data updated and OTP sent to email' });
-//         });
-//       });
-//     });
-//   });
-// };
-
-
 
 // Step 4: Verify OTP 
 exports.verifyOtp = (req, res) => {
@@ -537,8 +290,6 @@ exports.restro_guest_time_duration = (req, res) => {
   });
 };
 
-
-
 exports.setPassword = (req, res) => {
   const { userId, password, confirmPassword } = req.body;
 
@@ -582,6 +333,7 @@ exports.insertTimingData = (req, res) => {
     res.status(200).json({ message: 'Timing data inserted successfully', service_time_id: result.insertId });
   });
 };
+
 exports.insertOrUpdateTimingData = (req, res) => {
   const { userId, day_id, start_time, end_time, status } = req.body;
 
@@ -1142,10 +894,20 @@ exports.getRestroInfo = (req, res) => {
     if (results.length === 0) {
       return res.status(404).json({ error: 'No users found' });
     }
-    res.status(200).json({ users: results });
+
+
+    // custom image url
+    let userData = [];
+    for (const user of results){
+    
+      user.image = `${process.env.BASE_URL}/uploads/registered_restaurants/${user.id}/${user.image}`;
+      user.license_image = `${process.env.BASE_URL}/uploads/registered_restaurants/${user.id}/${user.license_image}`;
+      userData.push(user);
+    }
+
+    res.status(200).json({ users: userData });
   });
 };
-
 
 
 exports.getUserInfoWithCuisinesAndRestaurantTypes = (req, res) => {

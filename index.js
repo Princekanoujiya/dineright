@@ -15,19 +15,17 @@ dotenv.config();
 // Initialize the app
 const app = express();
 
-<<<<<<< HEAD
+// cors
+app.use(cors());
+
+// Middleware to parse incoming JSON requests
+app.use(express.json());
+
 app.use(express.static('uploads'));
 app.use('/uploads', express.static('uploads'));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-=======
-// cors
-app.use(cors());
->>>>>>> e6c59aaca63dc84fc448d8855a453a9eaf514c1c
-
-// Middleware to parse incoming JSON requests
-app.use(express.json());
 
 // Use payment routes
 app.use('/api/payment', paymentRoutes);

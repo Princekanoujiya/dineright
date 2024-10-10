@@ -50,94 +50,195 @@ exports.getMasterBeverage = (req, res) => {
   });
 };
 
+// Function that wraps the db.query inside a Promise
+function getRestroSpendingTime(userId, booking_no_of_guest) {
+  return new Promise((resolve, reject) => {
+    const restroTimeDurationQuery = `SELECT * FROM restro_guest_time_duration WHERE userId = ? AND restro_guest = ? LIMIT 1`;
+
+    db.query(restroTimeDurationQuery, [userId, booking_no_of_guest], (err, result) => {
+      if (err) {
+        return reject("Failed to fetch time duration: " + err.message);  // Reject promise on error
+      }
+
+      if (result.length === 0) {
+        return reject("No time duration found for the specified user and guest count.");  // Reject if no result
+      }
+
+      // Resolve with the spending time
+      const restroSpendingTime = result[0].restro_spending_time;
+      resolve(restroSpendingTime);  // Resolve the promise with the result
+    });
+  });
+}
+
+// Function that wraps the db.query inside a Promise
+// function getRestroAllocationTables(bookingDate, startTime, endTime) {
+//   return new Promise((resolve, reject) => {
+//     const restroTimeDurationQuery = `SELECT * FROM allocation_tables WHERE booking_date = ?`;
+
+//     db.query(restroTimeDurationQuery, [bookingDate], (err, result) => {
+//       if (err) {
+//         return reject("Failed to allocation duration: " + err.message);  // Reject promise on error
+//       }
+
+//       if (result.length === 0) {
+//         return reject("No allocation list found.");  // Reject if no result
+//       }
+
+//       resolve(result);  // Resolve the promise with the result
+//     });
+//   });
+// }
+
+function getRestroAllocationTables(bookingDate, startTime, endTime) {
+  return new Promise((resolve, reject) => {
+    // Adjusted query to check for the date, start time, and end time
+    const restroTimeDurationQuery = `
+      SELECT * FROM allocation_tables 
+      WHERE booking_date =  ?`;
+
+    db.query(restroTimeDurationQuery, [bookingDate], (err, result) => {
+      if (err) {
+        return reject("Failed to fetch allocation duration: " + err.message);  // Reject promise on error
+      }
+
+      if (result.length === 0) {
+        return reject("No allocation list found for the specified date and time.");  // Reject if no result
+      }
+
+      resolve(result);  // Resolve the promise with the result
+    });
+  });
+}
+
+
+// time slot - get end time
+function addMinutesToTime(booking_time, minutesToAdd) {
+  // Split the booking_time into hours and minutes
+  let [hours, minutes] = booking_time.split(':').map(Number);
+
+  // Create a new Date object for today and set the hours and minutes
+  let bookingDate = new Date();
+  bookingDate.setHours(hours);
+  bookingDate.setMinutes(minutes);
+
+  // Add the specified number of minutes
+  bookingDate.setMinutes(bookingDate.getMinutes() + minutesToAdd);
+
+  // Format the new time back to "HH:mm"
+  let newHours = bookingDate.getHours().toString().padStart(2, '0');
+  let newMinutes = bookingDate.getMinutes().toString().padStart(2, '0');
+
+  return `${newHours}:${newMinutes}`;
+}
+
+
 
 // book table and order items
-exports.book_product = (req, res) => {
+exports.book_product = async (req, res) => {
   const { userId, booking_date, booking_time, booking_no_of_guest, items } = req.body;
 
-//   const bookingFetchQuery = `
-//   SELECT * FROM bookings 
-//   WHERE booking_date = ? AND booking_time < ?
-// `;
+  // default time in minutes
+  let restroSpendingTime = 15;
 
-// db.query(bookingFetchQuery, [booking_date, booking_time], (err, getBookingResults) => {
-//   if (err) {
-//     return res.status(500).json({ error: "Failed to fetch bookings", details: err.message });
-//   }
+  restroSpendingTime = await getRestroSpendingTime(userId, booking_no_of_guest);
 
-//    res.json(getBookingResults);
-// });
+  const updatedTime = addMinutesToTime(booking_time, restroSpendingTime);
 
 
-  const selectedDiningAreaQuery = `SELECT * FROM selected_dining_areas WHERE userId = ?`;
+  
+  res.json({restroSpendingTime, booking_time, updatedTime});
 
-  db.query(selectedDiningAreaQuery, [userId], (err, SelectedDiningAreaResult) => {
-    if (err) {
-      return res.status(500).json({ error: "Failed to retrieve dining areas", details: err.message });
-    }
+  
 
-    if (SelectedDiningAreaResult.length === 0) {
-      return res.status(404).json({ message: 'No dining areas found for this user.' });
-    }
+  
 
-    // Iterate over the selected dining areas
-    let bookingCompleted = false; // Flag to track if booking is completed
+// Note: Do not send the response outside the db.query callback.
 
-    for (const diningArea of SelectedDiningAreaResult) {
-      const selectQuery = `
-        SELECT * 
-        FROM dining_areas AS d
-        LEFT JOIN all_tables AS a 
-        ON d.dining_area_id = a.dining_area_id 
-        WHERE d.dining_area_id = ? AND a.userId = ?
-      `;
 
-      // Execute the query
-      db.query(selectQuery, [diningArea.dining_area_id, userId], (err, results) => {
-        if (err) {
-          return res.status(500).json({ error: "Failed to retrieve available tables", details: err.message });
-        }
+  //   const slotQuery = `
+  //   SELECT * FROM allocation_tables 
+  //   WHERE booking_date = ?
+  // `;
 
-        if (results.length === 0) {
-          return res.status(404).json({ message: 'No available tables found for this dining area.' });
-        }
+  // db.query(bookingFetchQuery, [booking_date, booking_time], (err, getBookingResults) => {
+  //   if (err) {
+  //     return res.status(500).json({ error: "Failed to fetch bookings", details: err.message });
+  //   }
 
-        // Calculate the total number of available seats
-        let totalSeats = 0;
-        results.forEach(table => {
-          totalSeats += table.table_no_of_seats; // Summing up available seats
-        });
+  //    res.json(getBookingResults);
+  // });
 
-        // Check if the number of guests is less than or equal to total available seats
-        if (booking_no_of_guest <= totalSeats && !bookingCompleted) {
-          bookingCompleted = true; // Mark booking as completed for this dining area
 
-          const insertBooking = `
-            INSERT INTO bookings (userId, customer_id, booking_date, booking_time, booking_no_of_guest) 
-            VALUES (?, ?, ?, ?, ?)
-          `;
+  // const selectedDiningAreaQuery = `SELECT * FROM selected_dining_areas WHERE userId = ?`;
 
-          const customer_id = req.customer_id || null; // Use customer_id from req or null if not present
+  // db.query(selectedDiningAreaQuery, [userId], (err, SelectedDiningAreaResult) => {
+  //   if (err) {
+  //     return res.status(500).json({ error: "Failed to retrieve dining areas", details: err.message });
+  //   }
 
-          db.query(insertBooking, [userId, customer_id, booking_date, booking_time, booking_no_of_guest], (err, bookingResult) => {
-            if (err) {
-              return res.status(500).json({ error: "Failed to create booking", details: err.message });
-            }
+  //   if (SelectedDiningAreaResult.length === 0) {
+  //     return res.status(404).json({ message: 'No dining areas found for this user.' });
+  //   }
 
-            const bookingId = bookingResult.insertId;
+  //   // Iterate over the selected dining areas
+  //   let bookingCompleted = false; // Flag to track if booking is completed
 
-            // Insert connected products
-            insertConnectedProducts(bookingId, items, booking_no_of_guest, res);
-          });
-        } else if (!bookingCompleted) {
-          // If booking couldn't be completed due to insufficient seats
-          return res.status(400).json({
-            message: `Not enough available seats for the number of guests. Available seats: ${totalSeats}.`
-          });
-        }
-      });
-    }
-  });
+  //   for (const diningArea of SelectedDiningAreaResult) {
+  //     const selectQuery = `
+  //       SELECT * 
+  //       FROM dining_areas AS d
+  //       LEFT JOIN all_tables AS a 
+  //       ON d.dining_area_id = a.dining_area_id 
+  //       WHERE d.dining_area_id = ? AND a.userId = ?
+  //     `;
+
+  //     // Execute the query
+  //     db.query(selectQuery, [diningArea.dining_area_id, userId], (err, results) => {
+  //       if (err) {
+  //         return res.status(500).json({ error: "Failed to retrieve available tables", details: err.message });
+  //       }
+
+  //       if (results.length === 0) {
+  //         return res.status(404).json({ message: 'No available tables found for this dining area.' });
+  //       }
+
+  //       // Calculate the total number of available seats
+  //       let totalSeats = 0;
+  //       results.forEach(table => {
+  //         totalSeats += table.table_no_of_seats; // Summing up available seats
+  //       });
+
+  //       // Check if the number of guests is less than or equal to total available seats
+  //       if (booking_no_of_guest <= totalSeats && !bookingCompleted) {
+  //         bookingCompleted = true; // Mark booking as completed for this dining area
+
+  //         const insertBooking = `
+  //           INSERT INTO bookings (userId, customer_id, booking_date, booking_time, booking_no_of_guest) 
+  //           VALUES (?, ?, ?, ?, ?)
+  //         `;
+
+  //         const customer_id = req.customer_id || null; // Use customer_id from req or null if not present
+
+  //         db.query(insertBooking, [userId, customer_id, booking_date, booking_time, booking_no_of_guest], (err, bookingResult) => {
+  //           if (err) {
+  //             return res.status(500).json({ error: "Failed to create booking", details: err.message });
+  //           }
+
+  //           const bookingId = bookingResult.insertId;
+
+  //           // Insert connected products
+  //           insertConnectedProducts(bookingId, items, booking_no_of_guest, res);
+  //         });
+  //       } else if (!bookingCompleted) {
+  //         // If booking couldn't be completed due to insufficient seats
+  //         return res.status(400).json({
+  //           message: `Not enough available seats for the number of guests.`
+  //         });
+  //       }
+  //     });
+  //   }
+  // });
 };
 
 // Function to insert connected products

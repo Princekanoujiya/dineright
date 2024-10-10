@@ -2,6 +2,7 @@
 const express = require('express');
 const path = require('path');
 const dotenv = require('dotenv');
+const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const appRoutes = require('./routes/appRoutes');
 const paymentRoutes = require('./routes/payment'); 
@@ -14,11 +15,16 @@ dotenv.config();
 // Initialize the app
 const app = express();
 
+<<<<<<< HEAD
 app.use(express.static('uploads'));
 app.use('/uploads', express.static('uploads'));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
+=======
+// cors
+app.use(cors());
+>>>>>>> e6c59aaca63dc84fc448d8855a453a9eaf514c1c
 
 // Middleware to parse incoming JSON requests
 app.use(express.json());

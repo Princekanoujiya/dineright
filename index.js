@@ -1,6 +1,7 @@
 // server.js
 const express = require('express');
 const dotenv = require('dotenv');
+const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const appRoutes = require('./routes/appRoutes');
 const paymentRoutes = require('./routes/payment'); 
@@ -10,6 +11,9 @@ dotenv.config();
 
 // Initialize the app
 const app = express();
+
+// cors
+app.use(cors());
 
 // Middleware to parse incoming JSON requests
 app.use(express.json());

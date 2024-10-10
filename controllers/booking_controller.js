@@ -141,29 +141,15 @@ exports.book_product = async (req, res) => {
   // default time in minutes
   let restroSpendingTime = 15;
 
-  // restroSpendingTime = await getRestroSpendingTime(userId, booking_no_of_guest);
+  restroSpendingTime = await getRestroSpendingTime(userId, booking_no_of_guest);
 
-  // const updatedTime = addMinutesToTime(booking_time, restroSpendingTime);
+  const updatedTime = addMinutesToTime(booking_time, restroSpendingTime);
 
-  // const allocationList = await getRestroAllocationTables(booking_date, booking_time, updatedTime);
-  const restroTimeDurationQuery = `
-      SELECT * FROM allocation_tables 
-      WHERE booking_date =  ?`;
 
-    db.query(restroTimeDurationQuery, [booking_date], (err, result) => {
-      if (err) {
-        return res.status(500).json({ error: "Failed to fetch allocation duration: " + err.message, details: err.message });
-      }
+  
+  res.json({restroSpendingTime, booking_time, updatedTime});
 
-      if (result.length === 0) {
-        return res.status(400).json({ error: "No allocation list found for the specified date and time."});
-      }
-
-      // res.json({restroSpendingTime, booking_time, updatedTime, result});
-      res.json(result);
-    });
-
-  // res.json({restroSpendingTime, booking_time, updatedTime});
+  
 
   
 

@@ -17,7 +17,7 @@ const { createOrUpdateMenuItem,getMenuItem,deleteMenuItem,softDeleteMenuItem} = 
 const { getCourseMenu,getCourseMenuGroupByCourseId} = require('../controllers/master_card');
 const { insertOrUpdateBookingTable,getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
 const { enquiry} = require('../controllers/enquiryController');
-const { getRestaurantType,getCuisines} = require('../controllers/filtersController');
+const { getRestaurantType,getCuisines,getUserIdsByFilters} = require('../controllers/filtersController');
 
 
 const menuItemsController = require('../controllers/menuItems_with_token');
@@ -164,4 +164,5 @@ router.get('/getcuisines',getCuisines);
 router.get('/getSelectedRestaurantTypes',getSelectedRestaurantTypes);
 router.get('/getRestroInfo',getRestroInfo);
 router.get('/getUserInfoWithCuisinesAndRestaurantTypes',getUserInfoWithCuisinesAndRestaurantTypes);
+router.get('/getUserIdsByFilters',getUserIdsByFilters);
 module.exports = router;

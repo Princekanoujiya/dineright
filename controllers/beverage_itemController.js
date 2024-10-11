@@ -23,9 +23,9 @@ const upload = multer({ storage: storage }).single('master_item_image');
 exports.insertMasterBeverageItem = (req, res) => {
   upload(req, res, function (err) {
     if (err instanceof multer.MulterError) {
-      return res.status(500).json({ error: 'Multer error', details: err.message });
+      return res.status(200).json({ error_msg: 'Multer error', details: err.message ,respone:false});
     } else if (err) {
-      return res.status(500).json({ error: 'Error uploading file', details: err.message });
+      return res.status(200).json({ error_msg: 'Error uploading file', details: err.message,respone:false });
     }
 
     const { master_item_id, master_item_name, master_item_price, master_item_description, beverage_id } = req.body;
@@ -42,14 +42,14 @@ exports.insertMasterBeverageItem = (req, res) => {
       const getImageQuery = 'SELECT master_item_image FROM master_items WHERE master_item_id = ?';
       db.query(getImageQuery, [master_item_id], (err, result) => {
         if (err) {
-          return res.status(500).json({ error: 'Database error fetching existing image', details: err.message });
+          return res.status(200).json({ error_msg: 'Database error fetching existing image', details: err.message });
         }
 
         const oldImage = result[0]?.master_item_image;
 
         db.query(updateQuery, [master_item_name, master_item_price, master_item_description, master_item_image || oldImage, master_item_id, userId], (err) => {
           if (err) {
-            return res.status(500).json({ error: 'Database error during update', details: err.message });
+            return res.status(200).json({ error_msg: 'Database error during update', details: err.message ,respone:false});
           }
 
           // If a new image is uploaded, delete the old image
@@ -70,10 +70,10 @@ exports.insertMasterBeverageItem = (req, res) => {
 
           db.query(linkQuery, [userId, master_item_id, beverage_id, master_item_id, beverage_id], (err) => {
             if (err) {
-              return res.status(500).json({ error: 'Database error linking menu item', details: err.message });
+              return res.status(200).json({ error_msg: 'Database error linking menu item', details: err.message,respone:false });
             }
 
-            res.status(200).json({ message: 'Beverage item updated successfully', master_item_id });
+            res.status(200).json({ success_msg: 'Beverage item updated successfully', master_item_id ,respone:true});
           });
         });
       });
@@ -86,7 +86,7 @@ exports.insertMasterBeverageItem = (req, res) => {
 
       db.query(insertQuery, [userId, master_item_name, master_item_price, master_item_description, master_item_image], (err, result) => {
         if (err) {
-          return res.status(500).json({ error: 'Database error during insertion', details: err.message });
+          return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message,respone:false });
         }
 
         const newMasterItemId = result.insertId;
@@ -98,10 +98,10 @@ exports.insertMasterBeverageItem = (req, res) => {
 
         db.query(linkQuery, [userId, newMasterItemId, beverage_id], (err) => {
           if (err) {
-            return res.status(500).json({ error: 'Database error linking menu item', details: err.message });
+            return res.status(200).json({ error_msg: 'Database error linking menu item', details: err.message,respone:false });
           }
 
-          res.status(201).json({ message: 'Beverage item created successfully', master_item_id: newMasterItemId });
+          res.status(201).json({ success_msg: 'Beverage item created successfully', master_item_id: newMasterItemId ,respone:true});
         });
       });
     }
@@ -122,14 +122,14 @@ exports.getMasterBeverageItems = (req, res) => {
 
   db.query(getQuery, [userId], (err, result) => {
     if (err) {
-      return res.status(500).json({ error: 'Database error fetching beverage items', details: err.message });
+      return res.status(200).json({ error_msg: 'Database error fetching beverage items', details: err.message ,respone:false});
     }
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'No items found for this user' });
+      return res.status(200).json({ error_msg: 'No items found for this user',respone:false });
     }
 
-    res.status(200).json({ data: result });
+    res.status(200).json({ data: result ,respone:true,success_msg:'success'});
   });
 };
 
@@ -147,17 +147,17 @@ exports.deleteMasterBeverageItem = (req, res) => {
 
   db.query(checkQuery, [master_item_id, beverage_id, userId], (err, result) => {
     if (err) {
-      return res.status(500).json({ error: 'Database error checking item', details: err.message });
+      return res.status(200).json({ error_msg: 'Database error checking item', details: err.message ,respone:false});
     }
 
     console.log('Result from check query:', result);
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'Menu item not found' });
+      return res.status(200).json({ error_msg: 'Menu item not found' ,respone:false});
     }
 
     if (result[0].is_deleted === 1) {
-      return res.status(400).json({ error: 'Menu item already deleted' });
+      return res.status(200).json({ error_msg: 'Menu item already deleted',respone:false });
     }
 
     // Proceed with the soft delete
@@ -168,10 +168,10 @@ exports.deleteMasterBeverageItem = (req, res) => {
 
     db.query(updateQuery, [master_item_id, beverage_id, userId], (err, result) => {
       if (err) {
-        return res.status(500).json({ error: 'Database error updating is_deleted flag', details: err.message });
+        return res.status(200).json({ error_msg: 'Database error updating is_deleted flag', details: err.message ,respone:false});
       }
 
-      res.status(200).json({ message: 'Menu item deleted successfully', master_item_id });
+      res.status(200).json({ success_msg: 'Menu item deleted successfully', master_item_id ,respone:tue});
     });
   });
 };

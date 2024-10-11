@@ -15,9 +15,9 @@ const { createOrUpdateCourse,getAllCourses,DeleteCourse,getCourseById} = require
 const { createOrUpdateMenu,getMenu,DeleteMenu} = require('../controllers/menusController');
 const { createOrUpdateMenuItem,getMenuItem,deleteMenuItem,softDeleteMenuItem} = require('../controllers/menuItemsController');
 const { getCourseMenu,getCourseMenuGroupByCourseId} = require('../controllers/master_card');
-const { getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
+const { insertOrUpdateBookingTable,getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
 const { enquiry} = require('../controllers/enquiryController');
-const { getRestaurantType,getCuisines} = require('../controllers/filtersController');
+const { getRestaurantType,getCuisines,getUserIdsByFilters} = require('../controllers/filtersController');
 
 
 const menuItemsController = require('../controllers/menuItems_with_token');
@@ -29,7 +29,7 @@ const beverage_itemController = require('../controllers/beverage_itemController'
 const razorpayController = require('../controllers/razorpayController');
 const enquiryController = require('../controllers/enquiryController');
 
-const booking_controller = require('../controllers/booking_controller');
+// const booking_controller = require('../controllers/booking_controller');
 
 //user
 const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInfo,loginWithEmail,resendOtp,getAllRestaurantWithTime,getrestrodaydetails} = require('../controllers/app_user_authcontroller');
@@ -164,4 +164,5 @@ router.get('/getcuisines',getCuisines);
 router.get('/getSelectedRestaurantTypes',getSelectedRestaurantTypes);
 router.get('/getRestroInfo',getRestroInfo);
 router.get('/getUserInfoWithCuisinesAndRestaurantTypes',getUserInfoWithCuisinesAndRestaurantTypes);
+router.get('/getUserIdsByFilters',getUserIdsByFilters);
 module.exports = router;

@@ -29,7 +29,7 @@ const beverage_itemController = require('../controllers/beverage_itemController'
 const { getRazorpayKey, razorPayCreateOrder, razorpayVerifyPayment } = require('../controllers/razorpayController');
 const enquiryController = require('../controllers/enquiryController');
 
-const booking_controller = require('../controllers/booking_controller');
+// const booking_controller = require('../controllers/booking_controller');
 
 //user
 const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails } = require('../controllers/app_user_authcontroller');

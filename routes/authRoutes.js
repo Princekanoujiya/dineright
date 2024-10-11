@@ -126,7 +126,7 @@ router.post('/customer_resend_otp', resendOtp); //done
 // router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
 router.get('/getMasterCard',getMasterCard);
 router.get('/getMasterBeverage',getMasterBeverage);
-router.post('/book_product',verifyCustomerToken,book_product);
+router.post('/book_product',verifyCustomerToken, book_product);
 router.get('/getrestrodaydetails',getrestrodaydetails);
 router.get('/getAllRestaurantWithTime',getAllRestaurantWithTime);
 

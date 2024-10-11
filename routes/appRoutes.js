@@ -26,7 +26,7 @@ const uploadsVideoController = require('../controllers/uploadVideosController');
 const uploadGalleryController = require('../controllers/uploadGalleryController');
 const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
-const razorpayController = require('../controllers/razorpayController');
+const { getRazorpayKey, razorPayCreateOrder, razorpayVerifyPayment } = require('../controllers/razorpayController');
 const enquiryController = require('../controllers/enquiryController');
 
 // const booking_controller = require('../controllers/booking_controller');
@@ -154,8 +154,8 @@ router.get('/cuisins/:frontend_cuisins_section_id', getCuisionSectionById);
 
 
 // Razorpay Routes
-router.post('/create-order', razorpayController.createOrder);
-router.post('/verify-payment', razorpayController.verifyPayment);
+router.get('/razorpay_key', getRazorpayKey);
+router.post('/verify_payment', razorpayVerifyPayment);
 
 
 //filters

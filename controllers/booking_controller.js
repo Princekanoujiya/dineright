@@ -1,4 +1,5 @@
 const db = require('../config');
+const { razorPayCreateOrder } = require('./razorpayController');
 
 
 exports.getMasterCard = (req, res) => {
@@ -142,17 +143,37 @@ const getTables = (diningAreaId, userId) => {
 
 // book product
 exports.book_product = async (req, res) => {
-  const { userId, booking_date, booking_time, booking_no_of_guest, items } = req.body;
+  const { userId, booking_date, booking_time, booking_no_of_guest, payment_mod, items } = req.body;
   const customer_id = req.customer_id; // this is coming from auth
 
   try {
-    // 
+    // check body data
+    if (!userId || userId === '' || userId === undefined) {
+      return res.status(400).json({ message: 'userId required' })
+    }
+    if (!booking_date || booking_date === '' || booking_date === undefined) {
+      return res.status(400).json({ message: 'booking_date required' })
+    }
+    if (!booking_time || booking_time === '' || booking_time === undefined) {
+      return res.status(400).json({ message: 'booking_time required' })
+    }
+    if (!booking_no_of_guest || booking_no_of_guest === '' || booking_no_of_guest === undefined) {
+      return res.status(400).json({ message: 'booking_no_of_guest required' })
+    }
+    if (!payment_mod || payment_mod === '' || payment_mod === undefined) {
+      return res.status(400).json({ message: 'Payment_mod required' })
+    }
+    // if (!items || items === '' || items === undefined) {
+    //   return res.status(400).json({ message: 'items required' })
+    // }
+
+    // check no of guest
     if (booking_no_of_guest > 10) {
       return res.status(400).json({
         message: 'We’re sorry, but we can only accommodate a maximum of 10 guests for this booking. Please consider splitting your group into smaller bookings.'
       });
     }
-    
+
     // Default time in minutes
     let restroSpendingTime = await getRestroSpendingTime(userId, booking_no_of_guest);
 
@@ -273,8 +294,25 @@ exports.book_product = async (req, res) => {
       return res.status(400).json({ message: 'Not enough seating available for the entire booking.' });
     }
 
+    // payment mod
+    if (payment_mod === 'online') {
+      // razorpay order create
+      const razorpayOrderData = {
+        amount: bookingItems.cost,
+        name: 'customer name',
+        phone: '987654321',
+        email: 'customer@gmail.com',
+      }
+      const razorpayOrderResult = razorPayCreateOrder(razorpayOrderData);
+    } else if (payment_mod === 'cod') {
+      // After allocation, send the response
+      return res.status(200).json({ message: 'order success', bookingItems, allocationData });
+    } else {
+      return res.json({ message: 'Payment mod required' })
+    }
+
     // After allocation, send the response
-    return res.status(200).json({ bookingItems, allocationData });
+    // return res.status(200).json({ bookingItems, allocationData });
 
   } catch (error) {
     return res.status(500).json({ error: error.message });

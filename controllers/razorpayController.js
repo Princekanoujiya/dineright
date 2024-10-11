@@ -7,61 +7,95 @@ const razorpayInstance = new Razorpay({
     key_secret: config.RAZORPAY_KEY_SECRET
 });
 
-// Create Order
-exports.createOrder = async (req, res) => {
+// get razorpay key
+exports.getRazorpayKey = async (req, res, next) => {
     try {
+        console.log({ key: config.RAZORPAY_KEY_ID })
+        return res.status(200).json({ key: config.RAZORPAY_KEY_ID });
+    } catch (error) {
+        return res.status(500).json(error);
+    }
+};
+
+// Create Order
+exports.razorPayCreateOrder = async (data) => {
+    try {
+        const { amount, name, email, phone } = data;
         const options = {
-            amount: req.body.amount * 100, // amount in the smallest currency unit (paise)
-            currency: "INR",
-            receipt: req.body.receipt
+            amount: Number(amount * 100),
+            currency: 'INR',
+            receipt: email,
         };
 
-        const order = await razorpayInstance.orders.create(options);
-        res.status(200).json(order);
+        // Wrap Razorpay API call in a Promise
+        const order = await new Promise((resolve, reject) => {
+            razorpayInstance.orders.create(options, (err, order) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(order);
+                }
+            });
+        });
+
+        const return_data = {
+            msg: 'Order Created',
+            amount: order.amount,
+            currency: "INR",
+            customer_id: "",
+            business_name: "Dineright",
+            business_logo: `${process.env.BASE_URL}/images/logo 001-03.png`,
+            callback_url: `${process.env.BASE_URL}/api/auth//verify_payment`,
+            product_description: "Product Description or productId:",
+            customer_detail: {
+                name: name,
+                email: email,
+                contact: phone,
+            },
+            razorpayModalTheme: "#ffc042",
+            //background: linear-gradient(90deg, #141E30 0%, #243B55 100%);
+            notes: {
+                "address": "Razorpay Corporate Office"
+            },
+        };
+
+        return { ...return_data, ...order }
+
     } catch (error) {
-        res.status(500).json({ message: "Error creating order", error });
+        console.log(error.message);
+        return { success: false, message: 'Something went wrong!' }
     }
 };
 
 // Verify Payment
-exports.verifyPayment = (req, res) => {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+exports.razorpayVerifyPayment = async (req, res, next) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-    const generated_signature = crypto.createHmac('sha256', config.RAZORPAY_KEY_SECRET)
-        .update(razorpay_order_id + "|" + razorpay_payment_id)
-        .digest('hex');
+        const body = razorpay_order_id + "|" + razorpay_payment_id;
 
-    if (generated_signature === razorpay_signature) {
-        res.status(200).json({ message: "Payment verified successfully" });
-    } else {
-        res.status(400).json({ message: "Payment verification failed" });
+        const expectedSignature = crypto
+            .createHmac("sha256", razorpayConfig.keySecret)
+            .update(body.toString())
+            .digest("hex");
+
+        const isAuthentic = expectedSignature === razorpay_signature;
+
+        if (isAuthentic) {
+        // your logic
+
+            // payment success redirect url
+            res.redirect(
+                `${process.env.WEBSITE_BASE_URL}/?reference=${razorpay_payment_id}&payment_success=true`
+            );
+
+        } else {
+            res.status(400).json({
+                success: false,
+            });
+        }
+
+    } catch (error) {
+        return res.status(500).json(error.message);
     }
 };
-
-
-// const jwt = require('jsonwebtoken');
-
-// exports.verifyToken = (req, res, next) => {
-//     const token = req.header('Authorization');
-//     if (!token) return res.status(401).json({ message: "Access Denied" });
-
-//     try {
-//         const verified = jwt.verify(token, process.env.JWT_SECRET);
-//         req.user = verified;
-//         next();
-//     } catch (err) {
-//         res.status(400).json({ message: "Invalid Token" });
-//     }
-// };
-
-
-// {
-//     "razorpay_order_id": "order_P5noVF1BLazq9e",    
-//     "razorpay_payment_id": "pay_H1G92zXpj4Q",
-//     "razorpay_signature": "generated_signature"
-// }
-
-// {
-//     "amount": 500, 
-//     "receipt": "receipt_1"
-//   }

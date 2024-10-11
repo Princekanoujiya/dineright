@@ -495,7 +495,7 @@ exports.login = (req, res) => {
       }
 
       // Create JWT token
-      const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
       res.status(200).json({ message: 'Login successful', token  });
     });
   });
@@ -662,7 +662,7 @@ exports.verifyLoginOtp = (req, res) => {
     const user = results[0];
 
     // Step 2: OTP is valid, create JWT token
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     // Clear OTP after successful verification
     const clearOtpQuery = `UPDATE users SET otp=NULL WHERE email=?`;

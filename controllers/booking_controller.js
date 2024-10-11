@@ -25,6 +25,8 @@ exports.getMasterCard = (req, res) => {
     res.status(200).json({ data: result });
   });
 };
+
+// 
 exports.getMasterBeverage = (req, res) => {
   const { userId } = req.body;  // Get userId from request body instead of token
 
@@ -64,52 +66,17 @@ function getRestroSpendingTime(userId, booking_no_of_guest) {
         return reject("No time duration found for the specified user and guest count.");  // Reject if no result
       }
 
-      // Resolve with the spending time
+      // Check if restro_spending_time is null
       const restroSpendingTime = result[0].restro_spending_time;
+      if (restroSpendingTime === null) {
+        return reject("Restro spending time is null for the specified user and guest count.");  // Reject if spending time is null
+      }
+
+      // Resolve with the spending time
       resolve(restroSpendingTime);  // Resolve the promise with the result
     });
   });
-}
-
-// Function that wraps the db.query inside a Promise
-// function getRestroAllocationTables(bookingDate, startTime, endTime) {
-//   return new Promise((resolve, reject) => {
-//     const restroTimeDurationQuery = `SELECT * FROM allocation_tables WHERE booking_date = ?`;
-
-//     db.query(restroTimeDurationQuery, [bookingDate], (err, result) => {
-//       if (err) {
-//         return reject("Failed to allocation duration: " + err.message);  // Reject promise on error
-//       }
-
-//       if (result.length === 0) {
-//         return reject("No allocation list found.");  // Reject if no result
-//       }
-
-//       resolve(result);  // Resolve the promise with the result
-//     });
-//   });
-// }
-
-function getRestroAllocationTables(bookingDate, startTime, endTime) {
-  return new Promise((resolve, reject) => {
-    // Adjusted query to check for the date, start time, and end time
-    const restroTimeDurationQuery = `
-      SELECT * FROM allocation_tables 
-      WHERE booking_date =  ?`;
-
-    db.query(restroTimeDurationQuery, [bookingDate], (err, result) => {
-      if (err) {
-        return reject("Failed to fetch allocation duration: " + err.message);  // Reject promise on error
-      }
-
-      if (result.length === 0) {
-        return reject("No allocation list found for the specified date and time.");  // Reject if no result
-      }
-
-      resolve(result);  // Resolve the promise with the result
-    });
-  });
-}
+};
 
 
 // time slot - get end time
@@ -132,213 +99,245 @@ function addMinutesToTime(booking_time, minutesToAdd) {
   return `${newHours}:${newMinutes}`;
 }
 
+// External function to retrieve selected dining areas (now using async/await)
+const getSelectedDiningArea = (userId) => {
+  return new Promise((resolve, reject) => {
+    const selectedDiningAreaQuery = `SELECT * FROM selected_dining_areas WHERE userId = ?`;
 
-
-// book table and order items
-exports.book_product = async (req, res) => {
-  const { userId, booking_date, booking_time, booking_no_of_guest, items } = req.body;
-
-  // default time in minutes
-  let restroSpendingTime = 15;
-
-  restroSpendingTime = await getRestroSpendingTime(userId, booking_no_of_guest);
-
-  const updatedTime = addMinutesToTime(booking_time, restroSpendingTime);
-
-
-  
-  res.json({restroSpendingTime, booking_time, updatedTime});
-
-  
-
-  
-
-// Note: Do not send the response outside the db.query callback.
-
-
-  //   const slotQuery = `
-  //   SELECT * FROM allocation_tables 
-  //   WHERE booking_date = ?
-  // `;
-
-  // db.query(bookingFetchQuery, [booking_date, booking_time], (err, getBookingResults) => {
-  //   if (err) {
-  //     return res.status(500).json({ error: "Failed to fetch bookings", details: err.message });
-  //   }
-
-  //    res.json(getBookingResults);
-  // });
-
-
-  // const selectedDiningAreaQuery = `SELECT * FROM selected_dining_areas WHERE userId = ?`;
-
-  // db.query(selectedDiningAreaQuery, [userId], (err, SelectedDiningAreaResult) => {
-  //   if (err) {
-  //     return res.status(500).json({ error: "Failed to retrieve dining areas", details: err.message });
-  //   }
-
-  //   if (SelectedDiningAreaResult.length === 0) {
-  //     return res.status(404).json({ message: 'No dining areas found for this user.' });
-  //   }
-
-  //   // Iterate over the selected dining areas
-  //   let bookingCompleted = false; // Flag to track if booking is completed
-
-  //   for (const diningArea of SelectedDiningAreaResult) {
-  //     const selectQuery = `
-  //       SELECT * 
-  //       FROM dining_areas AS d
-  //       LEFT JOIN all_tables AS a 
-  //       ON d.dining_area_id = a.dining_area_id 
-  //       WHERE d.dining_area_id = ? AND a.userId = ?
-  //     `;
-
-  //     // Execute the query
-  //     db.query(selectQuery, [diningArea.dining_area_id, userId], (err, results) => {
-  //       if (err) {
-  //         return res.status(500).json({ error: "Failed to retrieve available tables", details: err.message });
-  //       }
-
-  //       if (results.length === 0) {
-  //         return res.status(404).json({ message: 'No available tables found for this dining area.' });
-  //       }
-
-  //       // Calculate the total number of available seats
-  //       let totalSeats = 0;
-  //       results.forEach(table => {
-  //         totalSeats += table.table_no_of_seats; // Summing up available seats
-  //       });
-
-  //       // Check if the number of guests is less than or equal to total available seats
-  //       if (booking_no_of_guest <= totalSeats && !bookingCompleted) {
-  //         bookingCompleted = true; // Mark booking as completed for this dining area
-
-  //         const insertBooking = `
-  //           INSERT INTO bookings (userId, customer_id, booking_date, booking_time, booking_no_of_guest) 
-  //           VALUES (?, ?, ?, ?, ?)
-  //         `;
-
-  //         const customer_id = req.customer_id || null; // Use customer_id from req or null if not present
-
-  //         db.query(insertBooking, [userId, customer_id, booking_date, booking_time, booking_no_of_guest], (err, bookingResult) => {
-  //           if (err) {
-  //             return res.status(500).json({ error: "Failed to create booking", details: err.message });
-  //           }
-
-  //           const bookingId = bookingResult.insertId;
-
-  //           // Insert connected products
-  //           insertConnectedProducts(bookingId, items, booking_no_of_guest, res);
-  //         });
-  //       } else if (!bookingCompleted) {
-  //         // If booking couldn't be completed due to insufficient seats
-  //         return res.status(400).json({
-  //           message: `Not enough available seats for the number of guests.`
-  //         });
-  //       }
-  //     });
-  //   }
-  // });
-};
-
-// Function to insert connected products
-const insertConnectedProducts = (bookingId, items, booking_no_of_guest, res) => {
-  if (!items || items.length === 0) {
-    return res.status(400).json({ error: "No items provided for booking." });
-  }
-
-  const insertQuery = `
-    INSERT INTO booking_connected_products (booking_id, master_item_id, product_quantity)
-    VALUES ?
-  `;
-
-  // Prepare values for batch insert
-  const values = items.map(item => [bookingId, item.master_item_id, item.product_quantity]);
-
-  db.query(insertQuery, [values], (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: "Failed to insert connected products", details: err.message });
-    }
-
-    // Calculate total item cost after inserting connected products
-    let itemCost = 0;
-    const itemValues = items.map(item => item.master_item_id); // Get an array of master_item_ids
-
-    const itemsQuery = `SELECT * FROM master_items WHERE master_item_id IN (?)`;
-
-    db.query(itemsQuery, [itemValues], (err, itemResult) => {
+    // Execute the query to retrieve selected dining areas
+    db.query(selectedDiningAreaQuery, [userId], (err, result) => {
       if (err) {
-        return res.status(500).json({ error: "Failed to fetch item details", details: err.message });
+        return reject(err);  // Reject the promise with an error
       }
 
-      // Calculate the total cost based on item quantity and price
-      itemResult.forEach(item => {
-        const orderedItem = items.find(i => i.master_item_id === item.master_item_id); // Find corresponding item in request
-        if (orderedItem) {
-          itemCost += parseInt(orderedItem.product_quantity) * parseFloat(item.master_item_price);
-        }
+      if (result.length === 0) {
+        return resolve({ message: 'No dining areas found for this user.' });  // Resolve with message if no areas found
+      }
+
+      resolve(result);  // Resolve with the result
+    });
+  });
+};
+
+
+// External function to retrieve selected dining areas (now using async/await)
+const getTables = (diningAreaId, userId) => {
+  return new Promise((resolve, reject) => {
+    const selectedDiningAreaQuery = `SELECT * FROM all_tables WHERE dining_area_id = ? AND userId = ?`;
+
+    // Execute the query to retrieve selected dining areas
+    db.query(selectedDiningAreaQuery, [diningAreaId, userId], (err, result) => {
+      if (err) {
+        return reject(err);  // Reject the promise with an error
+      }
+
+      if (result.length === 0) {
+        return resolve({ message: 'No dining areas found for this user.' });  // Resolve with message if no areas found
+      }
+
+      resolve(result);  // Resolve with the result
+    });
+  });
+};
+
+// book product
+exports.book_product = async (req, res) => {
+  const { userId, booking_date, booking_time, booking_no_of_guest, items } = req.body;
+  const customer_id = req.customer_id; // this is coming from auth
+
+  try {
+    // 
+    if (booking_no_of_guest > 10) {
+      return res.status(400).json({
+        message: 'We’re sorry, but we can only accommodate a maximum of 10 guests for this booking. Please consider splitting your group into smaller bookings.'
+      });
+    }
+    
+    // Default time in minutes
+    let restroSpendingTime = await getRestroSpendingTime(userId, booking_no_of_guest);
+
+    // Calculate the end time
+    const endTime = addMinutesToTime(booking_time, restroSpendingTime);
+
+    // Get restaurant dining areas
+    const diningAreas = await getSelectedDiningArea(userId);
+    let availableTables = [];
+
+    // Iterate through dining areas and find available tables
+    for (const diningArea of diningAreas) {
+      const tables = await getTables(diningArea.dining_area_id, userId);
+
+      // Check each table's allocation asynchronously
+      const tableDataPromises = tables.map((table) => {
+        return new Promise((resolve, reject) => {
+          const allocatedTablesQuery = `
+            SELECT * 
+            FROM allocation_tables 
+            WHERE table_status = 'allocated' 
+              AND booking_date = ? 
+              AND (start_time <= ? AND end_time > ?)
+          `;
+
+          // Query to check for allocated tables
+          db.query(allocatedTablesQuery, [booking_date, booking_time, booking_time], (err, result) => {
+            if (err) {
+              return reject(err); // Handle the error by rejecting the promise
+            }
+
+            // Check if the current table is not allocated by comparing it with the result
+            const isTableAllocated = result.some((allocatedTable) => allocatedTable.table_id === table.table_id);
+            resolve(isTableAllocated ? null : table); // Resolve with table or null
+          });
+        });
       });
 
-      // Respond with success after cost calculation
-      res.status(200).json({
-        success_msg: `Your booking has been confirmed! We look forward to hosting your group of ${booking_no_of_guest} guests.`,
-        total_items: items.length, // Total number of items inserted
-        booking_id: bookingId,
-        cost: itemCost, // Total calculated cost
+      // Wait for all table queries to finish and filter out null values
+      const availableDiningAreaTables = (await Promise.all(tableDataPromises)).filter((table) => table !== null);
+      availableTables = availableTables.concat(availableDiningAreaTables);
+    }
+
+    // Calculate the total number of seats
+    const totalSeats = availableTables.reduce((total, table) => total + table.table_no_of_seats, 0);
+
+    if (totalSeats < booking_no_of_guest) {
+      return res.status(400).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
+    }
+
+    // Insert new booking
+    const bookingQuery = `
+      INSERT INTO bookings (userId, customer_id, booking_date, booking_time, booking_no_of_guest) 
+      VALUES (?, ?, ?, ?, ?)
+    `;
+
+    const bookingResult = await new Promise((resolve, reject) => {
+      db.query(bookingQuery, [userId, customer_id, booking_date, booking_time, booking_no_of_guest], (err, result) => {
+        if (err) return reject(err);
+        resolve(result);
+      });
+    });
+
+    const bookingId = bookingResult.insertId;
+
+    // Insert connected products
+    // await insertConnectedProducts(bookingId, items);
+    // Call this in your booking function where you insert connected products
+    const bookingItems = await insertConnectedProducts(bookingId, items, booking_no_of_guest, res);
+
+
+    // Allocate tables for the booking
+    let allocationData = [];
+    let bookingSeats = booking_no_of_guest;
+    const sortedTables = availableTables.sort((a, b) => a.table_no_of_seats - b.table_no_of_seats);
+
+    for (const table of sortedTables) {
+      if (bookingSeats > 0) {
+        const currentTableSeats = table.table_no_of_seats;
+
+        try {
+          const table_id = table.table_id;  // Get the corresponding table
+          const dining_area_id = table.dining_area_id;  // Get the dining area
+          const start_time = booking_time;
+          const slot_time = restroSpendingTime;
+
+          const allocationTableQuery = `
+            INSERT INTO allocation_tables (
+              booking_id, dining_area_id, table_id, booking_date, start_time, end_time, slot_time, no_of_guest, notes, customer_id, userId
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `;
+
+          // Insert allocation
+          const allocationResult = await new Promise((resolve, reject) => {
+            db.query(allocationTableQuery, [
+              bookingId, dining_area_id, table_id, booking_date, start_time, endTime, slot_time, currentTableSeats, "", customer_id, userId
+            ], (err, result) => {
+              if (err) return reject(err);
+              resolve(result);
+            });
+          });
+
+          // Push the allocation data into the array
+          allocationData.push({
+            allocation_id: allocationResult.insertId,
+            table_id: table_id
+          });
+
+          // Decrease the remaining bookingSeats
+          bookingSeats -= currentTableSeats;
+
+        } catch (err) {
+          return res.status(500).json({ error: err.message });
+        }
+      }
+    }
+
+    // Check if all required seats are allocated
+    if (bookingSeats > 0) {
+      return res.status(400).json({ message: 'Not enough seating available for the entire booking.' });
+    }
+
+    // After allocation, send the response
+    return res.status(200).json({ bookingItems, allocationData });
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+
+// Function to insert connected products
+const insertConnectedProducts = (bookingId, items, booking_no_of_guest) => {
+  return new Promise((resolve, reject) => {
+    // Check if items are valid
+    if (!items || items.length === 0) {
+      return reject({ status: 400, message: "No items provided for booking." });
+    }
+
+    const insertQuery = `
+      INSERT INTO booking_connected_products (booking_id, master_item_id, product_quantity)
+      VALUES ?
+    `;
+
+    // Prepare values for batch insert
+    const values = items.map(item => [bookingId, item.master_item_id, item.product_quantity]);
+
+    // Execute the insert query
+    db.query(insertQuery, [values], (err, result) => {
+      if (err) {
+        return reject({ status: 500, message: "Failed to insert connected products", details: err.message });
+      }
+
+      // Calculate total item cost after inserting connected products
+      let itemCost = 0;
+      const itemValues = items.map(item => item.master_item_id);
+
+      const itemsQuery = `SELECT * FROM master_items WHERE master_item_id IN (?)`;
+
+      db.query(itemsQuery, [itemValues], (err, itemResult) => {
+        if (err) {
+          return reject({ status: 500, message: "Failed to fetch item details", details: err.message });
+        }
+
+        // Calculate total cost
+        itemResult.forEach(item => {
+          const orderedItem = items.find(i => i.master_item_id === item.master_item_id);
+          if (orderedItem) {
+            itemCost += parseInt(orderedItem.product_quantity) * parseFloat(item.master_item_price);
+          }
+        });
+
+        // Resolve with success message
+        resolve({
+          success_msg: `Your booking has been confirmed! We look forward to hosting your group of ${booking_no_of_guest} guests.`,
+          total_items: items.length,
+          booking_id: bookingId,
+          cost: itemCost,
+        });
       });
     });
   });
 };
 
 
-// const insertConnectedProducts = (bookingId, items, booking_no_of_guest, res) => {
-//   if (!items || items.length === 0) {
-//     return res.status(400).json({ error: "No items provided for booking." });
-//   }
-
-//   const insertQuery = `
-//     INSERT INTO booking_connected_products (booking_id, master_item_id, product_quantity)
-//     VALUES ?
-//   `;
-
-//   // Prepare values for batch insert
-//   const values = items.map(item => [bookingId, item.master_item_id, item.product_quantity]);
-
-//   db.query(insertQuery, [values], (err, result) => {
-//     if (err) {
-//       return res.status(500).json({ error: "Failed to insert connected products", details: err.message });
-//     }
-
-
-//     // cost
-//     let itemCost = 0;
-//     const itemValues = items.map(item => [item.master_item_id]);
-
-//     const itemsQuery = `SELECT * FROM master_items WHERE master_item_id IN (?)`;
-
-//       db.query(itemsQuery, [itemValues], (err, itemResult) => {
-//         if (err) {
-//           return res.status(500).json({ error: "Failed to fetch items", details: err.message });
-//         }
-
-//         // res.json(itemResult)
-
-//         for(const item of itemResult){
-
-//           const getItem = items.find(i => i.master_item_id === item.master_item_id);
-//           itemCost = itemCost + (parseInt(getItem.product_quantity) * parseFloat(item.master_item_price));
-//         }
-
-//       });
-
-//     res.status(200).json({
-//       success_msg: `Your booking has been confirmed! We look forward to hosting your group of ${booking_no_of_guest} guests.`,
-//       total_items: items.length, // Total number of items inserted
-//       booking_id: bookingId,
-//       cost: itemCost,
-//     });
-//   });
-// };
 
 
 // Function to update connected products

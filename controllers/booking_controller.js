@@ -218,8 +218,6 @@ exports.book_product = async (req, res) => {
 
     const bookingId = bookingResult.insertId;
 
-    // Insert connected products
-    // await insertConnectedProducts(bookingId, items);
     // Call this in your booking function where you insert connected products
     const bookingItems = await insertConnectedProducts(bookingId, items, booking_no_of_guest, res);
 

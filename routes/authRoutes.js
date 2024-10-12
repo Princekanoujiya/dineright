@@ -8,7 +8,7 @@ const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionBy
 
 //restroadmin
 const { createOrUpdateOneStep, stepTwo, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea, loginWithOtp, verifyLoginOtp, stepTwoAndSendOtp, insertOrUpdateTimingData, restro_guest_time_duration, insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines, getSelectedRestaurantTypes, getRestroInfo, getUserInfoWithCuisinesAndRestaurantTypes } = require('../controllers/authController');
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables } = require('../controllers/restorantBookingController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert } = require('../controllers/restorantBookingController');
 
 
 
@@ -120,6 +120,7 @@ router.post('/gallery', verifyToken, uploadGalleryController.insertOrUpdateBanne
 router.get('/getAllbookings', verifyToken, getAllBookings);
 router.get('/getOneBooking/:booking_id', verifyToken, getOneBooking);
 router.get('/getAllocatedTables', verifyToken, getAllDiningAreaAndAllocatedTables);
+router.post('/insertNewBooking', verifyToken, newBookingInsert);
 
 
 //user side api

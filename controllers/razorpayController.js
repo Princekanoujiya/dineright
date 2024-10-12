@@ -40,12 +40,13 @@ exports.razorPayCreateOrder = async (data) => {
 
         const return_data = {
             msg: 'Order Created',
+            key: config.RAZORPAY_KEY_ID,
             amount: order.amount,
             currency: "INR",
             customer_id: "",
             business_name: "Dineright",
             business_logo: `${process.env.BASE_URL}/images/logo 001-03.png`,
-            callback_url: `${process.env.BASE_URL}/api/auth//verify_payment`,
+            callback_url: `${process.env.BASE_URL}/api/auth/verify_payment`,
             product_description: "Product Description or productId:",
             customer_detail: {
                 name: name,
@@ -72,6 +73,8 @@ exports.razorpayVerifyPayment = async (req, res, next) => {
     try {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
+        console.log('veryfi pament', req.body)
+
         const body = razorpay_order_id + "|" + razorpay_payment_id;
 
         const expectedSignature = crypto
@@ -82,11 +85,30 @@ exports.razorpayVerifyPayment = async (req, res, next) => {
         const isAuthentic = expectedSignature === razorpay_signature;
 
         if (isAuthentic) {
-        // your logic
+
+            // // Update the booking status to 'confirmed'
+            // const updateBookingStatusQuery = `UPDATE bookings SET booking_status = 'confirmed' WHERE booking_id = ?`;
+
+            // await new Promise((resolve, reject) => {
+            //     db.query(updateBookingStatusQuery, [bookingId], (err, result) => {
+            //         if (err) return reject(err);
+            //         resolve(result);
+            //     });
+            // });
+
+            // // Update the allocate table status to 'allocated' for all rows matching the booking_id
+            // const updateItemsStatusQuery = `UPDATE allocation_tables SET table_status = 'allocated' WHERE booking_id = ?`;
+
+            // await new Promise((resolve, reject) => {
+            //     db.query(updateItemsStatusQuery, [bookingId], (err, result) => {
+            //         if (err) return reject(err);
+            //         resolve(result);
+            //     });
+            // });
 
             // payment success redirect url
             res.redirect(
-                `${process.env.WEBSITE_BASE_URL}/?reference=${razorpay_payment_id}&payment_success=true`
+                `${process.env.WEBSITE_BASE_URL}/thank-you/?reference=${razorpay_payment_id}&payment_success=true`
             );
 
         } else {

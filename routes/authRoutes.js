@@ -7,7 +7,8 @@ const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionBy
 
 
 //restroadmin
-const { createOrUpdateOneStep, stepTwo, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea, loginWithOtp, verifyLoginOtp, stepTwoAndSendOtp, insertOrUpdateTimingData, restro_guest_time_duration, insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines, getSelectedRestaurantTypes, getRestroInfo, getUserInfoWithCuisinesAndRestaurantTypes, getAllocatedTables } = require('../controllers/authController');
+const { createOrUpdateOneStep, stepTwo, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea, loginWithOtp, verifyLoginOtp, stepTwoAndSendOtp, insertOrUpdateTimingData, restro_guest_time_duration, insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines, getSelectedRestaurantTypes, getRestroInfo, getUserInfoWithCuisinesAndRestaurantTypes } = require('../controllers/authController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables } = require('../controllers/restorantBookingController');
 
 
 
@@ -116,8 +117,9 @@ router.post('/gallery', verifyToken, uploadGalleryController.insertOrUpdateBanne
 
 
 // restorant routes
-// router.get('/allocated_tables', verifyToken, getAllocatedTables);
-
+router.get('/getAllbookings', verifyToken, getAllBookings);
+router.get('/getOneBooking/:booking_id', verifyToken, getOneBooking);
+router.get('/getAllocatedTables', verifyToken, getAllDiningAreaAndAllocatedTables);
 
 
 //user side api
@@ -159,7 +161,7 @@ router.get('/cuisins/:frontend_cuisins_section_id', getCuisionSectionById);
 
 // Razorpay Routes
 router.get('/razorpay_key', verifyCustomerToken, getRazorpayKey);
-router.post('/verify_payment', verifyCustomerToken, razorpayVerifyPayment);
+router.post('/verify_payment', razorpayVerifyPayment);
 
 
 //filters

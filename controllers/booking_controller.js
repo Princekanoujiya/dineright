@@ -141,6 +141,48 @@ const getTables = (diningAreaId, userId) => {
   });
 };
 
+// calculate booking Items price
+async function calculateTotalItemCost(items) {
+  try {
+    let itemCost = 0;
+    const itemValues = items.map(item => item.master_item_id);
+
+    // SQL query to fetch items by their master_item_id
+    const itemsQuery = `SELECT * FROM master_items WHERE master_item_id IN (?)`;
+
+    // Promisify db.query to use it with async/await
+    const fetchItems = (query, values) => {
+      return new Promise((resolve, reject) => {
+        db.query(query, [values], (err, result) => {
+          if (err) {
+            return reject({ status: 500, message: "Failed to fetch item details", details: err.message });
+          }
+          resolve(result);
+        });
+      });
+    };
+
+    // Fetch item details from the database
+    const itemResult = await fetchItems(itemsQuery, itemValues);
+
+    // Calculate total cost
+    itemResult.forEach(item => {
+      const orderedItem = items.find(i => i.master_item_id === item.master_item_id);
+      if (orderedItem) {
+        itemCost += parseInt(orderedItem.product_quantity) * parseFloat(item.master_item_price);
+      }
+    });
+
+    // Log or return the calculated item cost
+    console.log("Total Item Cost: ", itemCost);
+    return itemCost;
+
+  } catch (error) {
+    console.error("Error calculating item cost:", error);
+    throw error;
+  }
+}
+
 // book product
 exports.book_product = async (req, res) => {
   const { userId, booking_date, booking_time, booking_no_of_guest, payment_mod, items } = req.body;
@@ -224,14 +266,16 @@ exports.book_product = async (req, res) => {
       return res.status(400).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
     }
 
+    const billingAmount = await calculateTotalItemCost(items);
+
     // Insert new booking
     const bookingQuery = `
-      INSERT INTO bookings (userId, customer_id, booking_date, booking_time, booking_no_of_guest) 
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO bookings (userId, customer_id, booking_name, booking_email, booking_date, booking_time, booking_no_of_guest, billing_amount, payment_mod) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const bookingResult = await new Promise((resolve, reject) => {
-      db.query(bookingQuery, [userId, customer_id, booking_date, booking_time, booking_no_of_guest], (err, result) => {
+      db.query(bookingQuery, [userId, customer_id, req.customer_name, req.customer_email, booking_date, booking_time, booking_no_of_guest, billingAmount, payment_mod], (err, result) => {
         if (err) return reject(err);
         resolve(result);
       });
@@ -259,16 +303,12 @@ exports.book_product = async (req, res) => {
           const slot_time = restroSpendingTime;
 
           const allocationTableQuery = `
-            INSERT INTO allocation_tables (
-              booking_id, dining_area_id, table_id, booking_date, start_time, end_time, slot_time, no_of_guest, notes, customer_id, userId
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO allocation_tables (booking_id, dining_area_id, table_id, booking_date, start_time, end_time, slot_time, no_of_guest, notes, customer_id, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `;
 
           // Insert allocation
           const allocationResult = await new Promise((resolve, reject) => {
-            db.query(allocationTableQuery, [
-              bookingId, dining_area_id, table_id, booking_date, start_time, endTime, slot_time, currentTableSeats, "", customer_id, userId
-            ], (err, result) => {
+            db.query(allocationTableQuery, [bookingId, dining_area_id, table_id, booking_date, start_time, endTime, slot_time, currentTableSeats, "",customer_id, userId], (err, result) => {
               if (err) return reject(err);
               resolve(result);
             });
@@ -298,21 +338,57 @@ exports.book_product = async (req, res) => {
     if (payment_mod === 'online') {
       // razorpay order create
       const razorpayOrderData = {
-        amount: bookingItems.cost,
-        name: 'customer name',
-        phone: '987654321',
-        email: 'customer@gmail.com',
+        amount: billingAmount,
+        name: req.customer_name,
+        phone: '',
+        email: req.customer_email,
       }
-      const razorpayOrderResult = razorPayCreateOrder(razorpayOrderData);
+      const razorpayOrderResult = await razorPayCreateOrder(razorpayOrderData);
+
+       // Update the booking status to 'confirmed'
+       const updateBookingStatusQuery = `UPDATE bookings SET razorpay_order_id = ? WHERE booking_id = ?`;
+
+       await new Promise((resolve, reject) => {
+         db.query(updateBookingStatusQuery, [razorpayOrderResult.id, bookingId], (err, result) => {
+           if (err) return reject(err);
+           resolve(result);
+         });
+       });
+
+      return res.status(200).json({ message: 'Your order has been successfully placed!', bookingItems, allocationData, order: razorpayOrderResult });
+
     } else if (payment_mod === 'cod') {
-      // After allocation, send the response
-      return res.status(200).json({ message: 'order success', bookingItems, allocationData });
+      // Update the booking status to 'confirmed'
+      const updateBookingStatusQuery = `UPDATE bookings SET booking_status = 'confirmed' WHERE booking_id = ?`;
+
+      await new Promise((resolve, reject) => {
+        db.query(updateBookingStatusQuery, [bookingId], (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        });
+      });
+
+      // Update the allocate table status to 'allocated' for all rows matching the booking_id
+      const updateItemsStatusQuery = `UPDATE allocation_tables SET table_status = 'allocated' WHERE booking_id = ?`;
+
+      await new Promise((resolve, reject) => {
+        db.query(updateItemsStatusQuery, [bookingId], (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        });
+      });
+
+      await new Promise((resolve, reject) => {
+        db.query(updateItemsStatusQuery, [bookingId], (err, result) => {
+          if (err) return reject(err);
+          resolve(result); // This will update all rows where booking_id matches
+        });
+      });
+
+      return res.status(200).json({ message: 'Your order has been successfully placed!', bookingItems, allocationData });
     } else {
       return res.json({ message: 'Payment mod required' })
     }
-
-    // After allocation, send the response
-    // return res.status(200).json({ bookingItems, allocationData });
 
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -342,32 +418,9 @@ const insertConnectedProducts = (bookingId, items, booking_no_of_guest) => {
         return reject({ status: 500, message: "Failed to insert connected products", details: err.message });
       }
 
-      // Calculate total item cost after inserting connected products
-      let itemCost = 0;
-      const itemValues = items.map(item => item.master_item_id);
-
-      const itemsQuery = `SELECT * FROM master_items WHERE master_item_id IN (?)`;
-
-      db.query(itemsQuery, [itemValues], (err, itemResult) => {
-        if (err) {
-          return reject({ status: 500, message: "Failed to fetch item details", details: err.message });
-        }
-
-        // Calculate total cost
-        itemResult.forEach(item => {
-          const orderedItem = items.find(i => i.master_item_id === item.master_item_id);
-          if (orderedItem) {
-            itemCost += parseInt(orderedItem.product_quantity) * parseFloat(item.master_item_price);
-          }
-        });
-
-        // Resolve with success message
-        resolve({
-          success_msg: `Your booking has been confirmed! We look forward to hosting your group of ${booking_no_of_guest} guests.`,
-          total_items: items.length,
-          booking_id: bookingId,
-          cost: itemCost,
-        });
+      resolve({
+        message: `You have booked ${items.length} items. Thank you for choosing our service!`,
+        total_items: items.length,
       });
     });
   });

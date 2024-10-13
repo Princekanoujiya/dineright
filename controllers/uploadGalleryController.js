@@ -39,9 +39,9 @@ const upload = multer({
 exports.insertOrUpdateBannerGallery = (req, res) => {
   upload(req, res, function (err) {
     if (err instanceof multer.MulterError) {
-      return res.status(500).json({ error: 'Multer error', details: err.message });
+      return res.status(200).json({ error_msg:'Multer error', details: err.message ,response:false});
     } else if (err) {
-      return res.status(500).json({ error: 'Error uploading files', details: err.message });
+      return res.status(200).json({ error_msg:'Error uploading files', details: err.message,response:false });
     }
 
     const files = req.files;
@@ -49,7 +49,7 @@ exports.insertOrUpdateBannerGallery = (req, res) => {
     const { banner_gallery_id } = req.body;
 
     if (!files || files.length === 0) {
-      return res.status(400).json({ error: 'No files uploaded' });
+      return res.status(200).json({ error_msg:'No files uploaded',response:false });
     }
 
     const fileNames = files.map(file => file.filename); // Get filenames of uploaded files
@@ -62,12 +62,12 @@ exports.insertOrUpdateBannerGallery = (req, res) => {
 
       db.query(updateQuery, [JSON.stringify(fileNames), banner_gallery_id, userId], (err, result) => {
         if (err) {
-          return res.status(500).json({ error: 'Database error during update', details: err.message });
+          return res.status(200).json({ error_msg:'Database error during update', details: err.message ,response:false});
         }
         if (result.affectedRows === 0) {
-          return res.status(404).json({ message: 'Gallery not found or user not authorized' });
+          return res.status(200).json({ error_msg: 'Gallery not found or user not authorized' ,response:false});
         }
-        res.status(200).json({ message: 'Gallery updated successfully', banner_gallery_id });
+        res.status(200).json({ success_msg: 'Gallery updated successfully', banner_gallery_id ,response:true});
       });
     } else {
       // Insert operation if banner_gallery_id is not provided
@@ -75,9 +75,9 @@ exports.insertOrUpdateBannerGallery = (req, res) => {
 
       db.query(insertQuery, [userId, JSON.stringify(fileNames)], (err, result) => {
         if (err) {
-          return res.status(500).json({ error: 'Database error during insertion', details: err.message });
+          return res.status(200).json({ error_msg:'Database error during insertion', details: err.message ,response:false});
         }
-        res.status(201).json({ message: 'Files uploaded and saved successfully', banner_gallery_id: result.insertId });
+        res.status(201).json({ success_msg: 'Files uploaded and saved successfully', banner_gallery_id: result.insertId ,response:true});
       });
     }
   });

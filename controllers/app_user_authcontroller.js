@@ -146,7 +146,7 @@ exports.getCustomerInfo = (req, res) => {
       return res.status(200).json({ error_msg: 'Customer not found' ,response:false});
     }
 
-    res.status(200).json({ user: results[0] });
+    res.status(200).json({ user: results[0] ,response:true,success_msg:'Customer found successfully'});
   });
 };
 exports.loginWithEmail = (req, res) => {

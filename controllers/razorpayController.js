@@ -13,7 +13,7 @@ exports.getRazorpayKey = async (req, res, next) => {
         console.log({ key: config.RAZORPAY_KEY_ID })
         return res.status(200).json({ key: config.RAZORPAY_KEY_ID });
     } catch (error) {
-        return res.status(500).json(error);
+        return res.status(200).json(error);
     }
 };
 
@@ -96,6 +96,6 @@ exports.razorpayVerifyPayment = async (req, res, next) => {
         }
 
     } catch (error) {
-        return res.status(500).json(error.message);
+        return res.status(200).json(error.message);
     }
 };

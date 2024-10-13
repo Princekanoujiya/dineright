@@ -25,9 +25,9 @@ const upload = multer({ storage: storage }).single('banner_image');
 exports.insertOrUpdateBannerImage = (req, res) => {
   upload(req, res, function (err) {
     if (err instanceof multer.MulterError) {
-      return res.status(500).json({ error: 'Multer error', details: err.message });
+      return res.status(200).json({ error_msg:'Multer error', details: err.message ,response:false});
     } else if (err) {
-      return res.status(500).json({ error: 'Error uploading file', details: err.message });
+      return res.status(200).json({ error_msg:'Error uploading file', details: err.message,response:false });
     }
 
     const banner_image = req.file ? req.file.filename : null;
@@ -35,7 +35,7 @@ exports.insertOrUpdateBannerImage = (req, res) => {
     const { banner_image_id } = req.body;
 
     if (!banner_image) {
-      return res.status(400).json({ error: 'No banner image uploaded' });
+      return res.status(200).json({ error_msg:'No banner image uploaded' ,response:false});
     }
 
     if (banner_image_id) {
@@ -45,21 +45,21 @@ exports.insertOrUpdateBannerImage = (req, res) => {
                            WHERE banner_image_id = ? AND userId = ?`;
       db.query(updateQuery, [banner_image, banner_image_id, userId], (err, result) => {
         if (err) {
-          return res.status(500).json({ error: 'Database error during update', details: err.message });
+          return res.status(200).json({ error_msg:'Database error during update', details: err.message ,response:false});
         }
         if (result.affectedRows === 0) {
-          return res.status(404).json({ message: 'Banner image not found or user not authorized' });
+          return res.status(404).json({ error_msg: 'Banner image not found or user not authorized',response:false });
         }
-        res.status(200).json({ message: 'Banner image updated successfully', banner_image_id });
+        res.status(200).json({ success_msg: 'Banner image updated successfully', banner_image_id,response:true });
       });
     } else {
       // Insert operation if banner_image_id is not provided
       const insertQuery = `INSERT INTO banner_images (userId, banner_image) VALUES (?, ?)`;
       db.query(insertQuery, [userId, banner_image], (err, result) => {
         if (err) {
-          return res.status(500).json({ error: 'Database error during insertion', details: err.message });
+          return res.status(200).json({ error_msg:'Database error during insertion', details: err.message,response:false });
         }
-        res.status(201).json({ message: 'Banner image uploaded successfully', banner_image_id: result.insertId });
+        res.status(201).json({ success_msg: 'Banner image uploaded successfully', banner_image_id: result.insertId,response:true });
       });
     }
   });
@@ -72,10 +72,10 @@ exports.getBannerImages = (req, res) => {
 
   db.query(query, [userId], (err, results) => {
     if (err) {
-      return res.status(500).json({ error: 'Database error during retrieval', details: err.message });
+      return res.status(200).json({ error_msg:'Database error during retrieval', details: err.message,response:false });
     }
     if (results.length === 0) {
-      return res.status(404).json({ message: 'No banner images found for this user' });
+      return res.status(404).json({ error_msg: 'No banner images found for this user' ,response:false});
     }
     res.status(200).json({ banner_images: results });
   });
@@ -92,10 +92,10 @@ exports.deleteBannerImage = (req, res) => {
   // First, find the banner image to delete the file from the filesystem
   db.query(selectQuery, [banner_image_id, userId], (err, result) => {
     if (err) {
-      return res.status(500).json({ error: 'Database error during deletion', details: err.message });
+      return res.status(200).json({ error_msg:'Database error during deletion', details: err.message ,response:false});
     }
     if (result.length === 0) {
-      return res.status(404).json({ message: 'Banner image not found or user not authorized' });
+      return res.status(404).json({ error_msg: 'Banner image not found or user not authorized' ,response:false});
     }
 
     // Get the file path
@@ -104,15 +104,15 @@ exports.deleteBannerImage = (req, res) => {
     // Delete the file from the file system
     fs.unlink(filePath, (err) => {
       if (err) {
-        return res.status(500).json({ error: 'Error deleting image file', details: err.message });
+        return res.status(200).json({ error_msg:'Error deleting image file', details: err.message ,response:false});
       }
 
       // Now delete the record from the database
       db.query(deleteQuery, [banner_image_id, userId], (err, result) => {
         if (err) {
-          return res.status(500).json({ error: 'Database error during deletion', details: err.message });
+          return res.status(200).json({ error_msg:'Database error during deletion', details: err.message,response:false });
         }
-        res.status(200).json({ message: 'Banner image deleted successfully' });
+        res.status(200).json({ success_msg: 'Banner image deleted successfully',response:true });
       });
     });
   });

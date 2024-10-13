@@ -30,13 +30,22 @@ exports.createOrUpdateCourse = (req, res) => {
 };
 // Get all courses
 exports.getAllCourses = (req, res) => {
-    const selectQuery = 'SELECT * FROM courses WHERE is_deleted=0';
-  
-    db.query(selectQuery, (err, results) => {
-      if (err) return res.status(200).json({ error_msg: err.message,response:false });
-      res.json(results);
-    });
+  const selectQuery = 'SELECT * FROM courses WHERE is_deleted=0';
+
+  db.query(selectQuery, (err, results) => {
+    if (err) {
+      return res.status(200).json({ error_msg: err.message, response: false });
+    }
+
+    if (results.length === 0) {
+      return res.status(200).json({ error_msg: "No courses found", response: false });
+    }
+
+    // Return the results with a success message
+    res.status(200).json({ success_msg: 'Courses retrieved successfully', response: true, data: results });
+  });
 };
+
 // Soft delete a course (set is_deleted = 1)
 exports.DeleteCourse = (req, res) => {
   const { course_id } = req.params;
@@ -71,20 +80,25 @@ exports.DeleteCourse = (req, res) => {
   });
 };
   // Get a specific course by ID (excluding deleted courses)
-exports.getCourseById = (req, res) => {
+  exports.getCourseById = (req, res) => {
     const { course_id } = req.params;
   
     // Validate course_id
     if (!course_id) {
-      return res.status(200).json({ error_msg: "Course ID is required",response:false  });
+      return res.status(200).json({ error_msg: "Course ID is required", response: false });
     }
   
     const selectQuery = 'SELECT * FROM courses WHERE course_id = ?';
     db.query(selectQuery, [course_id], (err, result) => {
-      if (err) return res.status(200).json({ error_msg: err.message ,response:false});
-      if (result.length === 0) {
-        return res.status(200).json({ error_msg: "Course not found or has been deleted",response:false });
+      if (err) {
+        return res.status(200).json({ error_msg: err.message, response: false });
       }
-      res.json(result[0]); // Return the first course
+      
+      if (result.length === 0) {
+        return res.status(200).json({ error_msg: "Course not found or has been deleted", response: false });
+      }
+
+      res.status(200).json({ success_msg: 'Course retrieved successfully', response: true, data: result[0] });
     });
   };
+  

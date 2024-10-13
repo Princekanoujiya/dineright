@@ -17,14 +17,14 @@ exports.getAllocatedTables = (req, res) => {
 
   db.query(getQuery, [userId], (err, result) => {
     if (err) {
-      return res.status(500).json({ error: 'Database error fetching Menu items', details: err.message });
+      return res.status(200).json({ error_msg: 'Database error fetching Menu items', details: err.message ,response:false});
     }
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'No items found for this user' });
+      return res.status(200).json({ error_msg: 'No items found for this user' ,response:false});
     }
 
-    res.status(200).json({ data: result });
+    res.status(200).json({ data: result ,response:true,success_msg:true});
   });
 };
 

@@ -33,7 +33,7 @@ exports.insertOrUpdateBannerVideo = (req, res) => {
     const { banner_video_id } = req.body;
 
     if (!banner_video) {
-      return res.status(400).json({ error_msg: 'No banner video uploaded',response:false });
+      return res.status(200).json({ error_msg: 'No banner video uploaded',response:false });
     }
 
     if (banner_video_id) {

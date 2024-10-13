@@ -7,14 +7,14 @@ exports.getRestaurantType = (req, res) => {
 
   db.query(query, (err, results) => {
     if (err) {
-      return res.status(200).json({ error_msg: "Failed to retrieve restaurant types", details: err.message });
+      return res.status(200).json({ error_msg: "Failed to retrieve restaurant types", details: err.message ,response:false});
     }
 
     if (results.length === 0) {
-      return res.status(200).json({ message: "No restaurant types found" });
+      return res.status(200).json({ error_msg: "No restaurant types found" ,response:false});
     }
 
-    res.status(200).json({ success: true, data: results });
+    res.status(200).json({ success_msg: true, data: results ,response:true});
   });
 };
 exports.getCuisines = (req, res) => {
@@ -24,14 +24,14 @@ exports.getCuisines = (req, res) => {
 
   db.query(query, (err, results) => {
     if (err) {
-      return res.status(200).json({ error_msg: "Failed to retrieve cuisines", details: err.message });
+      return res.status(200).json({ error_msg: "Failed to retrieve cuisines", details: err.message ,response:false});
     }
 
     if (results.length === 0) {
-      return res.status(200).json({ message: "No cuisines found" });
+      return res.status(200).json({ error_msg: "No cuisines found",response:false });
     }
 
-    res.status(200).json({ success: true, data: results });
+    res.status(200).json({ success_msg: true, data: results,response:true });
   });
 };
 
@@ -95,7 +95,7 @@ exports.getUserIdsByFilters = (req, res) => {
   const { cuisine_ids, restaurant_type_ids } = req.body;
 
   if (!cuisine_ids || !restaurant_type_ids) {
-    return res.status(200).json({ error_msg: "Both cuisine_ids and restaurant_type_ids are required" });
+    return res.status(200).json({ error_msg: "Both cuisine_ids and restaurant_type_ids are required",response:false });
   }
 
   // Query to select userId based on multiple cuisine_ids
@@ -138,7 +138,7 @@ exports.getUserIdsByFilters = (req, res) => {
       const commonUserIds = cuisineUserIds.filter(userId => restaurantTypeUserIds.includes(userId));
 
       if (commonUserIds.length === 0) {
-        return res.status(404).json({ error_msg: "No matching users found for the given filters" });
+        return res.status(404).json({ error_msg: "No matching users found for the given filters",response:false });
       }
 
       // Query to fetch all data from users based on common userIds

@@ -790,11 +790,11 @@ exports.getSelectedCuisines = (req, res) => {
   db.query(query, (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
 
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'No cuisines found',response:false });
+      return res.status(200).json({ error_msg: 'No cuisines found', response: false });
     }
 
     // Group cuisines by userId
@@ -821,9 +821,11 @@ exports.getSelectedCuisines = (req, res) => {
     // Convert the grouped object into an array
     const finalResults = Object.values(groupedResults);
 
-    res.status(200).json(finalResults);
+    // Return the results with a success message
+    res.status(200).json({ success_msg: 'Cuisines retrieved successfully', response: true, data: finalResults });
   });
 };
+
 
 exports.getSelectedRestaurantTypes = (req, res) => {
   // Query to join selected_restaurant_types with restaurant_types table and group by userId
@@ -837,11 +839,11 @@ exports.getSelectedRestaurantTypes = (req, res) => {
   db.query(query, (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message ,response:false});
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
 
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'No restaurant types found' ,response:false});
+      return res.status(200).json({ error_msg: 'No restaurant types found', response: false });
     }
 
     // Group restaurant types by userId
@@ -864,9 +866,11 @@ exports.getSelectedRestaurantTypes = (req, res) => {
     // Convert the grouped object into an array
     const finalResults = Object.values(groupedResults);
 
-    res.status(200).json(finalResults);
+    // Return the results with a success message
+    res.status(200).json({ success_msg: 'Restaurant types retrieved successfully', response: true, data: finalResults });
   });
 };
+
 
 exports.getRestroInfo = (req, res) => {
   const query = 'SELECT * FROM users';
@@ -912,11 +916,11 @@ exports.getUserInfoWithCuisinesAndRestaurantTypes = (req, res) => {
   db.query(query, (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
 
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'No data found' ,response:false});
+      return res.status(200).json({ error_msg: 'No data found', response: false });
     }
 
     // Group data by userId
@@ -952,7 +956,9 @@ exports.getUserInfoWithCuisinesAndRestaurantTypes = (req, res) => {
     // Convert the grouped object into an array
     const finalResults = Object.values(groupedResults);
 
-    res.status(200).json(finalResults);
+    // Return the results with a success message
+    res.status(200).json({ success_msg: 'Data retrieved successfully', response: true, data: finalResults });
   });
 };
+
 

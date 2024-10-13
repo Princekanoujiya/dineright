@@ -2,6 +2,7 @@ const db = require('../config');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { response } = require('express');
 
 
 exports.getCourseMenu = (req, res) => {
@@ -13,11 +14,10 @@ exports.getCourseMenu = (req, res) => {
   `;
 
   db.query(query, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return res.status(200).json({ error_msg: err.message,response:false });
     res.json(results);
   });
 };
-
 
 
 exports.getCourseMenuGroupByCourseId = (req, res) => {
@@ -29,8 +29,10 @@ exports.getCourseMenuGroupByCourseId = (req, res) => {
   `;
 
   db.query(query, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
+    if (err) {
+      return res.status(200).json({ error_msg: err.message, response: false });
+    }
+
     // Group results by course_id
     const groupedByCourseId = results.reduce((acc, item) => {
       // Check if the course_id already exists in the accumulator
@@ -47,7 +49,6 @@ exports.getCourseMenuGroupByCourseId = (req, res) => {
       acc[item.course_id].menus.push({
         menu_id: item.menu_id,
         menu_name: item.menu_name,
-        id: item.id
       });
 
       return acc;
@@ -56,8 +57,11 @@ exports.getCourseMenuGroupByCourseId = (req, res) => {
     // Convert the result back to an array if you need it in array format
     const resultArray = Object.values(groupedByCourseId);
 
-    // Send the response as grouped data
-    res.json(resultArray);
+    res.status(200).json({
+      success_msg: 'Course menu details retrieved successfully',
+      response: true,
+      data: resultArray
+    });
   });
 };
 
@@ -85,9 +89,9 @@ const storage = multer.diskStorage({
   exports.insertMasterMenuItem = (req, res) => {
     upload(req, res, function (err) {
       if (err instanceof multer.MulterError) {
-        return res.status(500).json({ error: 'Multer error', details: err.message });
+        return res.status(200).json({ error_msg: 'Multer error', details: err.message,response:false });
       } else if (err) {
-        return res.status(500).json({ error: 'Error uploading file', details: err.message });
+        return res.status(200).json({ error_msg: 'Error uploading file', details: err.message,response:false });
       }
   
       const { master_item_id, master_item_name, master_item_price, master_item_description, menu_id } = req.body; // Add menu_id from req.body
@@ -105,14 +109,14 @@ const storage = multer.diskStorage({
         const getImageQuery = 'SELECT master_item_image FROM master_items WHERE master_item_id = ?';
         db.query(getImageQuery, [master_item_id], (err, result) => {
           if (err) {
-            return res.status(500).json({ error: 'Database error fetching existing image', details: err.message });
+            return res.status(200).json({ error_msg: 'Database error fetching existing image', details: err.message });
           }
   
           const oldImage = result[0]?.master_item_image;
   
           db.query(updateQuery, [master_item_name, master_item_price, master_item_description, master_item_image || oldImage, master_item_id, userId], (err) => {
             if (err) {
-              return res.status(500).json({ error: 'Database error during update', details: err.message });
+              return res.status(200).json({ error_msg: 'Database error during update', details: err.message ,response:false});
             }
   
             // If a new image is uploaded, delete the old image
@@ -133,10 +137,10 @@ const storage = multer.diskStorage({
   
             db.query(linkQuery, [userId, master_item_id, menu_id, master_item_id, menu_id], (err) => {
               if (err) {
-                return res.status(500).json({ error: 'Database error linking menu item', details: err.message });
+                return res.status(200).json({ error_msg: 'Database error linking menu item', details: err.message ,response:false});
               }
   
-              res.status(200).json({ message: 'Menu item updated successfully', master_item_id });
+              res.status(200).json({ success_msg: 'Menu item updated successfully', master_item_id ,response:true});
             });
           });
         });
@@ -149,7 +153,7 @@ const storage = multer.diskStorage({
   
         db.query(insertQuery, [userId, master_item_name, master_item_price, master_item_description, master_item_image], (err, result) => {
           if (err) {
-            return res.status(500).json({ error: 'Database error during insertion', details: err.message });
+            return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message,response:false });
           }
   
           const newMasterItemId = result.insertId;
@@ -161,10 +165,10 @@ const storage = multer.diskStorage({
   
           db.query(linkQuery, [userId, newMasterItemId, menu_id], (err) => {
             if (err) {
-              return res.status(500).json({ error: 'Database error linking menu item', details: err.message });
+              return res.status(200).json({ error_msg: 'Database error linking menu item', details: err.message ,response:false});
             }
   
-            res.status(201).json({ message: 'Menu item created successfully', master_item_id: newMasterItemId });
+            res.status(201).json({ success_msg: 'Menu item created successfully', master_item_id: newMasterItemId,response:false });
           });
         });
       }
@@ -184,14 +188,14 @@ const storage = multer.diskStorage({
   
     db.query(getQuery, [userId], (err, result) => {
       if (err) {
-        return res.status(500).json({ error: 'Database error fetching Menu items', details: err.message });
+        return res.status(200).json({ error_msg: 'Database error fetching Menu items', details: err.message,response:false });
       }
   
       if (result.length === 0) {
-        return res.status(404).json({ error: 'No items found for this user' });
+        return res.status(200).json({ error_msg: 'No items found for this user' ,response:false});
       }
   
-      res.status(200).json({ data: result });
+      res.status(200).json({ data: result,response:true });
     });
   };
   exports.deleteMasterMenuItem = (req, res) => {
@@ -208,17 +212,17 @@ const storage = multer.diskStorage({
   
     db.query(checkQuery, [master_item_id, menu_id, userId], (err, result) => {
       if (err) {
-        return res.status(500).json({ error: 'Database error checking item', details: err.message });
+        return res.status(200).json({ error_msg: 'Database error checking item', details: err.message ,response:false});
       }
   
       console.log('Result from check query:', result);
   
       if (result.length === 0) {
-        return res.status(404).json({ error: 'Menu item not found' });
+        return res.status(200).json({ error_msg: 'Menu item not found',response:false });
       }
   
       if (result[0].is_deleted === 1) {
-        return res.status(400).json({ error: 'Menu item already deleted' });
+        return res.status(200).json({ error_msg: 'Menu item already deleted' ,response:false});
       }
   
       // Proceed with the soft delete
@@ -229,10 +233,10 @@ const storage = multer.diskStorage({
   
       db.query(updateQuery, [master_item_id, menu_id, userId], (err, result) => {
         if (err) {
-          return res.status(500).json({ error: 'Database error updating is_deleted flag', details: err.message });
+          return res.status(200).json({ error_msg: 'Database error updating is_deleted flag', details: err.message ,response:false});
         }
   
-        res.status(200).json({ message: 'Menu item deleted successfully', master_item_id });
+        res.status(200).json({ success_msg: 'Menu item deleted successfully', master_item_id ,response:true});
       });
     });
   };

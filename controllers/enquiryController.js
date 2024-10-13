@@ -6,16 +6,16 @@ exports.enquiry = (req, res) => {
 
   // Validate required fields
   if (!enquiry_restaurant_name) {
-    return res.status(400).json({ msg: "Restaurant name is required" });
+    return res.status(200).json({ error_msg: "Restaurant name is required" ,response:false});
   }
   if (!enquiry_email) {
-    return res.status(400).json({ msg: "Email is required" });
+    return res.status(200).json({ error_msg: "Email is required" ,response:false});
   }
   if (!enquiry_phone) {
-    return res.status(400).json({ msg: "Phone is required" });
+    return res.status(200).json({ error_msg: "Phone is required",response:false });
   }
   if (!enquiry_message) {
-    return res.status(400).json({ msg: "Message is required" });
+    return res.status(200).json({ error_msg: "Message is required" ,response:false});
   }
 
   // Create Nodemailer transporter
@@ -46,17 +46,17 @@ exports.enquiry = (req, res) => {
   const checkEmailQuery = 'SELECT * FROM enquiry WHERE enquiry_email = ?';
 
   db.query(checkEmailQuery, [enquiry_email], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return res.status(200).json({ error_msg: err.message ,response:false});
 
     // If email already exists and it's not an update request
     if (rows.length > 0) {
-      return res.status(400).json({ error_msg: "Email already exists. Please use a different email." });
+      return res.status(200).json({ error_msg: "Email already exists. Please use a different email." ,response:false});
     }
 
     // Insert query if enquiry_id is not provided
     const insertQuery = 'INSERT INTO enquiry (enquiry_restaurant_name, enquiry_email, enquiry_phone, enquiry_message) VALUES (?, ?, ?, ?)';
     db.query(insertQuery, [enquiry_restaurant_name, enquiry_email, enquiry_phone, enquiry_message], (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) return res.status(200).json({ error_msg: err.message ,response:false});
 
       const insertedId = result.insertId;
 
@@ -74,10 +74,10 @@ exports.enquiry = (req, res) => {
       sendMail(enquiry_email, 'Enquiry Created', 'Your enquiry has been created successfully.')
         .then(() => sendMail('akansha@techflux.in', 'New Enquiry Created', emailContent))
         .then(() => {
-          res.status(201).json({ success_msg: "Enquiry created successfully", enquiry_id: insertedId });
+          res.status(200).json({ success_msg: "Enquiry created successfully", enquiry_id: insertedId ,response:true});
         })
         .catch(emailErr => {
-          res.status(500).json({ error: `Enquiry created, but failed to send emails. ${emailErr.message}` });
+          res.status(200).json({ error_msg: `Enquiry created, but failed to send emails. ${emailErr.message}` });
         });
     });
   });

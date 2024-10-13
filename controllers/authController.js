@@ -494,7 +494,7 @@ exports.login = (req, res) => {
       }
 
       // Create JWT token
-      const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
       res.status(200).json({ success_msg: 'Login successful', token ,response:true});
     });
   });

@@ -1,4 +1,4 @@
-const db = require('../config');
+const db = require('../../config');
 
 // get all bookings
 exports.getAllBookings = (req, res) => {
@@ -48,6 +48,8 @@ exports.getOneBooking = (req, res) => {
     res.status(200).json({ data: result[0] });
   });
 };
+
+// ----------------------------------------------------------------------------------------------------------------------
 
 // Get all dining areas and their allocated tables
 exports.getAllDiningAreaAndAllocatedTables = (req, res) => {
@@ -122,7 +124,7 @@ exports.getAllDiningAreaAndAllocatedTables = (req, res) => {
   });
 };
 
-
+// ---------------------------------------------------------------------------------------------------------------------------------
 // Endpoint for inserting a new booking
 exports.newBookingInsert = async (req, res) => {
   const {
@@ -142,8 +144,8 @@ exports.newBookingInsert = async (req, res) => {
 
   // Insert booking query
   const insertBookingQuery = `
-    INSERT INTO bookings (booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, booking_comment, booking_status)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO bookings (userId, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, booking_comment, payment_mod, booking_status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const booking_status = 'confirmed';
@@ -161,10 +163,11 @@ exports.newBookingInsert = async (req, res) => {
 
     // Calculate the end time
     const endTime = addMinutesToTime(booking_time, slotTime);
+    const payment_mod = 'cod';
 
     // Insert booking
     const bookingResult = await new Promise((resolve, reject) => {
-      db.query(insertBookingQuery, [booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, booking_comment, booking_status], (err, result) => {
+      db.query(insertBookingQuery, [userId, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, booking_comment, payment_mod, booking_status], (err, result) => {
         if (err) return reject(err);
         resolve(result);
       });
@@ -308,6 +311,154 @@ function addMinutesToTime(booking_time, minutesToAdd) {
 
   return `${newHours}:${newMinutes}`;
 }
+
+// ------------------------------------------------------------------------------------------------------------------
+
+// Update booking payment status, received price, and billing amount
+exports.updateBookingPayment = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { booking_id, booking_status } = req.body;
+
+    if (!booking_id) {
+      return res.status(400).json({ message: 'booking_id is required' });
+    }
+
+    if (!booking_status || (booking_status !== 'completed' && booking_status !== 'cancelled')) {
+      return res.status(400).json({ message: 'booking_status is required and must be either completed or cancelled' });
+    }
+
+    // Query to fetch allocated tables for a specific user
+    const bookingQuery = `SELECT * FROM bookings WHERE userId = ? AND booking_id = ?`;
+    const [bookingResult] = await db.promise().query(bookingQuery, [userId, booking_id]);
+
+    if (bookingResult.length === 0) {
+      return res.status(404).json({ error: 'No booking found for this user' });
+    }
+
+    // Proceed to update the payment status and booking status
+    const updateQuery = `UPDATE bookings SET payment_status = ?, booking_status = ? WHERE booking_id = ? AND userId = ?`;
+    const payment_status = 'paid';
+
+    await db.promise().query(updateQuery, [payment_status, booking_status, booking_id, userId]);
+
+    // Call function to update table allocations
+    await updateTableAllocations(booking_id, userId);
+
+    return res.status(200).json({ message: `Order ${booking_status} successfully` });
+  } catch (err) {
+    return res.status(500).json({ error: 'An error occurred', details: err.message });
+  }
+};
+
+// Function to update multiple table allocations
+const updateTableAllocations = (booking_id, userId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const table_status = 'released'; // Example status for tables
+
+      // Prepare query to update table allocations
+      const allocationTableQuery = `UPDATE allocation_tables SET table_status = ? WHERE booking_id = ? AND userId = ?`;
+
+      // Execute the update query
+      const [result] = await db.promise().query(allocationTableQuery, [table_status, booking_id, userId]);
+
+      resolve(result);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// Fetch menu items grouped by menu
+exports.getMenuItemsGroupedByMenu = async (req, res) => {
+  try {
+    // SQL query to fetch menu items grouped by their corresponding menus
+    const query = `
+      SELECT menus.menu_name, menu_items.item_name, menu_items.price
+      FROM menus
+      JOIN menu_items ON menus.menu_id = menu_items.menu_id
+      ORDER BY menus.menu_name;
+    `;
+
+    // Execute the query using a promise-based approach
+    const [menuItems] = await db.promise().query(query);
+
+    // Group the result by menu name
+    const groupedMenuItems = menuItems.reduce((grouped, item) => {
+      const { menu_name, item_name, price } = item;
+
+      // If the menu name doesn't exist in the result, initialize it
+      if (!grouped[menu_name]) {
+        grouped[menu_name] = [];
+      }
+
+      // Push the item into the appropriate menu group
+      grouped[menu_name].push({
+        item_name,
+        price,
+      });
+
+      return grouped;
+    }, {});
+
+    // Respond with the grouped menu items
+    return res.status(200).json(groupedMenuItems);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch menu items', details: err.message });
+  }
+};
+
+// -----------------------------------------------------------------------------------------------------------------
+// Fetch booking details, table allocations, and menu items grouped by booking_id
+exports.getBookingDetails = async (req, res) => {
+  try {
+    const { booking_id } = req.params;
+    const userId = req.userId;
+
+    // Fetch the booking details for the given booking_id and userId
+    const bookingQuery = `SELECT * FROM bookings WHERE booking_id = ? AND userId = ?`;
+    const [bookings] = await db.promise().query(bookingQuery, [booking_id, userId]);
+
+    // If no bookings found, return 404
+    if (bookings.length === 0) {
+      return res.status(404).json({ error: 'No booking details found for this booking_id and userId.' });
+    }
+
+    // Fetch allocation tables and booking connected products in parallel for the booking
+    const bookingData = await Promise.all(
+      bookings.map(async (booking) => {
+        // Fetch allocation tables for the booking
+        const allocationTablesQuery = `SELECT * FROM allocation_tables WHERE booking_id = ?`;
+        const [allocationTables] = await db.promise().query(allocationTablesQuery, [booking.booking_id]);
+        booking.allocation_tables = allocationTables;
+
+        // Fetch connected booking products
+        const bookingItemsQuery = `SELECT * FROM booking_connected_products WHERE booking_id = ?`;
+        const [bookingConnectedProducts] = await db.promise().query(bookingItemsQuery, [booking.booking_id]);
+
+        // Fetch the master item details for each connected product
+        const masterItems = await Promise.all(
+          bookingConnectedProducts.map(async (connectedProduct) => {
+            const masterItemsQuery = `SELECT * FROM master_items WHERE master_item_id = ?`;
+            const [masterItem] = await db.promise().query(masterItemsQuery, [connectedProduct.master_item_id]);
+            return masterItem[0]; // Assuming there's only one result per master_item_id
+          })
+        );
+
+        // Attach the booking items to the booking object
+        booking.booking_items = masterItems;
+
+        return booking;
+      })
+    );
+
+    return res.status(200).json(bookingData);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch booking details', details: err.message });
+  }
+};
 
 
 

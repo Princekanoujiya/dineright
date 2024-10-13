@@ -1,4 +1,7 @@
 const express = require('express');
+
+// validations
+const { validateBookingPayment } = require('../validations');
 //superadmin
 const { loginSuperadmin, getGuests, updateUserStatusAndCommission, updateCommissionStatus } = require('../controllers/superadmin/superadmin_authcontroller');
 
@@ -8,7 +11,7 @@ const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionBy
 
 //restroadmin
 const { createOrUpdateOneStep, stepTwo, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea, loginWithOtp, verifyLoginOtp, stepTwoAndSendOtp, insertOrUpdateTimingData, restro_guest_time_duration, insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines, getSelectedRestaurantTypes, getRestroInfo, getUserInfoWithCuisinesAndRestaurantTypes } = require('../controllers/authController');
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert } = require('../controllers/restorantBookingController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails } = require('../controllers/restorant/restorantBookingController');
 
 
 
@@ -121,6 +124,8 @@ router.get('/getAllbookings', verifyToken, getAllBookings);
 router.get('/getOneBooking/:booking_id', verifyToken, getOneBooking);
 router.get('/getAllocatedTables', verifyToken, getAllDiningAreaAndAllocatedTables);
 router.post('/insertNewBooking', verifyToken, newBookingInsert);
+router.patch('/updateBookingPayment', verifyToken, updateBookingPayment);
+router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
 
 
 //user side api

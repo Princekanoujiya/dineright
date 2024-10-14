@@ -122,7 +122,7 @@ exports.createOrUpdateOneStep = async (req, res) => {
             handleFileMove(req.files['license_image'][0], 'license_image', newId);
           }
 
-          res.status(201).json({ success_msg: 'User (restaurant) created successfully', id: newId,response:true });
+          res.status(200).json({ success_msg: 'User (restaurant) created successfully', id: newId,response:true });
         });
       }
     } catch (error) {
@@ -168,7 +168,6 @@ const handleFileMove = (file, field, id, oldFile = null) => {
     });
   });
 };
-
 
 exports.stepTwo = (req, res) => {
   const { userId, restaurantName, restaurantAddress } = req.body;
@@ -259,34 +258,31 @@ exports.restro_guest_time_duration = (req, res) => {
   db.query(checkQuery, [userId], (err, result) => {
     if (err) {
       console.error('Database error during check:', err); // Log the error
-      return res.status(200).json({ error_msg: 'Database error during record check',response:false });
+      return res.status(200).json({ error_msg: 'Database error during record check', response: false });
     }
 
-    if (result.length > 0) {
-      // Step 2: If record exists, update the existing record
-      const updateQuery = 'UPDATE restro_guest_time_duration SET restro_guest = ?, restro_spending_time = ? WHERE userId = ?';
-      db.query(updateQuery, [restro_guest, restro_spending_time, userId], (err, result) => {
-        if (err) {
-          console.error('Database error during update:', err); // Log the error
-          return res.status(200).json({ error_msg: 'Database error while updating timing data',response:false});
-        }
+    // Step 2: Delete existing records if found, before inserting new ones
+    const deleteQuery = 'DELETE FROM restro_guest_time_duration WHERE userId = ?';
+    db.query(deleteQuery, [userId], (err) => {
+      if (err) {
+        console.error('Database error during deletion:', err); // Log the error
+        return res.status(200).json({ error_msg: 'Database error while deleting existing records', response: false });
+      }
 
-        // Record updated successfully
-        res.status(200).json({ success_msg: 'Timing data updated successfully', response: true });
-      });
-    } else {
-      // Step 3: If no record exists, insert a new record
-      const insertQuery = 'INSERT INTO restro_guest_time_duration (userId, restro_guest, restro_spending_time) VALUES (?, ?, ?)';
-      db.query(insertQuery, [userId, restro_guest, restro_spending_time], (err, result) => {
+      // Step 3: Insert new records
+      const insertQuery = 'INSERT INTO restro_guest_time_duration (userId, restro_guest, restro_spending_time) VALUES ?';
+      const values = restro_guest.map((guest, index) => [userId, guest, restro_spending_time[index]]); // Create an array of values
+
+      db.query(insertQuery, [values], (err, result) => {
         if (err) {
           console.error('Database error during insert:', err); // Log the error
-          return res.status(200).json({ error_msg: 'Database error while inserting timing data',response:false });
+          return res.status(200).json({ error_msg: 'Database error while inserting timing data', response: false });
         }
 
-        // Record inserted successfully
-        res.status(200).json({ success_msg: 'Timing data inserted successfully', restro_guest_time_duration_id: result.insertId , response: true});
+        // Records inserted successfully
+        res.status(200).json({ success_msg: 'Timing data inserted successfully', response: true });
       });
-    }
+    });
   });
 };
 
@@ -335,82 +331,149 @@ exports.insertTimingData = (req, res) => {
 };
 
 exports.insertOrUpdateTimingData = (req, res) => {
-  const { userId, day_id, start_time, end_time, status } = req.body;
+  const { userId, data } = req.body;
 
-  // Step 1: Check if the timing data already exists for the given userId and day_id
-  const checkQuery = 'SELECT * FROM service_time WHERE userId = ? AND day_id = ?';
-  db.query(checkQuery, [userId, day_id], (err, result) => {
-    if (err) {
-      console.error('Database error during check:', err); // Log the error
-      return res.status(200).json({ error_msg: 'Database error during record check',response:false });
+  // Check if the data array exists and has entries
+  if (!Array.isArray(data) || data.length === 0) {
+    return res.status(200).json({ error_msg: 'No timing data provided', response: false });
+  }
+
+  // Loop through each timing object in the data array
+  const promises = data.map((timing) => {
+    const { day_id, start_time, end_time, status } = timing;
+
+    // Check if the required fields are available
+    if (!day_id || !start_time || !end_time || !status) {
+      return Promise.reject(new Error(`Missing required fields for day_id: ${day_id}`));
     }
 
-    if (result.length > 0) {
-      // Step 2: If record exists, update the existing record
-      const updateQuery = 'UPDATE service_time SET start_time = ?, end_time = ?, status = ? WHERE userId = ? AND day_id = ?';
-      db.query(updateQuery, [start_time, end_time, status, userId, day_id], (err, result) => {
+    // Check if a record already exists for this userId and day_id
+    const checkQuery = 'SELECT * FROM service_time WHERE userId = ? AND day_id = ?';
+    return new Promise((resolve, reject) => {
+      db.query(checkQuery, [userId, day_id], (err, result) => {
         if (err) {
-          console.error('Database error during update:', err); // Log the error
-          return res.status(200).json({ error_msg: 'Database error while updating timing data' ,response:false});
+          console.error('Error during select:', err);
+          return reject({ error_msg: 'Database error during record check', response: false });
         }
 
-        // Timing data updated successfully
-        res.status(200).json({ success_msg: 'Timing data updated successfully',response:true });
-      });
-    } else {
-      // Step 3: If no record exists, insert a new record
-      const insertQuery = 'INSERT INTO service_time (userId, day_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)';
-      db.query(insertQuery, [userId, day_id, start_time, end_time, status], (err, result) => {
-        if (err) {
-          console.error('Database error during insert:', err); // Log the error
-          return res.status(200).json({ error_msg: 'Database error while inserting timing data',response:false });
+        if (result.length > 0) {
+          // If record exists, update it
+          const updateQuery = 'UPDATE service_time SET start_time = ?, end_time = ?, status = ? WHERE userId = ? AND day_id = ?';
+          db.query(updateQuery, [start_time, end_time, status, userId, day_id], (err) => {
+            if (err) {
+              console.error('Error during update:', err);
+              return reject({ error_msg: 'Database error while updating timing data', response: false });
+            }
+            resolve({ success_msg: `Timing data updated for day_id: ${day_id}`, response: true });
+          });
+        } else {
+          // Insert a new record if no record exists
+          const insertQuery = 'INSERT INTO service_time (userId, day_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)';
+          db.query(insertQuery, [userId, day_id, start_time, end_time, status], (err, result) => {
+            if (err) {
+              console.error('Error during insert:', err);
+              return reject({ error_msg: 'Database error while inserting timing data', response: false });
+            }
+            resolve({ success_msg: `Timing data inserted for day_id: ${day_id}`, service_time_id: result.insertId, response: true });
+          });
         }
-
-        // Timing data inserted successfully
-        res.status(200).json({ success_msg: 'Timing data inserted successfully', service_time_id: result.insertId,response:true});
       });
-    }
+    });
   });
+
+  // Wait for all promises to resolve
+  Promise.all(promises)
+    .then((results) => res.status(200).json({ messages: results }))
+    .catch((error) => res.status(200).json({ error_msg: 'Error processing timing data', details: error }));
 };
 
-//step 7 : Insert Dining Area using user ID and dining area ID
 exports.insertDiningArea = (req, res) => {
-  const { userId, dining_area_id } = req.body;
+  const { userId, dining_area_ids } = req.body; // Expecting dining_area_ids to be an array
 
-  // Insert dining area data into selected_dining_areas table
-  const query = 'INSERT INTO selected_dining_areas (userId, dining_area_id) VALUES (?, ?)';
-  db.query(query, [userId, dining_area_id], (err, result) => {
+  // Check if dining_area_ids is an array and not empty
+  if (!Array.isArray(dining_area_ids) || dining_area_ids.length === 0) {
+    return res.status(200).json({
+      error_msg: 'No dining areas provided',
+      response: false
+    });
+  }
+
+  // Build the values array for batch insert
+  const values = dining_area_ids.map(dining_area_id => [userId, dining_area_id]);
+
+  // Insert multiple dining area data into selected_dining_areas table
+  const query = 'INSERT INTO selected_dining_areas (userId, dining_area_id) VALUES ?';
+  db.query(query, [values], (err, result) => {
     if (err) {
-      return res.status(200).json({ error_msg: 'Database error while inserting dining area data', details: err.message,response:false });
+      return res.status(200).json({
+        error_msg: 'Database error while inserting dining area data',
+        details: err.message,
+        response: false
+      });
     }
 
     // Dining area data inserted successfully
-    res.status(200).json({ success_msg: 'Dining area data inserted successfully',selected_dining_area_id: result.insertId,response:true  });
+    res.status(200).json({
+      success_msg: 'Dining area data inserted successfully',
+      affectedRows: result.affectedRows, // Number of rows inserted
+      response: true
+    });
   });
 };
 
-//step 8 : Insert Dining Area Table
-exports.insertDiningTable = (req, res) => {
-  const { userId, dining_area_id, table_name, table_no_of_seats } = req.body;
 
-  // Insert dining area data into all_tables table
-  const query = 'INSERT INTO all_tables (userId, dining_area_id, table_name, table_no_of_seats) VALUES (?, ?, ?, ?)';
+exports.insertDiningTable = (req, res) => {
+  const { userId, dining_areas } = req.body;
+
+  // Check if dining_areas exists and contains valid data
+  if (!Array.isArray(dining_areas) || dining_areas.length === 0) {
+    return res.status(200).json({
+      error_msg: 'No dining areas or tables provided',
+      response: false
+    });
+  }
+
+  // Prepare the values for bulk insert
+  const values = [];
+  dining_areas.forEach(area => {
+    area.tables.forEach(table => {
+      values.push([userId, area.dining_area_id, table.table_name, table.table_no_of_seats]);
+    });
+  });
+
+  if (values.length === 0) {
+    return res.status(200).json({
+      error_msg: 'No tables provided for insertion',
+      response: false
+    });
+  }
+
+  // Query to insert multiple dining tables
+  const query = 'INSERT INTO all_tables (userId, dining_area_id, table_name, table_no_of_seats) VALUES ?';
   
-  db.query(query, [userId, dining_area_id, table_name, table_no_of_seats], (err, result) => {
+  db.query(query, [values], (err, result) => {
     if (err) {
-      return res.status(200).json({ error_msg: 'Database error while inserting dining area data', details: err.message,response:false });
+      return res.status(200).json({ 
+        error_msg: 'Database error while inserting dining table data', 
+        details: err.message, 
+        response: false 
+      });
     }
 
-    // Retrieve the user's email
+    // After successful insertion, retrieve the user's email
     const userQuery = 'SELECT email FROM users WHERE id = ?';
     db.query(userQuery, [userId], (err, userResult) => {
       if (err || userResult.length === 0) {
-        return res.status(200).json({ error_msg: 'Database error while retrieving user email' ,table_id: result.insertId ,response:false});
+        return res.status(200).json({
+          error_msg: 'Database error while retrieving user email',
+          table_count: result.affectedRows, // Number of rows inserted
+          response: false
+        });
       }
 
       const userEmail = userResult[0].email;
 
-      // Send email to user
+      // Set up email transport
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -425,42 +488,42 @@ exports.insertDiningTable = (req, res) => {
       const mailOptions = {
         from: process.env.EMAIL_SERVICE,
         to: userEmail,
-        subject: 'Your Restaurant Listing Request Has Been Submitted to Dine Right',
+        subject: 'Your Restaurant Tables Have Been Added to Dine Right',
         text: `Dear Restaurant Owner/Manager,
 
-Thank you for registering with Dine Right! We are pleased to inform you that your dining area table "${table_name}" with ${table_no_of_seats} seats has been successfully added to our system, and your listing request is now under review.
+Thank you for registering your restaurant tables with Dine Right! We are pleased to inform you that multiple dining tables have been successfully added to our system.
 
 What Happens Next:
-Once approved, your restaurant will be live on the Dine Right website and mobile app, allowing diners to easily find and book a table.
+Your restaurant will be live on the Dine Right website and mobile app after approval, allowing diners to easily book a table.
 
-Access Your Dashboard:
-You can log in to your Restaurant Panel Dashboard using the link below:
-[Dashboard Login Link]
-
-Important Information:
-Approval Notification: You will receive an email once your listing is approved and live.
-Terms and Conditions: Please take a moment to review our terms and conditions here: [Terms and Conditions Link].
-
-If you have any questions or need assistance, please feel free to contact our support team at [Support Email] or [Support Phone Number].
-
-Thank you for choosing Dine Right. We look forward to helping you reach more diners and succeed with your restaurant.
+Thank you for choosing Dine Right. We look forward to helping you succeed.
 
 Best regards,
-The Dine Right Team
-[Website Link] | [Phone Number]`
+The Dine Right Team`
       };
 
+      // Send email notification
       transporter.sendMail(mailOptions, (emailError, info) => {
         if (emailError) {
           console.error('Error sending email:', emailError);
-          return res.status(200).json({ error_msg: 'Error sending email', details: emailError.message,response:false });
+          return res.status(200).json({ 
+            error_msg: 'Error sending email', 
+            details: emailError.message, 
+            table_count: result.affectedRows, // Number of rows inserted
+            response: false 
+          });
         }
 
-        res.status(200).json({ success_msg: 'Dining table data inserted successfully and email sent to user.',response:true  });
+        res.status(200).json({ 
+          success_msg: 'Dining table data inserted successfully and email sent to user.', 
+          table_count: result.affectedRows, // Number of rows inserted
+          response: true 
+        });
       });
     });
   });
 };
+
 
 // Step 6: login
 exports.login = (req, res) => {
@@ -962,3 +1025,48 @@ exports.getUserInfoWithCuisinesAndRestaurantTypes = (req, res) => {
 };
 
 
+exports.getDaysListing = (req, res) => {
+  // Query to fetch all days
+  const query = 'SELECT * FROM days_listing';
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error_msg: 'Database error', details: err.message, response: false });
+    }
+
+    if (results.length === 0) {
+      return res.status(200).json({ error_msg: 'No days found', response: false });
+    }
+
+    res.status(200).json({ days: results, success_msg: 'Days retrieved successfully', response: true });
+  });
+};
+exports.getAllDiningAreas = (req, res) => {
+  // Query to fetch all dining areas
+  const query = 'SELECT * FROM dining_areas';
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ 
+        error_msg: 'Database error', 
+        details: err.message, 
+        response: false 
+      });
+    }
+
+    // Check if any dining areas are found
+    if (results.length === 0) {
+      return res.status(200).json({ 
+        error_msg: 'No dining areas found', 
+        response: false 
+      });
+    }
+
+    // Send response with the list of dining areas
+    res.status(200).json({ 
+      diningAreas: results, 
+      success_msg: 'Dining areas retrieved successfully', 
+      response: true 
+    });
+  });
+};

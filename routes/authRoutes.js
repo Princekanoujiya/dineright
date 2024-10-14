@@ -47,6 +47,7 @@ const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInf
 
 
 
+const { verifySuperAdminToken } = require('../middlewares/superAdminMiddleware');
 
 const { verifyCustomerToken } = require('../middlewares/userMiddleware');
 
@@ -138,7 +139,7 @@ router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done
-router.get('/customers', getAllCustomers); //done
+
 router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done
@@ -153,16 +154,7 @@ router.get('/getAllRestaurantWithTime',getAllRestaurantWithTime);
 
 router.post('/enquiry',enquiry);
 
-//superadmin
-router.post('/superadminlogin', loginSuperadmin);
-router.get('/getGuests', getGuests);
-router.get('/getGuestsbyID', getGuestsbyID);
-router.put('/updateUserStatusAndCommission/:id', updateUserStatusAndCommission );
-router.put('/updateCommissionStatus/:id', updateCommissionStatus);
-router.post('/insertOrUpdateBlog', insertOrUpdateBlog);
-router.delete('/deleteBlog', deleteBlog);
-router.get('/getAllBlogs', getAllBlogs);
-router.get('/getBlog', getBlog);
+
 
 
 router.post('/insertOrUpdateBannerSection', insertOrUpdateBannerSection);
@@ -190,4 +182,18 @@ router.get('/getSelectedRestaurantTypes',getSelectedRestaurantTypes);
 router.get('/getRestroInfo',getRestroInfo);
 router.get('/getUserInfoWithCuisinesAndRestaurantTypes',getUserInfoWithCuisinesAndRestaurantTypes);
 router.get('/getUserIdsByFilters',getUserIdsByFilters);
+
+
+//superadmin routes
+router.post('/superadminlogin', loginSuperadmin);
+router.get('/getGuests', verifySuperAdminToken, getGuests);
+router.get('/getGuestsbyID', verifySuperAdminToken, getGuestsbyID);
+router.put('/updateUserStatusAndCommission/:id', verifySuperAdminToken, updateUserStatusAndCommission );
+router.put('/updateCommissionStatus/:id', verifySuperAdminToken, updateCommissionStatus);
+router.post('/insertOrUpdateBlog', verifySuperAdminToken, insertOrUpdateBlog);
+router.delete('/deleteBlog', verifySuperAdminToken, deleteBlog);
+router.get('/getAllBlogs', verifySuperAdminToken, getAllBlogs);
+router.get('/getBlog', verifySuperAdminToken, getBlog);
+router.get('/customers', verifySuperAdminToken, getAllCustomers); //done
+
 module.exports = router;

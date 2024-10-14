@@ -1,4 +1,7 @@
 const express = require('express');
+
+// validations
+const { validateBookingPayment } = require('../validations');
 //superadmin
 const { loginSuperadmin,getGuests ,getGuestsbyID,insertOrUpdateBlog,deleteBlog,getAllBlogs,getBlog,updateUserStatusAndCommission,updateCommissionStatus } = require('../controllers/superadmin/superadmin_authcontroller');
 
@@ -7,6 +10,7 @@ const { insertOrUpdateCuisineSection,getAllCuisinsSections ,getCuisionSectionByI
 
 
 //restroadmin
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails } = require('../controllers/restorant/restorantBookingController');
 const { 
     createOrUpdateOneStep, stepTwo, getAllDiningAreas,
     getDaysListing,sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, 
@@ -98,6 +102,7 @@ router.delete('/menu_item_token/:menu_item_id', verifyToken, menuItemsController
 
 
 router.get('/getCourseMenu', getCourseMenu);
+router.get('/getAllMasterMenus', verifyToken, master_card.getAllMasterMenus);
 router.get('/getCourseMenuGroupByCourseId', getCourseMenuGroupByCourseId);
 
 router.post('/insertMasterMenuItem', verifyToken, master_card.insertMasterMenuItem);
@@ -122,6 +127,14 @@ router.get('/banner_video', verifyToken, uploadsVideoController.getBannerVideos)
 router.delete('/banner_video/:banner_video_id', verifyToken, uploadsVideoController.deleteBannerVideo);//done
 router.post('/gallery', verifyToken, uploadGalleryController.insertOrUpdateBannerGallery);//done
 
+
+// restorant routes
+router.get('/getAllbookings', verifyToken, getAllBookings);
+router.get('/getOneBooking/:booking_id', verifyToken, getOneBooking);
+router.get('/getAllocatedTables', verifyToken, getAllDiningAreaAndAllocatedTables);
+router.post('/insertNewBooking', verifyToken, newBookingInsert);
+router.patch('/updateBookingPayment', verifyToken, updateBookingPayment);
+router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
 
 
 //user side api

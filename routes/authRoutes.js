@@ -128,7 +128,6 @@ router.delete('/banner_video/:banner_video_id', verifyToken, uploadsVideoControl
 router.post('/gallery', verifyToken, uploadGalleryController.insertOrUpdateBannerGallery);//done
 
 
-<<<<<<< HEAD
 // restorant routes
 router.get('/getAllbookings', verifyToken, getAllBookings);
 router.get('/getOneBooking/:booking_id', verifyToken, getOneBooking);
@@ -137,8 +136,6 @@ router.post('/insertNewBooking', verifyToken, newBookingInsert);
 router.patch('/updateBookingPayment', verifyToken, updateBookingPayment);
 router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
 
-=======
->>>>>>> akansha
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done

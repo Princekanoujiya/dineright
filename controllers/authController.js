@@ -594,11 +594,10 @@ exports.getUsersInfo = (req, res) => {
   db.query(query, [status], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
+      return res.status(200).json({ error_msg: 'Database error', details: err.message ,response:false});
     }
-
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'No users found', response: false });
+      return res.status(200).json({ error_msg: 'No users found',response:false });
     }
 
     const baseURL = process.env.BASE_URL;

@@ -584,12 +584,14 @@ exports.getUserInfo = (req, res) => {
 
 exports.getUsersInfo = (req, res) => {
   const query = `
-    SELECT users.*, banner_images.banner_image, banner_images.banner_image_id
+    SELECT users.*, banner_images.banner_image, banner_images.banner_image_id, banner_images.userId
     FROM users
     LEFT JOIN banner_images ON users.id = banner_images.banner_image_id
+    WHERE users.status = ?
   `;
+  const status = 'Activated';
 
-  db.query(query, (err, results) => {
+  db.query(query, [status], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
       return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
@@ -599,13 +601,15 @@ exports.getUsersInfo = (req, res) => {
       return res.status(200).json({ error_msg: 'No users found', response: false });
     }
 
-    // Modify the results to include the full URL for banner_image
     const baseURL = process.env.BASE_URL;
+
+    // Modify the results to include the full URL for banner_image
     const updatedResults = results.map(user => {
-      if (user.banner_image && user.banner_image_id) {
-        user.banner_image_url = `${baseURL}/uploads/banner_images/${user.banner_image_id}/${user.banner_image}`;
+      if (user.banner_image && user.userId) {
+        // Use banner_images.userId to construct the URL
+        user.banner_image_url = `${baseURL}/uploads/banner_images/${user.userId}/${user.banner_image}`;
       } else {
-        user.banner_image_url = null;
+        user.banner_image_url = null; // Handle case where no banner image exists
       }
       return user;
     });
@@ -613,6 +617,8 @@ exports.getUsersInfo = (req, res) => {
     res.status(200).json({ users: updatedResults, success_msg: 'success', response: true });
   });
 };
+
+
 
 exports.getTimingData = (req, res) => {
   const { userId } = req.params;
@@ -756,11 +762,11 @@ exports.verifyLoginOtp = (req, res) => {
 };
 
 exports.stepTwoAndSendOtp = (req, res) => {
-  const { userId, restaurantName, restaurantAddress, restaurant_type_id, cuisine_id } = req.body;
+  const { userId, restaurantName, restaurantAddress,restaurant_type_id, cuisine_id,city_id } = req.body;
 
   // Step 1: Update user information (restaurantName and restaurantAddress)
-  const updateQuery = `UPDATE users SET restaurantName=?, restaurantAddress=? WHERE id=?`;
-  db.query(updateQuery, [restaurantName, restaurantAddress, userId], (err, result) => {
+  const updateQuery = `UPDATE users SET restaurantName=?,restaurantAddress=?,city_id=? WHERE id=?`;
+  db.query(updateQuery, [restaurantName, restaurantAddress, city_id ,userId], (err, result) => {
     if (err) {
       console.error('Database error during update:', err);
       return res.status(200).json({ error_msg: 'Error updating user information', details: err.message,response:false });
@@ -1086,3 +1092,161 @@ exports.getAllDiningAreas = (req, res) => {
     });
   });
 };
+exports.getAllCities = (req, res) => {
+  // Query to fetch all dining areas
+  const query = 'SELECT * FROM cities';
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ 
+        error_msg: 'Database error', 
+        details: err.message, 
+        response: false 
+      });
+    }
+
+    // Check if any dining areas are found
+    if (results.length === 0) {
+      return res.status(200).json({ 
+        error_msg: 'No cities found', 
+        response: false 
+      });
+    }
+
+    // Send response with the list of dining areas
+    res.status(200).json({ 
+      diningAreas: results, 
+      success_msg: 'Cities retrieved successfully', 
+      response: true 
+    });
+  });
+};
+
+// exports.stepTwoAndSendOtp = (req, res) => {
+//   const { userId, restaurantName, restaurantAddress, restaurant_type_id, cuisine_id, city_id } = req.body;
+//   const restaurantLogo = req.file;
+
+//   console.log(req.body ,"data")
+
+//   res.json(req.body)
+  
+//   // Assuming you are using multer for file uploads
+
+//   // Step 1: Update user information (restaurantName, restaurantAddress, city_id)
+//   const updateQuery = `UPDATE users SET restaurantName=?,restaurantAddress=?,city_id=? WHERE id=?`;
+//   db.query(updateQuery, [restaurantName, restaurantAddress, city_id, userId], (err, result) => {
+//     if (err) {
+//       console.error('Database error during update:', err);
+//       return res.status(200).json({ error_msg: 'Error updating user information', details: err.message, response: false });
+//     }
+
+//     // Step 2: Insert restaurant_logo (if provided)
+//     if (restaurantLogo) {
+//       const baseURL = process.env.BASE_URL;
+//       const uploadDir = path.join(__dirname, `../uploads/restaurant_logo/${userId}/`);
+
+//       // Ensure the directory exists
+//       if (!fs.existsSync(uploadDir)) {
+//         fs.mkdirSync(uploadDir, { recursive: true });
+//       }
+
+//       // Save the restaurant logo
+//       const logoPath = `${baseURL}/uploads/restaurant_logo/${userId}/${restaurantLogo.filename}`;
+//       const logoUpdateQuery = `UPDATE users SET restaurant_logo=? WHERE id=?`;
+
+//       db.query(logoUpdateQuery, [logoPath, userId], (err, result) => {
+//         if (err) {
+//           console.error('Error updating restaurant_logo:', err);
+//           return res.status(200).json({ error_msg: 'Error saving restaurant logo', details: err.message, response: false });
+//         }
+//       });
+//     }
+
+//     // Step 3: Insert multiple restaurant_type_id and userId into the restaurant_types table
+//     const restaurantTypeInsertPromises = restaurant_type_id.map(typeId => {
+//       const restaurantTypeQuery = `INSERT INTO selected_restaurant_types (restaurant_type_id, userId) VALUES (?, ?) ON DUPLICATE KEY UPDATE restaurant_type_id=?`;
+//       return new Promise((resolve, reject) => {
+//         db.query(restaurantTypeQuery, [typeId, userId, typeId], (err, result) => {
+//           if (err) return reject(err);
+//           resolve(result);
+//         });
+//       });
+//     });
+
+//     // Step 4: Insert multiple cuisine_id and userId into the cuisines table
+//     const cuisineInsertPromises = cuisine_id.map(cuisineId => {
+//       const cuisinesQuery = `INSERT INTO selected_cuisines (cuisine_id, userId) VALUES (?, ?) ON DUPLICATE KEY UPDATE cuisine_id=?`;
+//       return new Promise((resolve, reject) => {
+//         db.query(cuisinesQuery, [cuisineId, userId, cuisineId], (err, result) => {
+//           if (err) return reject(err);
+//           resolve(result);
+//         });
+//       });
+//     });
+
+//     // Execute both insertion processes (restaurant types and cuisines)
+//     Promise.all([...restaurantTypeInsertPromises, ...cuisineInsertPromises])
+//       .then(() => {
+//         // Step 5: Fetch email from users table for OTP
+//         const emailQuery = `SELECT email FROM users WHERE id=?`;
+//         db.query(emailQuery, [userId], (err, result) => {
+//           if (err) {
+//             console.error('Database error during email fetch:', err);
+//             return res.status(200).json({ error_msg: 'Error fetching email', details: err.message, response: false });
+//           }
+
+//           if (result.length === 0) {
+//             return res.status(200).json({ error_msg: 'User not found', response: false });
+//           }
+
+//           const email = result[0].email;
+
+//           // Step 6: Generate OTP
+//           const otp = Math.floor(1000 + Math.random() * 9000);
+//           console.log('Generated OTP:', otp);
+
+//           // Step 7: Send email with OTP
+//           const transporter = nodemailer.createTransport({
+//             service: 'gmail',
+//             auth: {
+//               user: process.env.EMAIL_SERVICE,
+//               pass: process.env.EMAIL_PASSWORD,
+//             },
+//             tls: {
+//               rejectUnauthorized: false // Allow self-signed certificates
+//             }
+//           });
+
+//           const mailOptions = {
+//             from: `DineRight <${process.env.EMAIL_SERVICE}>`,
+//             to: email,
+//             subject: 'OTP Verification',
+//             text: `Your OTP is ${otp}`,
+//           };
+
+//           transporter.sendMail(mailOptions, (error, info) => {
+//             if (error) {
+//               console.error('Error sending email:', error);
+//               return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message, response: false });
+//             }
+
+//             // Step 8: Save OTP to database
+//             const otpQuery = `UPDATE users SET otp=? WHERE id=?`;
+//             db.query(otpQuery, [otp, userId], (err, result) => {
+//               if (err) {
+//                 console.error('Database error during OTP update:', err);
+//                 return res.status(200).json({ error_msg: 'Error saving OTP', details: err.message, response: false });
+//               }
+
+//               console.log('OTP sent to email:', email);
+//               res.status(200).json({ success_msg: 'User data updated and OTP sent to email', response: true });
+//             });
+//           });
+//         });
+//       })
+//       .catch(err => {
+//         console.error('Error during multiple inserts:', err);
+//         res.status(200).json({ error_msg: 'Error inserting restaurant type or cuisine information', details: err.message, response: false });
+//       });
+//   });
+// };

@@ -71,7 +71,7 @@ exports.getGuestsbyID = (req, res) => {
   const queryParams = [];
 
   if (id) {
-      query += ' WHERE id = ?'; // Assuming 'id' is the column in your database
+      query += ' WHERE id = ?';
       queryParams.push(id);
   }
 

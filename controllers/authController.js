@@ -583,18 +583,23 @@ exports.getUserInfo = (req, res) => {
 };
 
 exports.getUsersInfo = (req, res) => {
-  const query = 'SELECT * FROM users WHERE status = ?';
+  const query = `
+    SELECT users.*, banner_images.banner_image, banner_images.banner_image_id
+    FROM users
+    LEFT JOIN banner_images ON users.id = banner_images.banner_image_id
+    WHERE users.status = ?
+  `;
   const status = 'Activated';
 
   db.query(query, [status], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message ,response:false});
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'No users found',response:false });
+      return res.status(200).json({ error_msg: 'No users found', response: false });
     }
-    res.status(200).json({ users: results ,success_msg:'success',response:true});
+    res.status(200).json({ users: results, success_msg: 'success', response: true });
   });
 };
 

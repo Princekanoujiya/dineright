@@ -1,14 +1,18 @@
 const express = require('express');
+
+// validations
+const { validateBookingPayment } = require('../validations');
 //superadmin
-const { loginSuperadmin,getGuests ,getGuestsbyID,insertOrUpdateBlog,deleteBlog,getAllBlogs,getBlog,updateUserStatusAndCommission,updateCommissionStatus } = require('../controllers/superadmin/superadmin_authcontroller');
+const { loginSuperadmin,getGuests ,getGuestsbyID,insertOrUpdateBlog,deleteBlog,getAllBlogs,getBlog,updateUserStatusAndCommission,updateCommissionStatus ,getDeactivatedRestaurants} = require('../controllers/superadmin/superadmin_authcontroller');
 
 const { insertOrUpdateBannerSection,getAllBannerSections, getBannerSectionById} = require('../controllers/superadmin/uploadController');
 const { insertOrUpdateCuisineSection,getAllCuisinsSections ,getCuisionSectionById} = require('../controllers/superadmin/cuisinsController');
 
 
 //restroadmin
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails } = require('../controllers/restorant/restorantBookingController');
 const { 
-    createOrUpdateOneStep, stepTwo, getAllDiningAreas,
+    createOrUpdateOneStep, stepTwo, getAllDiningAreas,getAllCities,
     getDaysListing,sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, 
     loginWithOtp,verifyLoginOtp,stepTwoAndSendOtp,insertOrUpdateTimingData,restro_guest_time_duration,
     insertDiningTable,getUserInfo,getTimingData,getDiningAreas,getDiningTables,getUsersInfo,getSelectedCuisines,
@@ -21,7 +25,7 @@ const { createOrUpdateCourse,getAllCourses,DeleteCourse,getCourseById} = require
 const { createOrUpdateMenu,getMenu,DeleteMenu} = require('../controllers/menusController');
 const { createOrUpdateMenuItem,getMenuItem,deleteMenuItem,softDeleteMenuItem} = require('../controllers/menuItemsController');
 const { getCourseMenu,getCourseMenuGroupByCourseId} = require('../controllers/master_card');
-const { getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
+const { insertOrUpdateBookingTable,getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
 const { enquiry} = require('../controllers/enquiryController');
 const { getRestaurantType,getCuisines,getUserIdsByFilters} = require('../controllers/filtersController');
 
@@ -32,8 +36,8 @@ const uploadsVideoController = require('../controllers/uploadVideosController');
 const uploadGalleryController = require('../controllers/uploadGalleryController');
 const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
-const { getRazorpayKey, razorpayVerifyPayment } = require('../controllers/razorpayController');
-
+const { getRazorpayKey, razorPayCreateOrder, razorpayVerifyPayment } = require('../controllers/razorpayController');
+const enquiryController = require('../controllers/enquiryController');
 
 // const booking_controller = require('../controllers/booking_controller');
 
@@ -69,6 +73,7 @@ router.post('/login', login);
 router.get('/getSelectedCuisines', getSelectedCuisines);
 router.get('/getDaysListing', getDaysListing);
 router.get('/getAllDiningAreas', getAllDiningAreas);
+router.get('/getAllCities', getAllCities);
 
 router.get('/user/:userId', getUserInfo);//done
 router.get('/timing/:userId',getTimingData);//done
@@ -123,6 +128,14 @@ router.delete('/banner_video/:banner_video_id', verifyToken, uploadsVideoControl
 router.post('/gallery', verifyToken, uploadGalleryController.insertOrUpdateBannerGallery);//done
 
 
+// restorant routes
+router.get('/getAllbookings', verifyToken, getAllBookings);
+router.get('/getOneBooking/:booking_id', verifyToken, getOneBooking);
+router.get('/getAllocatedTables', verifyToken, getAllDiningAreaAndAllocatedTables);
+router.post('/insertNewBooking', verifyToken, newBookingInsert);
+router.patch('/updateBookingPayment', verifyToken, updateBookingPayment);
+router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
+
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done
@@ -137,6 +150,8 @@ router.get('/getMasterBeverage',getMasterBeverage);
 router.post('/book_product',verifyCustomerToken,book_product);
 router.get('/getrestrodaydetails',getrestrodaydetails);
 router.get('/getAllRestaurantWithTime',getAllRestaurantWithTime);
+router.get('/getDaysListing', verifyCustomerToken,getDaysListing);
+
 
 
 router.post('/enquiry',enquiry);
@@ -148,9 +163,10 @@ router.get('/getGuestsbyID', getGuestsbyID);
 router.put('/updateUserStatusAndCommission/:id', updateUserStatusAndCommission );
 router.put('/updateCommissionStatus/:id', updateCommissionStatus);
 router.post('/insertOrUpdateBlog', insertOrUpdateBlog);
-router.delete('/deleteBlog', deleteBlog);
+router.post('/deleteBlog', deleteBlog);
 router.get('/getAllBlogs', getAllBlogs);
-router.get('/getBlog', getBlog);
+router.post('/getBlog', getBlog);
+router.get('/getDeactivatedRestaurants', getDeactivatedRestaurants);
 
 
 router.post('/insertOrUpdateBannerSection', insertOrUpdateBannerSection);

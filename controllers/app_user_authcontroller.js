@@ -127,10 +127,22 @@ exports.getAllCustomers = (req, res) => {
   const selectQuery = 'SELECT * FROM customers WHERE is_deleted=0';
 
   db.query(selectQuery, (err, results) => {
-    if (err) return res.status(200).json({ error_msg: err.message ,response:false});
-    res.json(results);
+    if (err) {
+      return res.status(200).json({ error_msg: err.message, response: false });
+    }
+
+    // Store the results in a variable
+    const customers = results;
+
+    // Send the response with customers and success message
+    res.status(200).json({
+      customers: customers,
+      success_msg: 'Customers retrieved successfully',
+      response: true,
+    });
   });
 };
+
 exports.getCustomerInfo = (req, res) => {
   const { customer_id } = req.params;
 

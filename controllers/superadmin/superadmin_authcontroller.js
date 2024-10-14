@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 
+
 exports.loginSuperadmin = (req, res) => {
     const { superadmin_email, superadmin_password } = req.body;
 
@@ -50,21 +51,47 @@ exports.loginSuperadmin = (req, res) => {
     });
 };
 exports.getGuests = (req, res) => {
-    const query = 'SELECT * FROM users';
-  
-    db.query(query, (err, results) => {
-      if (err) {
-        console.error('Database error_msg:', err);
-        return res.status(200).json({ error_msg: 'Database error', details: err.message,response:false });
-      }
-  
-      if (results.length === 0) {
-        return res.status(200).json({ error_msg: 'No users found' ,response:false});
-      }
-  
-      res.status(200).json({ users: results ,response:true,success_msg:true});
-    });
+  const query = `
+    SELECT users.*, cities.city_name 
+    FROM users
+    LEFT JOIN cities ON users.city_id = cities.city_id
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
+    }
+
+    if (results.length === 0) {
+      return res.status(200).json({ error_msg: 'No users found', response: false });
+    }
+
+    res.status(200).json({ users: results, response: true, success_msg: true });
+  });
 };
+exports.getDeactivatedRestaurants = (req, res) => {
+  const query = `
+    SELECT users.*, cities.city_name 
+    FROM users
+    LEFT JOIN cities ON users.city_id = cities.city_id
+    WHERE users.status = 'Deactivated'
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
+    }
+
+    if (results.length === 0) {
+      return res.status(200).json({ error_msg: 'No deactivated users found', response: false });
+    }
+
+    res.status(200).json({ users: results, response: true, success_msg: 'Deactivated users retrieved successfully' });
+  });
+};
+
 exports.getGuestsbyID = (req, res) => {
   const { id } = req.body; // Replace userId with id
   let query = 'SELECT * FROM users';
@@ -318,3 +345,5 @@ exports.getAllBlogs = (req, res) => {
     });
   });
 };
+
+

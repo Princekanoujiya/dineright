@@ -21,7 +21,7 @@ const { createOrUpdateCourse,getAllCourses,DeleteCourse,getCourseById} = require
 const { createOrUpdateMenu,getMenu,DeleteMenu} = require('../controllers/menusController');
 const { createOrUpdateMenuItem,getMenuItem,deleteMenuItem,softDeleteMenuItem} = require('../controllers/menuItemsController');
 const { getCourseMenu,getCourseMenuGroupByCourseId} = require('../controllers/master_card');
-const { insertOrUpdateBookingTable,getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
+const { getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
 const { enquiry} = require('../controllers/enquiryController');
 const { getRestaurantType,getCuisines,getUserIdsByFilters} = require('../controllers/filtersController');
 
@@ -32,8 +32,8 @@ const uploadsVideoController = require('../controllers/uploadVideosController');
 const uploadGalleryController = require('../controllers/uploadGalleryController');
 const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
-const { getRazorpayKey, razorPayCreateOrder, razorpayVerifyPayment } = require('../controllers/razorpayController');
-const enquiryController = require('../controllers/enquiryController');
+const { getRazorpayKey, razorpayVerifyPayment } = require('../controllers/razorpayController');
+
 
 // const booking_controller = require('../controllers/booking_controller');
 

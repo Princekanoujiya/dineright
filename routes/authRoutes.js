@@ -25,7 +25,7 @@ const { createOrUpdateCourse, getAllCourses, DeleteCourse, getCourseById } = req
 const { createOrUpdateMenu, getMenu, DeleteMenu } = require('../controllers/menusController');
 const { createOrUpdateMenuItem, getMenuItem, deleteMenuItem, softDeleteMenuItem } = require('../controllers/menuItemsController');
 const { getCourseMenu, getCourseMenuGroupByCourseId } = require('../controllers/master_card');
-const { getMasterCard, getMasterBeverage, book_product } = require('../controllers/booking_controller');
+const { insertOrUpdateBookingTable, getMasterCard, getMasterBeverage, book_product } = require('../controllers/booking_controller');
 const { enquiry } = require('../controllers/enquiryController');
 const { getRestaurantType, getCuisines, getUserIdsByFilters } = require('../controllers/filtersController');
 
@@ -144,6 +144,7 @@ router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done
 router.post('/customer_resend_otp', resendOtp); //done
+// router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
 router.get('/getMasterCard', getMasterCard);
 router.get('/getMasterBeverage', getMasterBeverage);
 router.post('/book_product', verifyCustomerToken, book_product);

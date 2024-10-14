@@ -3,31 +3,31 @@ const express = require('express');
 // validations
 const { validateBookingPayment } = require('../validations');
 //superadmin
-const { loginSuperadmin,getGuests ,getGuestsbyID,insertOrUpdateBlog,deleteBlog,getAllBlogs,getBlog,updateUserStatusAndCommission,updateCommissionStatus } = require('../controllers/superadmin/superadmin_authcontroller');
+const { loginSuperadmin, getGuests, getGuestsbyID, insertOrUpdateBlog, deleteBlog, getAllBlogs, getBlog, updateUserStatusAndCommission, updateCommissionStatus } = require('../controllers/superadmin/superadmin_authcontroller');
 
-const { insertOrUpdateBannerSection,getAllBannerSections, getBannerSectionById} = require('../controllers/superadmin/uploadController');
-const { insertOrUpdateCuisineSection,getAllCuisinsSections ,getCuisionSectionById} = require('../controllers/superadmin/cuisinsController');
+const { insertOrUpdateBannerSection, getAllBannerSections, getBannerSectionById } = require('../controllers/superadmin/uploadController');
+const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionById } = require('../controllers/superadmin/cuisinsController');
 
 
 //restroadmin
 const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails } = require('../controllers/restorant/restorantBookingController');
-const { 
+const {
     createOrUpdateOneStep, stepTwo, getAllDiningAreas,
-    getDaysListing,sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, 
-    loginWithOtp,verifyLoginOtp,stepTwoAndSendOtp,insertOrUpdateTimingData,restro_guest_time_duration,
-    insertDiningTable,getUserInfo,getTimingData,getDiningAreas,getDiningTables,getUsersInfo,getSelectedCuisines,
-    getSelectedRestaurantTypes,getRestroInfo,getUserInfoWithCuisinesAndRestaurantTypes
+    getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
+    loginWithOtp, verifyLoginOtp, stepTwoAndSendOtp, insertOrUpdateTimingData, restro_guest_time_duration,
+    insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines,
+    getSelectedRestaurantTypes, getRestroInfo, getUserInfoWithCuisinesAndRestaurantTypes
 } = require('../controllers/authController');
 
 
 
-const { createOrUpdateCourse,getAllCourses,DeleteCourse,getCourseById} = require('../controllers/coursesController');
-const { createOrUpdateMenu,getMenu,DeleteMenu} = require('../controllers/menusController');
-const { createOrUpdateMenuItem,getMenuItem,deleteMenuItem,softDeleteMenuItem} = require('../controllers/menuItemsController');
-const { getCourseMenu,getCourseMenuGroupByCourseId} = require('../controllers/master_card');
-const { insertOrUpdateBookingTable,getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
-const { enquiry} = require('../controllers/enquiryController');
-const { getRestaurantType,getCuisines,getUserIdsByFilters} = require('../controllers/filtersController');
+const { createOrUpdateCourse, getAllCourses, DeleteCourse, getCourseById } = require('../controllers/coursesController');
+const { createOrUpdateMenu, getMenu, DeleteMenu } = require('../controllers/menusController');
+const { createOrUpdateMenuItem, getMenuItem, deleteMenuItem, softDeleteMenuItem } = require('../controllers/menuItemsController');
+const { getCourseMenu, getCourseMenuGroupByCourseId } = require('../controllers/master_card');
+const { getMasterCard, getMasterBeverage, book_product } = require('../controllers/booking_controller');
+const { enquiry } = require('../controllers/enquiryController');
+const { getRestaurantType, getCuisines, getUserIdsByFilters } = require('../controllers/filtersController');
 
 
 const menuItemsController = require('../controllers/menuItems_with_token');
@@ -42,7 +42,7 @@ const enquiryController = require('../controllers/enquiryController');
 // const booking_controller = require('../controllers/booking_controller');
 
 //user
-const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInfo,loginWithEmail,resendOtp,getAllRestaurantWithTime,getrestrodaydetails} = require('../controllers/app_user_authcontroller');
+const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails } = require('../controllers/app_user_authcontroller');
 
 
 
@@ -76,8 +76,8 @@ router.get('/getDaysListing', getDaysListing);
 router.get('/getAllDiningAreas', getAllDiningAreas);
 
 router.get('/user/:userId', getUserInfo);//done
-router.get('/timing/:userId',getTimingData);//done
-router.get('/dining-areas/:userId',getDiningAreas);//done
+router.get('/timing/:userId', getTimingData);//done
+router.get('/dining-areas/:userId', getDiningAreas);//done
 router.get('/dining-tables/:userId', getDiningTables);//done
 
 router.post('/courses', createOrUpdateCourse);//done
@@ -96,7 +96,7 @@ router.delete('/menu_item/:menu_item_id?', deleteMenuItem);//-----------------
 router.delete('/menu_item/:menu_item_id?', softDeleteMenuItem);//---------------
 
 router.post('/menu_item_token', verifyToken, menuItemsController.insertOrUpdateMenuItem);//done
-router.get('/getMenuItemsbyId/:menu_item_id',  menuItemsController.getMenuItemsbyId);
+router.get('/getMenuItemsbyId/:menu_item_id', menuItemsController.getMenuItemsbyId);
 router.get('/menu_item_token/active', verifyToken, menuItemsController.getActiveMenuItems);
 router.get('/menu_item_token', verifyToken, menuItemsController.getMenuItems);
 router.delete('/menu_item_token/:menu_item_id', verifyToken, menuItemsController.deleteMenuItem);
@@ -144,15 +144,14 @@ router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done
 router.post('/customer_resend_otp', resendOtp); //done
-// router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
-router.get('/getMasterCard',getMasterCard);
-router.get('/getMasterBeverage',getMasterBeverage);
-router.post('/book_product',verifyCustomerToken,book_product);
-router.get('/getrestrodaydetails',getrestrodaydetails);
-router.get('/getAllRestaurantWithTime',getAllRestaurantWithTime);
+router.get('/getMasterCard', getMasterCard);
+router.get('/getMasterBeverage', getMasterBeverage);
+router.post('/book_product', verifyCustomerToken, book_product);
+router.get('/getrestrodaydetails', getrestrodaydetails);
+router.get('/getAllRestaurantWithTime', getAllRestaurantWithTime);
 
 
-router.post('/enquiry',enquiry);
+router.post('/enquiry', enquiry);
 
 
 
@@ -176,19 +175,19 @@ router.post('/verify_payment', razorpayVerifyPayment);
 
 
 //filters
-router.get('/getRestaurantType',getRestaurantType);
-router.get('/getcuisines',getCuisines);
-router.get('/getSelectedRestaurantTypes',getSelectedRestaurantTypes);
-router.get('/getRestroInfo',getRestroInfo);
-router.get('/getUserInfoWithCuisinesAndRestaurantTypes',getUserInfoWithCuisinesAndRestaurantTypes);
-router.get('/getUserIdsByFilters',getUserIdsByFilters);
+router.get('/getRestaurantType', getRestaurantType);
+router.get('/getcuisines', getCuisines);
+router.get('/getSelectedRestaurantTypes', getSelectedRestaurantTypes);
+router.get('/getRestroInfo', getRestroInfo);
+router.get('/getUserInfoWithCuisinesAndRestaurantTypes', getUserInfoWithCuisinesAndRestaurantTypes);
+router.get('/getUserIdsByFilters', getUserIdsByFilters);
 
 
 //superadmin routes
 router.post('/superadminlogin', loginSuperadmin);
 router.get('/getGuests', verifySuperAdminToken, getGuests);
 router.get('/getGuestsbyID', verifySuperAdminToken, getGuestsbyID);
-router.put('/updateUserStatusAndCommission/:id', verifySuperAdminToken, updateUserStatusAndCommission );
+router.put('/updateUserStatusAndCommission/:id', verifySuperAdminToken, updateUserStatusAndCommission);
 router.put('/updateCommissionStatus/:id', verifySuperAdminToken, updateCommissionStatus);
 router.post('/insertOrUpdateBlog', verifySuperAdminToken, insertOrUpdateBlog);
 router.delete('/deleteBlog', verifySuperAdminToken, deleteBlog);

@@ -583,34 +583,18 @@ exports.getUserInfo = (req, res) => {
 };
 
 exports.getUsersInfo = (req, res) => {
-  const query = `
-    SELECT users.*, banner_images.banner_image, banner_images.banner_image_id
-    FROM users
-    LEFT JOIN banner_images ON users.id = banner_images.banner_image_id
-  `;
+  const query = 'SELECT * FROM users WHERE status = ?';
+  const status = 'Activated';
 
-  db.query(query, (err, results) => {
+  db.query(query, [status], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
+      return res.status(200).json({ error_msg: 'Database error', details: err.message ,response:false});
     }
-
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'No users found', response: false });
+      return res.status(200).json({ error_msg: 'No users found',response:false });
     }
-
-    // Modify the results to include the full URL for banner_image
-    const baseURL = process.env.BASE_URL;
-    const updatedResults = results.map(user => {
-      if (user.banner_image && user.banner_image_id) {
-        user.banner_image_url = `${baseURL}/uploads/banner_images/${user.banner_image_id}/${user.banner_image}`;
-      } else {
-        user.banner_image_url = null;
-      }
-      return user;
-    });
-
-    res.status(200).json({ users: updatedResults, success_msg: 'success', response: true });
+    res.status(200).json({ users: results ,success_msg:'success',response:true});
   });
 };
 

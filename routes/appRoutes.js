@@ -1,13 +1,19 @@
 const express = require('express');
 //superadmin
-const { loginSuperadmin,getGuests ,updateUserStatusAndCommission,updateCommissionStatus } = require('../controllers/superadmin/superadmin_authcontroller');
+const { loginSuperadmin,getGuests ,getGuestsbyID,insertOrUpdateBlog,deleteBlog,getAllBlogs,getBlog,updateUserStatusAndCommission,updateCommissionStatus } = require('../controllers/superadmin/superadmin_authcontroller');
 
 const { insertOrUpdateBannerSection,getAllBannerSections, getBannerSectionById} = require('../controllers/superadmin/uploadController');
 const { insertOrUpdateCuisineSection,getAllCuisinsSections ,getCuisionSectionById} = require('../controllers/superadmin/cuisinsController');
 
 
 //restroadmin
-const { createOrUpdateOneStep, stepTwo, sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, loginWithOtp,verifyLoginOtp,stepTwoAndSendOtp,insertOrUpdateTimingData,restro_guest_time_duration,insertDiningTable,getUserInfo,getTimingData,getDiningAreas,getDiningTables,getUsersInfo,getSelectedCuisines,getSelectedRestaurantTypes,getRestroInfo,getUserInfoWithCuisinesAndRestaurantTypes} = require('../controllers/authController');
+const { 
+    createOrUpdateOneStep, stepTwo, getAllDiningAreas,
+    getDaysListing,sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, 
+    loginWithOtp,verifyLoginOtp,stepTwoAndSendOtp,insertOrUpdateTimingData,restro_guest_time_duration,
+    insertDiningTable,getUserInfo,getTimingData,getDiningAreas,getDiningTables,getUsersInfo,getSelectedCuisines,
+    getSelectedRestaurantTypes,getRestroInfo,getUserInfoWithCuisinesAndRestaurantTypes
+} = require('../controllers/authController');
 
 
 
@@ -53,7 +59,7 @@ router.post('/verify-otp', verifyOtp);
 router.post('/set-password', setPassword);
 router.post('/restro_guest_time_duration', restro_guest_time_duration);
 router.post('/insert-service', insertTimingData);
-router.post('/insert-dining-area', insertDiningArea);
+router.post('/insertDiningArea', insertDiningArea);
 router.post('/insert-dining-table', insertDiningTable);
 router.post('/insertOrUpdateTimingData', insertOrUpdateTimingData);
 router.get('/getUsersInfo', getUsersInfo);
@@ -61,6 +67,8 @@ router.post('/loginWithOtp', loginWithOtp);
 router.post('/verifyLoginOtp', verifyLoginOtp);
 router.post('/login', login);
 router.get('/getSelectedCuisines', getSelectedCuisines);
+router.get('/getDaysListing', getDaysListing);
+router.get('/getAllDiningAreas', getAllDiningAreas);
 
 router.get('/user/:userId', getUserInfo);//done
 router.get('/timing/:userId',getTimingData);//done
@@ -136,8 +144,13 @@ router.post('/enquiry',enquiry);
 //superadmin
 router.post('/superadminlogin', loginSuperadmin);
 router.get('/getGuests', getGuests);
+router.get('/getGuestsbyID', getGuestsbyID);
 router.put('/updateUserStatusAndCommission/:id', updateUserStatusAndCommission );
 router.put('/updateCommissionStatus/:id', updateCommissionStatus);
+router.post('/insertOrUpdateBlog', insertOrUpdateBlog);
+router.delete('/deleteBlog', deleteBlog);
+router.get('/getAllBlogs', getAllBlogs);
+router.get('/getBlog', getBlog);
 
 
 router.post('/insertOrUpdateBannerSection', insertOrUpdateBannerSection);

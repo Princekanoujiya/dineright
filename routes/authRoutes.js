@@ -1,7 +1,4 @@
 const express = require('express');
-
-// validations
-const { validateBookingPayment } = require('../validations');
 //superadmin
 const { loginSuperadmin,getGuests ,getGuestsbyID,insertOrUpdateBlog,deleteBlog,getAllBlogs,getBlog,updateUserStatusAndCommission,updateCommissionStatus } = require('../controllers/superadmin/superadmin_authcontroller');
 
@@ -10,7 +7,6 @@ const { insertOrUpdateCuisineSection,getAllCuisinsSections ,getCuisionSectionByI
 
 
 //restroadmin
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails } = require('../controllers/restorant/restorantBookingController');
 const { 
     createOrUpdateOneStep, stepTwo, getAllDiningAreas,
     getDaysListing,sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, 
@@ -25,7 +21,7 @@ const { createOrUpdateCourse,getAllCourses,DeleteCourse,getCourseById} = require
 const { createOrUpdateMenu,getMenu,DeleteMenu} = require('../controllers/menusController');
 const { createOrUpdateMenuItem,getMenuItem,deleteMenuItem,softDeleteMenuItem} = require('../controllers/menuItemsController');
 const { getCourseMenu,getCourseMenuGroupByCourseId} = require('../controllers/master_card');
-const { insertOrUpdateBookingTable,getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
+const { getMasterCard,getMasterBeverage,book_product} = require('../controllers/booking_controller');
 const { enquiry} = require('../controllers/enquiryController');
 const { getRestaurantType,getCuisines,getUserIdsByFilters} = require('../controllers/filtersController');
 
@@ -36,8 +32,8 @@ const uploadsVideoController = require('../controllers/uploadVideosController');
 const uploadGalleryController = require('../controllers/uploadGalleryController');
 const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
-const { getRazorpayKey, razorPayCreateOrder, razorpayVerifyPayment } = require('../controllers/razorpayController');
-const enquiryController = require('../controllers/enquiryController');
+const { getRazorpayKey, razorpayVerifyPayment } = require('../controllers/razorpayController');
+
 
 // const booking_controller = require('../controllers/booking_controller');
 
@@ -47,7 +43,6 @@ const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInf
 
 
 
-const { verifySuperAdminToken } = require('../middlewares/superAdminMiddleware');
 
 const { verifyCustomerToken } = require('../middlewares/userMiddleware');
 
@@ -128,18 +123,10 @@ router.delete('/banner_video/:banner_video_id', verifyToken, uploadsVideoControl
 router.post('/gallery', verifyToken, uploadGalleryController.insertOrUpdateBannerGallery);//done
 
 
-// restorant routes
-router.get('/getAllbookings', verifyToken, getAllBookings);
-router.get('/getOneBooking/:booking_id', verifyToken, getOneBooking);
-router.get('/getAllocatedTables', verifyToken, getAllDiningAreaAndAllocatedTables);
-router.post('/insertNewBooking', verifyToken, newBookingInsert);
-router.patch('/updateBookingPayment', verifyToken, updateBookingPayment);
-router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
-
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done
-
+router.get('/customers', getAllCustomers); //done
 router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done
@@ -154,7 +141,16 @@ router.get('/getAllRestaurantWithTime',getAllRestaurantWithTime);
 
 router.post('/enquiry',enquiry);
 
-
+//superadmin
+router.post('/superadminlogin', loginSuperadmin);
+router.get('/getGuests', getGuests);
+router.get('/getGuestsbyID', getGuestsbyID);
+router.put('/updateUserStatusAndCommission/:id', updateUserStatusAndCommission );
+router.put('/updateCommissionStatus/:id', updateCommissionStatus);
+router.post('/insertOrUpdateBlog', insertOrUpdateBlog);
+router.delete('/deleteBlog', deleteBlog);
+router.get('/getAllBlogs', getAllBlogs);
+router.get('/getBlog', getBlog);
 
 
 router.post('/insertOrUpdateBannerSection', insertOrUpdateBannerSection);
@@ -182,18 +178,4 @@ router.get('/getSelectedRestaurantTypes',getSelectedRestaurantTypes);
 router.get('/getRestroInfo',getRestroInfo);
 router.get('/getUserInfoWithCuisinesAndRestaurantTypes',getUserInfoWithCuisinesAndRestaurantTypes);
 router.get('/getUserIdsByFilters',getUserIdsByFilters);
-
-
-//superadmin routes
-router.post('/superadminlogin', loginSuperadmin);
-router.get('/getGuests', verifySuperAdminToken, getGuests);
-router.get('/getGuestsbyID', verifySuperAdminToken, getGuestsbyID);
-router.put('/updateUserStatusAndCommission/:id', verifySuperAdminToken, updateUserStatusAndCommission );
-router.put('/updateCommissionStatus/:id', verifySuperAdminToken, updateCommissionStatus);
-router.post('/insertOrUpdateBlog', verifySuperAdminToken, insertOrUpdateBlog);
-router.delete('/deleteBlog', verifySuperAdminToken, deleteBlog);
-router.get('/getAllBlogs', verifySuperAdminToken, getAllBlogs);
-router.get('/getBlog', verifySuperAdminToken, getBlog);
-router.get('/customers', verifySuperAdminToken, getAllCustomers); //done
-
 module.exports = router;

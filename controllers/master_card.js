@@ -248,7 +248,7 @@ exports.getMasterMenuItems = async (req, res) => {
       const menuItemsQuery = `
     SELECT mi.* FROM menu_item_linking mil
      JOIN master_items mi ON mil.master_item_id = mi.master_item_id AND mil.userId = mi.userId
-     WHERE mil.menu_id = ? AND mil.userId = ? 
+     WHERE mil.menu_id = ? AND mil.userId = ? AND is_deleted = 0
      `;
 
       const [menuItems] = await db.promise().query(menuItemsQuery, [menu.menu_id, userId]);
@@ -295,16 +295,16 @@ exports.getAllMasterMenus = async (req, res) => {
 
 
 exports.deleteMasterMenuItem = (req, res) => {
-  const { master_item_id, menu_id } = req.body; // Expect both master_item_id and menu_id from the request body
+  const { master_item_id } = req.params; // Expect both master_item_id and menu_id from the request body
   const userId = req.userId;
 
   // Check if the item exists and is not already deleted
   const checkQuery = `
       SELECT is_deleted 
       FROM menu_item_linking 
-      WHERE master_item_id = ? AND menu_id = ? AND userId = ?`;
+      WHERE master_item_id = ? AND userId = ?`;
 
-  db.query(checkQuery, [master_item_id, menu_id, userId], (err, result) => {
+  db.query(checkQuery, [master_item_id, userId], (err, result) => {
     if (err) {
       return res.status(200).json({ error_msg: 'Database error checking item', details: err.message, response: false });
     }
@@ -321,9 +321,9 @@ exports.deleteMasterMenuItem = (req, res) => {
     const updateQuery = `
         UPDATE menu_item_linking 
         SET is_deleted = 1
-        WHERE master_item_id = ? AND menu_id = ? AND userId = ?`;
+        WHERE master_item_id = ? AND userId = ?`;
 
-    db.query(updateQuery, [master_item_id, menu_id, userId], (err, result) => {
+    db.query(updateQuery, [master_item_id, userId], (err, result) => {
       if (err) {
         return res.status(200).json({ error_msg: 'Database error updating is_deleted flag', details: err.message, response: false });
       }

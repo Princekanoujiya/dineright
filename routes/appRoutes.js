@@ -97,13 +97,13 @@ router.get('/getCourseMenuGroupByCourseId', getCourseMenuGroupByCourseId);
 
 router.post('/insertMasterMenuItem', verifyToken, master_card.insertMasterMenuItem);
 router.get('/getMasterMenuItems', verifyToken, master_card.getMasterMenuItems);
-router.delete('/deleteMasterMenuItem', verifyToken, master_card.deleteMasterMenuItem);
+router.delete('/deleteMasterMenuItem/:master_item_id', verifyToken, master_card.deleteMasterMenuItem);
 
 router.get('/getAllBeverages', verifyToken, beverage_itemController.getAllBeverages);
 router.get('/getBeverageItemsbyId/:beverageId',  beverage_itemController.getBeverageItemsbyId);
 router.post('/insertMasterBeverageItem', verifyToken, beverage_itemController.insertMasterBeverageItem);
 router.get('/getMasterBeverageItems', verifyToken, beverage_itemController.getMasterBeverageItems);
-router.delete('/deleteMasterBeverageItem', verifyToken, beverage_itemController.deleteMasterBeverageItem);
+router.delete('/deleteMasterBeverageItem/:master_item_id', verifyToken, beverage_itemController.deleteMasterBeverageItem);
 
 router.post('/insertOrUpdateBannerSection', insertOrUpdateBannerSection);
 router.get('/banners', getAllBannerSections);

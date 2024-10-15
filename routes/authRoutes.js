@@ -33,9 +33,6 @@ const uploadGalleryController = require('../controllers/uploadGalleryController'
 const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
 const { getRazorpayKey, razorpayVerifyPayment } = require('../controllers/razorpayController');
-// const enquiryController = require('../controllers/enquiryController');
-
-// const booking_controller = require('../controllers/booking_controller');
 
 //user
 const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInfo,loginWithEmail,resendOtp,getAllRestaurantWithTime,getrestrodaydetails} = require('../controllers/app_user_authcontroller');
@@ -100,13 +97,13 @@ router.get('/getCourseMenuGroupByCourseId', getCourseMenuGroupByCourseId);
 
 router.post('/insertMasterMenuItem', verifyToken, master_card.insertMasterMenuItem);
 router.get('/getMasterMenuItems', verifyToken, master_card.getMasterMenuItems);
-router.delete('/deleteMasterMenuItem', verifyToken, master_card.deleteMasterMenuItem);
+router.delete('/deleteMasterMenuItem/:master_item_id', verifyToken, master_card.deleteMasterMenuItem);
 
 router.get('/getAllBeverages', verifyToken, beverage_itemController.getAllBeverages);
 router.get('/getBeverageItemsbyId/:beverageId',  beverage_itemController.getBeverageItemsbyId);
 router.post('/insertMasterBeverageItem', verifyToken, beverage_itemController.insertMasterBeverageItem);
 router.get('/getMasterBeverageItems', verifyToken, beverage_itemController.getMasterBeverageItems);
-router.delete('/deleteMasterBeverageItem', verifyToken, beverage_itemController.deleteMasterBeverageItem);
+router.delete('/deleteMasterBeverageItem/:master_item_id', verifyToken, beverage_itemController.deleteMasterBeverageItem);
 
 router.post('/insertOrUpdateBannerSection', insertOrUpdateBannerSection);
 router.get('/banners', getAllBannerSections);
@@ -143,7 +140,6 @@ router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done
 router.post('/customer_resend_otp', resendOtp); //done
-// router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
 router.get('/getMasterCard',getMasterCard);
 router.get('/getMasterBeverage',getMasterBeverage);
 router.post('/book_product',verifyCustomerToken,book_product);
@@ -165,14 +161,14 @@ router.post('/verify_payment', razorpayVerifyPayment);
 
 //superadmin
 router.post('/superadminlogin', loginSuperadmin);
-router.get('/getGuests', getGuests);
-router.get('/getGuestsbyID', getGuestsbyID);
-router.put('/updateUserStatusAndCommission/:id', updateUserStatusAndCommission );
-router.put('/updateCommissionStatus/:id', updateCommissionStatus);
-router.post('/insertOrUpdateBlog', insertOrUpdateBlog);
-router.post('/deleteBlog', deleteBlog);
-router.get('/getAllBlogs', getAllBlogs);
-router.post('/getBlog', getBlog);
-router.get('/getDeactivatedRestaurants', getDeactivatedRestaurants);
+router.get('/getGuests', verifySuperAdminToken, getGuests);
+router.get('/getGuestsbyID', verifySuperAdminToken, getGuestsbyID);
+router.put('/updateUserStatusAndCommission/:id', verifySuperAdminToken, updateUserStatusAndCommission );
+router.put('/updateCommissionStatus/:id', verifySuperAdminToken, updateCommissionStatus);
+router.post('/insertOrUpdateBlog', verifySuperAdminToken, insertOrUpdateBlog);
+router.post('/deleteBlog', verifySuperAdminToken, deleteBlog);
+router.get('/getAllBlogs', verifySuperAdminToken, verifySuperAdminToken, getAllBlogs);
+router.post('/getBlog', verifySuperAdminToken, getBlog);
+router.get('/getDeactivatedRestaurants', verifySuperAdminToken, getDeactivatedRestaurants);
 
 module.exports = router;

@@ -130,8 +130,8 @@ exports.getMasterBeverageItems = async (req, res) => {
       // Query menu items linked to the beverage
       const menuItemsQuery = `
         SELECT mi.* FROM beverages_item_linking bil
-        JOIN master_items mi ON bil.master_item_id = mi.master_item_id
-        WHERE bil.beverage_id = ? AND bil.userId = ?
+        JOIN master_items mi ON bil.master_item_id = mi.master_item_id AND bil.userId = mi.userId
+        WHERE bil.beverage_id = ? AND bil.userId = ? AND is_deleted = 0
       `;
 
       const [beverageItems] = await db.promise().query(menuItemsQuery, [beverage.beverage_id, userId]);
@@ -158,6 +158,7 @@ exports.getMasterBeverageItems = async (req, res) => {
 // get beverage_items by beverage_id
 exports.getBeverageItemsbyId = async (req, res) => {
   try {
+    const userId = req.userId;
     const { beverageId } = req.params; // Correct destructuring
 
     const beverageQuery = `SELECT * FROM beverages WHERE beverage_id = ?`;
@@ -167,18 +168,24 @@ exports.getBeverageItemsbyId = async (req, res) => {
       return res.status(404).json({ message: "Beverage not found" }); // Handle no menu found
     }
 
-    const baverage = beverageResults[0]; // Extract the first menu item from the array
+    const beverage = beverageResults[0]; // Extract the first menu item from the array
 
     const beverageItemsQuery = `SELECT mi.* FROM beverages_item_linking bil
-      JOIN master_items mi ON bil.master_item_id = mi.master_item_id
-      WHERE bil.beverage_id = ? AND bil.is_deleted = 0`;
+      JOIN master_items mi ON bil.master_item_id = mi.master_item_id AND bil.userId = mi.userId
+      WHERE bil.beverage_id = ? AND bil.userId = ? AND bil.is_deleted = 0`;
       
-    const [beverageItems] = await db.promise().query(beverageItemsQuery, [beverageId]);
+    const [beverageItems] = await db.promise().query(beverageItemsQuery, [beverageId, userId]);
 
-    // Attach the menu items to the menu object
-    baverage.beverage_items = beverageItems;
+    // Update master_item_image for each menu item
+    const updatedBeverageItems = beverageItems.map(item => ({
+      ...item,
+      master_item_image: process.env.BASE_URL + item.master_item_image
+    }));
 
-    res.status(200).json(baverage); // Send the menu data
+    // Attach the beverage items to each beverage
+    beverage.beverage_items = updatedBeverageItems;
+
+    res.status(200).json(beverage); // Send the menu data
 
   } catch (error) {
     res.status(500).json({ error: error.message }); // Send the error message for better debugging
@@ -186,20 +193,17 @@ exports.getBeverageItemsbyId = async (req, res) => {
 };
 
 
-
 exports.deleteMasterBeverageItem = (req, res) => {
-  const { master_item_id, beverage_id } = req.body; // Expect both master_item_id and menu_id from the request body
+  const { master_item_id } = req.params; // Expect both master_item_id and menu_id from the request body
   const userId = req.userId;
-
-  console.log(`Deleting menu item with master_item_id: ${master_item_id}, beverage_id: ${beverage_id}, userId: ${userId}`);
 
   // Check if the item exists and is not already deleted
   const checkQuery = `
     SELECT is_deleted 
     FROM beverages_item_linking 
-    WHERE master_item_id = ? AND beverage_id = ? AND userId = ?`;
+    WHERE master_item_id = ? AND userId = ?`;
 
-  db.query(checkQuery, [master_item_id, beverage_id, userId], (err, result) => {
+  db.query(checkQuery, [master_item_id, userId], (err, result) => {
     if (err) {
       return res.status(200).json({ error_msg: 'Database error checking item', details: err.message, respone: false });
     }
@@ -218,14 +222,14 @@ exports.deleteMasterBeverageItem = (req, res) => {
     const updateQuery = `
       UPDATE beverages_item_linking 
       SET is_deleted = 1
-      WHERE master_item_id = ? AND beverage_id = ? AND userId = ?`;
+      WHERE master_item_id = ? AND userId = ?`;
 
-    db.query(updateQuery, [master_item_id, beverage_id, userId], (err, result) => {
+    db.query(updateQuery, [master_item_id, userId], (err, result) => {
       if (err) {
         return res.status(200).json({ error_msg: 'Database error updating is_deleted flag', details: err.message, respone: false });
       }
 
-      res.status(200).json({ success_msg: 'Menu item deleted successfully', master_item_id, respone: tue });
+      res.status(200).json({ success_msg: 'Menu item deleted successfully', master_item_id, respone: true });
     });
   });
 };

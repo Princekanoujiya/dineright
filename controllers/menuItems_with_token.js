@@ -87,6 +87,7 @@ exports.insertOrUpdateMenuItem = (req, res) => {
     }
   });
 };
+
 exports.getMenuItems = (req, res) => {
   const userId = req.userId; // Assuming `req.userId` is set from the authentication middleware
 
@@ -117,6 +118,7 @@ exports.getMenuItems = (req, res) => {
 
 exports.getMenuItemsbyId = async (req, res) => {
   try {
+    const userId = req.userId;
     const { menuId } = req.params; // Correct destructuring
 
     const menuQuery = `SELECT * FROM menus WHERE menu_id = ?`;
@@ -129,13 +131,19 @@ exports.getMenuItemsbyId = async (req, res) => {
     const menu = menuResults[0]; // Extract the first menu item from the array
 
     const menuItemQuery = `SELECT mi.* FROM menu_item_linking mil
-      JOIN master_items mi ON mil.master_item_id = mi.master_item_id
-      WHERE mil.menu_id = ? AND mil.is_deleted = 0`;
+      JOIN master_items mi ON mil.master_item_id = mi.master_item_id AND mil.userId = mi.userId
+      WHERE mil.menu_id = ? AND mil.userId = ? AND mil.is_deleted = 0`;
       
-    const [menuItems] = await db.promise().query(menuItemQuery, [menuId]);
+    const [menuItems] = await db.promise().query(menuItemQuery, [menuId, userId]);
+
+    // Update master_item_image for each menu item
+    const updatedMenuItems = menuItems.map(item => ({
+      ...item,
+      master_item_image: process.env.BASE_URL + item.master_item_image
+    }));
 
     // Attach the menu items to the menu object
-    menu.menu_items = menuItems;
+    menu.menu_items = updatedMenuItems;
 
     res.status(200).json(menu); // Send the menu data
 
@@ -172,6 +180,7 @@ exports.deleteMenuItem = (req, res) => {
     });
   });
 };
+
 exports.getActiveMenuItems = (req, res) => {
   const query = `SELECT * FROM menu_items WHERE AND userId = ?`;
 

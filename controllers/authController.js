@@ -77,8 +77,6 @@ exports.resendrestaurantOtp = (req, res) => {
   });
 };
 
-
-
 // Check if email exists
 const checkEmailExists = (email, id = null) => {
   return new Promise((resolve, reject) => {
@@ -212,7 +210,7 @@ exports.createOrUpdateOneStep = async (req, res) => {
 
 // Helper function to insert image into restaurant_fassai_images and move file
 const handleImageInsertAndMove = (file, restaurantId) => {
-  const dir = `uploads/registered_restaurants/${restaurantId}`; // Ensure correct path
+  const dir = `uploads/registered_restaurants/${restaurantId}`; 
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }

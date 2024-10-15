@@ -33,9 +33,6 @@ const uploadGalleryController = require('../controllers/uploadGalleryController'
 const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
 const { getRazorpayKey, razorpayVerifyPayment } = require('../controllers/razorpayController');
-// const enquiryController = require('../controllers/enquiryController');
-
-// const booking_controller = require('../controllers/booking_controller');
 
 //user
 const { getAllCustomers,createOrUpdateCustomer, verifyCustomerOtp,getCustomerInfo,loginWithEmail,resendOtp,getAllRestaurantWithTime,getrestrodaydetails} = require('../controllers/app_user_authcontroller');
@@ -143,7 +140,6 @@ router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done
 router.post('/customer_resend_otp', resendOtp); //done
-// router.post('/insertOrUpdateBookingTable',verifyCustomerToken,insertOrUpdateBookingTable);
 router.get('/getMasterCard',getMasterCard);
 router.get('/getMasterBeverage',getMasterBeverage);
 router.post('/book_product',verifyCustomerToken,book_product);

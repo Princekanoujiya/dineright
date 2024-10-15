@@ -205,22 +205,41 @@ exports.book_product = async (req, res) => {
     if (!payment_mod || payment_mod === '' || payment_mod === undefined) {
       return res.status(400).json({ message: 'Payment_mod required' })
     }
-    // if (!items || items === '' || items === undefined) {
-    //   return res.status(400).json({ message: 'items required' })
-    // }
-
-    // check no of guest
-    if (booking_no_of_guest > 10) {
-      return res.status(400).json({
-        message: 'We’re sorry, but we can only accommodate a maximum of 10 guests for this booking. Please consider splitting your group into smaller bookings.'
-      });
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ message: 'items required' })
     }
 
-    // Default time in minutes
-    let restroSpendingTime = await getRestroSpendingTime(userId, booking_no_of_guest);
+    let defaultSpendingTime = 180;
+    // Query to get spending time based on the number of guests and user ID
+    const spendingTimeQuery = `SELECT restro_spending_time FROM restro_guest_time_duration WHERE restro_guest = ? AND userId = ?`;
+
+    // Query to get all spending times for a specific user ID
+    const allSpendingTimeQuery = `SELECT restro_spending_time FROM restro_guest_time_duration WHERE userId = ?`;
+
+    // First query to find spending time for the specified number of guests
+    const [spendingTime] = await db.promise().query(spendingTimeQuery, [booking_no_of_guest, userId]);
+
+    if (spendingTime.length > 0) {
+      // If specific spending time is found, use it
+      defaultSpendingTime = spendingTime[0].restro_spending_time;
+    } else {
+      // If no specific spending time is found, query for all spending times
+      const [allSpendingTime] = await db.promise().query(allSpendingTimeQuery, [userId]);
+
+      if (allSpendingTime.length > 0) {
+        // Extract the `restro_spending_time` values and find the maximum
+        const allTimes = allSpendingTime.map(row => row.restro_spending_time);
+        defaultSpendingTime = Math.max(...allTimes);
+      } else {
+        // If no data is found, set default to 180
+        defaultSpendingTime = 180;
+      }
+    }
+
+    const restroSpendingTime = defaultSpendingTime;
 
     // Calculate the end time
-    const endTime = addMinutesToTime(booking_time, restroSpendingTime);
+    const endTime = addMinutesToTime(booking_time, defaultSpendingTime);
 
     // Get restaurant dining areas
     const diningAreas = await getSelectedDiningArea(userId);
@@ -233,13 +252,7 @@ exports.book_product = async (req, res) => {
       // Check each table's allocation asynchronously
       const tableDataPromises = tables.map((table) => {
         return new Promise((resolve, reject) => {
-          const allocatedTablesQuery = `
-            SELECT * 
-            FROM allocation_tables 
-            WHERE table_status = 'allocated' 
-              AND booking_date = ? 
-              AND (start_time <= ? AND end_time > ?)
-          `;
+          const allocatedTablesQuery = `SELECT * FROM allocation_tables WHERE table_status = 'allocated' AND booking_date = ? AND (start_time <= ? AND end_time > ?)`;
 
           // Query to check for allocated tables
           db.query(allocatedTablesQuery, [booking_date, booking_time, booking_time], (err, result) => {
@@ -308,7 +321,7 @@ exports.book_product = async (req, res) => {
 
           // Insert allocation
           const allocationResult = await new Promise((resolve, reject) => {
-            db.query(allocationTableQuery, [bookingId, dining_area_id, table_id, booking_date, start_time, endTime, slot_time, currentTableSeats, "",customer_id, userId], (err, result) => {
+            db.query(allocationTableQuery, [bookingId, dining_area_id, table_id, booking_date, start_time, endTime, slot_time, currentTableSeats, "", customer_id, userId], (err, result) => {
               if (err) return reject(err);
               resolve(result);
             });
@@ -345,15 +358,15 @@ exports.book_product = async (req, res) => {
       }
       const razorpayOrderResult = await razorPayCreateOrder(razorpayOrderData);
 
-       // Update the booking status to 'confirmed'
-       const updateBookingStatusQuery = `UPDATE bookings SET razorpay_order_id = ? WHERE booking_id = ?`;
+      // Update the booking status to 'confirmed'
+      const updateBookingStatusQuery = `UPDATE bookings SET razorpay_order_id = ? WHERE booking_id = ?`;
 
-       await new Promise((resolve, reject) => {
-         db.query(updateBookingStatusQuery, [razorpayOrderResult.id, bookingId], (err, result) => {
-           if (err) return reject(err);
-           resolve(result);
-         });
-       });
+      await new Promise((resolve, reject) => {
+        db.query(updateBookingStatusQuery, [razorpayOrderResult.id, bookingId], (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        });
+      });
 
       return res.status(200).json({ message: 'Your order has been successfully placed!', bookingItems, allocationData, order: razorpayOrderResult });
 

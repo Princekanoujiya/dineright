@@ -622,10 +622,24 @@ The Dine Right Team`
           });
         }
 
-        res.status(200).json({ 
-          success_msg: 'Dining table data inserted successfully and email sent to user.', 
-          table_count: result.affectedRows, // Number of rows inserted
-          response: true 
+        // Update signup_status in the users table
+        const updateQuery = 'UPDATE users SET signup_status = 1 WHERE id = ?';
+        db.query(updateQuery, [userId], (updateErr) => {
+          if (updateErr) {
+            console.error('Error updating signup status:', updateErr);
+            return res.status(200).json({ 
+              error_msg: 'Error updating signup status', 
+              details: updateErr.message, 
+              table_count: result.affectedRows, 
+              response: false 
+            });
+          }
+
+          res.status(200).json({ 
+            success_msg: 'Dining table data inserted successfully, email sent to user, and signup status updated.', 
+            table_count: result.affectedRows, // Number of rows inserted
+            response: true 
+          });
         });
       });
     });
@@ -670,7 +684,6 @@ exports.login = (req, res) => {
     });
   });
 };
-
 exports.getUserInfo = (req, res) => {
   const { userId } = req.params;
 
@@ -714,14 +727,36 @@ exports.getUsersInfo = (req, res) => {
     const updatedResults = results.map(user => {
       if (user.banner_image && user.userId) {
         // Use banner_images.userId to construct the URL
-        user.banner_image_url = `${baseURL}/uploads/banner_images/${user.userId}/${user.banner_image}`;
+        user.banner_image = `${baseURL}/uploads/banner_images/${user.userId}/${user.banner_image}`;
       } else {
-        user.banner_image_url = null; // Handle case where no banner image exists
+        user.banner_image = null; // Handle case where no banner image exists
       }
       return user;
     });
 
     res.status(200).json({ users: updatedResults, success_msg: 'success', response: true });
+  });
+};
+exports.getRestroInfo = (req, res) => {
+  const query = 'SELECT * FROM users';
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ error_msg: 'Database error', details: err.message ,response:false});
+    }
+    if (results.length === 0) {
+      return res.status(200).json({ error_msg: 'No users found',response:false });
+    }
+    // custom image url
+    let userData = [];
+    for (const user of results){
+    
+      user.image = `${process.env.BASE_URL}/uploads/registered_restaurants/${user.id}/${user.image}`;
+      user.license_image = `${process.env.BASE_URL}/uploads/registered_restaurants/${user.id}/${user.license_image}`;
+      userData.push(user);
+    }
+
+    res.status(200).json({ users: userData ,success_msg:'success',response:true});
   });
 };
 
@@ -773,66 +808,135 @@ exports.getDiningTables = (req, res) => {
 };
 
 
+// exports.loginWithOtp = (req, res) => {
+//   const { email } = req.body;
+
+//   // Step 1: Query to check if the email exists
+//   const query = `SELECT * FROM users WHERE email=?`;
+//   db.query(query, [email], (err, results) => {
+//     if (err) {
+//       console.error('Database error_msg:', err); // Log the error for debugging
+//       return res.status(200).json({ error_msg: 'Database error during email check', details: err.message,response:false });
+//     }
+
+//     if (results.length === 0) {
+//       return res.status(200).json({ error_msg: 'User not found. Please register first.',response:false });
+//     }
+
+//     const user = results[0];
+
+//     // Step 2: Generate OTP
+//     const otp = Math.floor(1000 + Math.random() * 9000); // Generate a 4-digit OTP
+//     console.log('Generated OTP:', otp); // Log OTP for debugging
+
+//     // Step 3: Send OTP via email
+//     const transporter = nodemailer.createTransport({
+//       service: 'gmail',
+//       auth: {
+//         user: process.env.EMAIL_SERVICE,
+//         pass: process.env.EMAIL_PASSWORD,
+//       },
+//       tls: {
+//         rejectUnauthorized: false,
+//       },
+//     });
+
+//     const mailOptions = {
+//       from: process.env.EMAIL_SERVICE,
+//       to: email,
+//       subject: 'Your OTP for Login',
+//       text: `Your OTP is ${otp}`,
+//     };
+
+//     transporter.sendMail(mailOptions, (error, info) => {
+//       if (error) {
+//         console.error('Error sending email:', error); // Log email error
+//         return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message ,response:false});
+//       }
+//       // Step 4: Save OTP to the database for future verification
+//       const otpQuery = `UPDATE users SET otp=? WHERE email=?`;
+//       db.query(otpQuery, [otp, email], (err, result) => {
+//         if (err) {
+//           console.error('Database error during OTP save:', err); // Log error
+//           return res.status(200).json({ error_msg: 'Database error while saving OTP', details: err.message,response:false });
+//         }
+//         // Step 5: Send response after successful OTP generation and email
+//         res.status(200).json({ success_msg: 'OTP sent to email successfully. Please verify OTP to complete login.',response:true });
+//       });
+//     });
+//   });
+// };
+
+
+// OTP verification function
+
+
+
+
 exports.loginWithOtp = (req, res) => {
   const { email } = req.body;
 
-  // Step 1: Query to check if the email exists
+  // Step 1: Query to check if the email exists and get the signup_status
   const query = `SELECT * FROM users WHERE email=?`;
   db.query(query, [email], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err); // Log the error for debugging
-      return res.status(200).json({ error_msg: 'Database error during email check', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Database error during email check', details: err.message, response: false });
     }
 
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'User not found. Please register first.',response:false });
+      return res.status(200).json({ error_msg: 'User not found. Please register first.', response: false });
     }
 
     const user = results[0];
 
-    // Step 2: Generate OTP
-    const otp = Math.floor(1000 + Math.random() * 9000); // Generate a 4-digit OTP
-    console.log('Generated OTP:', otp); // Log OTP for debugging
+    // Step 2: Check signup_status
+    if (user.signup_status === 0) {
+      return res.status(200).json({ error_msg: 'Restaurant not found.', response: false });
+    } else if (user.signup_status === 1) {
+      // Step 3: Generate OTP
+      const otp = Math.floor(1000 + Math.random() * 9000); // Generate a 4-digit OTP
+      console.log('Generated OTP:', otp); // Log OTP for debugging
 
-    // Step 3: Send OTP via email
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_SERVICE,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_SERVICE,
-      to: email,
-      subject: 'Your OTP for Login',
-      text: `Your OTP is ${otp}`,
-    };
-
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.error('Error sending email:', error); // Log email error
-        return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message ,response:false});
-      }
-      // Step 4: Save OTP to the database for future verification
-      const otpQuery = `UPDATE users SET otp=? WHERE email=?`;
-      db.query(otpQuery, [otp, email], (err, result) => {
-        if (err) {
-          console.error('Database error during OTP save:', err); // Log error
-          return res.status(200).json({ error_msg: 'Database error while saving OTP', details: err.message,response:false });
-        }
-        // Step 5: Send response after successful OTP generation and email
-        res.status(200).json({ success_msg: 'OTP sent to email successfully. Please verify OTP to complete login.',response:true });
+      // Step 4: Send OTP via email
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_SERVICE,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+        tls: {
+          rejectUnauthorized: false,
+        },
       });
-    });
+
+      const mailOptions = {
+        from: process.env.EMAIL_SERVICE,
+        to: email,
+        subject: 'Your OTP for Login',
+        text: `Your OTP is ${otp}`,
+      };
+
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending email:', error); // Log email error
+          return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message, response: false });
+        }
+
+        // Step 5: Save OTP to the database for future verification
+        const otpQuery = `UPDATE users SET otp=? WHERE email=?`;
+        db.query(otpQuery, [otp, email], (err, result) => {
+          if (err) {
+            console.error('Database error during OTP save:', err); // Log error
+            return res.status(200).json({ error_msg: 'Database error while saving OTP', details: err.message, response: false });
+          }
+          // Step 6: Send response after successful OTP generation and email
+          res.status(200).json({ success_msg: 'OTP sent to email successfully. Please verify OTP to complete login.', response: true });
+        });
+      });
+    }
   });
 };
-
-// OTP verification function
 
 exports.verifyLoginOtp = (req, res) => {
   const { email, otp } = req.body;
@@ -1064,32 +1168,6 @@ exports.getSelectedRestaurantTypes = (req, res) => {
 };
 
 
-exports.getRestroInfo = (req, res) => {
-  const query = 'SELECT * FROM users';
-
-
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message ,response:false});
-    }
-    if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'No users found',response:false });
-    }
-
-
-    // custom image url
-    let userData = [];
-    for (const user of results){
-    
-      user.image = `${process.env.BASE_URL}/uploads/registered_restaurants/${user.id}/${user.image}`;
-      user.license_image = `${process.env.BASE_URL}/uploads/registered_restaurants/${user.id}/${user.license_image}`;
-      userData.push(user);
-    }
-
-    res.status(200).json({ users: userData ,success_msg:'success',response:true});
-  });
-};
 
 exports.getUserInfoWithCuisinesAndRestaurantTypes = (req, res) => {
   // Query to join users with selected_cuisines and selected_restaurant_types

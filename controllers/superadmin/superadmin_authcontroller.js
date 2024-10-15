@@ -72,10 +72,20 @@ exports.getGuests = (req, res) => {
 };
 exports.getDeactivatedRestaurants = (req, res) => {
   const query = `
-    SELECT users.*, cities.city_name 
-    FROM users
-    LEFT JOIN cities ON users.city_id = cities.city_id
-    WHERE users.status = 'Deactivated'
+    SELECT 
+      users.*, 
+      cities.city_name, 
+      GROUP_CONCAT(restaurant_fassai_images.restaurant_fassai_image_name) AS restaurant_fassai_images
+    FROM 
+      users
+    LEFT JOIN 
+      cities ON users.city_id = cities.city_id
+    LEFT JOIN 
+      restaurant_fassai_images ON users.id = restaurant_fassai_images.userId
+    WHERE 
+      users.status = 'Deactivated'
+    GROUP BY 
+      users.id
   `;
 
   db.query(query, (err, results) => {
@@ -88,9 +98,19 @@ exports.getDeactivatedRestaurants = (req, res) => {
       return res.status(200).json({ error_msg: 'No deactivated users found', response: false });
     }
 
+    // Base URL for the images
+    const baseUrl = `${process.env.BASE_URL}`;
+
+    // Convert the restaurant_fassai_images string to an array and prepend the base URL
+    results.forEach(user => {
+      user.restaurant_fassai_images = user.restaurant_fassai_images ? 
+        user.restaurant_fassai_images.split(',').map(image => `${baseUrl}/uploads/registered_restaurants/${user.id}/${image}`) : [];
+    });
+
     res.status(200).json({ users: results, response: true, success_msg: 'Deactivated users retrieved successfully' });
   });
 };
+
 
 exports.getGuestsbyID = (req, res) => {
   const { id } = req.body; // Replace userId with id

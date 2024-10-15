@@ -59,7 +59,7 @@ exports.insertOrUpdateBannerImage = (req, res) => {
         if (err) {
           return res.status(200).json({ error_msg:'Database error during insertion', details: err.message,response:false });
         }
-        res.status(201).json({ success_msg: 'Banner image uploaded successfully', banner_image_id: result.insertId,response:true });
+        res.status(200).json({ success_msg: 'Banner image uploaded successfully', banner_image_id: result.insertId,response:true });
       });
     }
   });

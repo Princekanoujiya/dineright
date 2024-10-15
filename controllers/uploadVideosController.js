@@ -28,7 +28,9 @@ exports.insertOrUpdateBannerVideo = (req, res) => {
       return res.status(200).json({ error_msg: 'Error uploading file', details: err.message ,response:false});
     }
 
-    const banner_video = req.file ? req.file.filename : null;
+    const banner_video = req.file ? `/uploads/banner_videos/${req.userId}/${req.file.filename}` : null;
+
+    // const banner_video = req.file ? req.file.filename : null;
     const userId = req.userId;
     const { banner_video_id } = req.body;
 
@@ -46,7 +48,7 @@ exports.insertOrUpdateBannerVideo = (req, res) => {
           return res.status(200).json({ error_msg: 'Database error during update', details: err.message ,response:false});
         }
         if (result.affectedRows === 0) {
-          return res.status(200).json({ success_msg: 'Banner video not found or user not authorized',response:true });
+          return res.status(200).json({ error_msg: 'Banner video not found or user not authorized',response:false });
         }
         res.status(200).json({ success_msg: 'Banner video updated successfully', banner_video_id,response:true });
       });
@@ -64,53 +66,64 @@ exports.insertOrUpdateBannerVideo = (req, res) => {
 };
 // Get banner videos for a user
 exports.getBannerVideos = (req, res) => {
-    const userId = req.userId;
-    const query = `SELECT * FROM banner_videos WHERE userId = ?`;
-  
-    db.query(query, [userId], (err, results) => {
-      if (err) {
-        return res.status(200).json({ error_msg: 'Database error during retrieval', details: err.message,response:false });
-      }
-      if (results.length === 0) {
-        return res.status(200).json({ error_msg: 'No banner videos found for this user',response:false });
-      }
-      res.status(200).json({ banner_videos: results ,success_msg: 'Banner video uploaded successfully',response:true});
+  const userId = req.userId;
+  const query = `SELECT * FROM banner_videos WHERE userId = ?`;
+
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      return res.status(200).json({ error_msg: 'Database error during retrieval', details: err.message, response: false });
+    }
+    if (results.length === 0) {
+      return res.status(200).json({ error_msg: 'No banner videos found for this user', response: false });
+    }
+
+    // Update the banner_video field to include the full URL
+    const updatedResults = results.map(video => {
+      video.banner_video = `${process.env.BASE_URL}${video.banner_video}`;
+      return video;
     });
-  };
-// Delete a specific banner video
+
+    // Send the response with the updated results
+    res.status(200).json({
+      banner_videos: updatedResults,
+      success_msg: 'Banner videos retrieved successfully',
+      response: true
+    });
+  });
+};
+
 exports.deleteBannerVideo = (req, res) => {
-    const { banner_video_id } = req.params;
-    const userId = req.userId;
-  
-    const selectQuery = `SELECT banner_video FROM banner_videos WHERE banner_video_id = ? AND userId = ?`;
-    const deleteQuery = `DELETE FROM banner_videos WHERE banner_video_id = ? AND userId = ?`;
-  
-    // First, find the banner video to delete the file from the filesystem
-    db.query(selectQuery, [banner_video_id, userId], (err, result) => {
+  const { banner_video_id } = req.params;
+  const userId = req.userId;
+
+  const selectQuery = `SELECT banner_video FROM banner_videos WHERE banner_video_id = ? AND userId = ?`;
+  const deleteQuery = `DELETE FROM banner_videos WHERE banner_video_id = ? AND userId = ?`;
+
+  // First, find the banner video to delete the file from the filesystem
+  db.query(selectQuery, [banner_video_id, userId], (err, result) => {
+    if (err) {
+      return res.status(200).json({ error_msg: 'Database error during deletion', details: err.message, response: false });
+    }
+    if (result.length === 0) {
+      return res.status(200).json({ error_msg: 'Banner video not found or user not authorized', response: false });
+    }
+
+    // Construct the full file path
+    const filePath = path.join(__dirname, '..', result[0].banner_video);
+
+    // Delete the file from the filesystem
+    fs.unlink(filePath, (err) => {
       if (err) {
-        return res.status(200).json({ error_msg: 'Database error during deletion', details: err.message ,response:false});
+        return res.status(200).json({ error_msg: 'Error deleting video file', details: err.message, response: false });
       }
-      if (result.length === 0) {
-        return res.status(200).json({ error_msg: 'Banner video not found or user not authorized',response:false });
-      }
-  
-      // Get the file path
-      const filePath = `uploads/banner_videos/${userId}/${result[0].banner_video}`;
-  
-      // Delete the file from the file system
-      fs.unlink(filePath, (err) => {
+
+      // Now delete the record from the database
+      db.query(deleteQuery, [banner_video_id, userId], (err, result) => {
         if (err) {
-          return res.status(200).json({ error_msg: 'Error deleting video file', details: err.message ,response:false});
+          return res.status(200).json({ error_msg: 'Database error during deletion', details: err.message, response: false });
         }
-  
-        // Now delete the record from the database
-        db.query(deleteQuery, [banner_video_id, userId], (err, result) => {
-          if (err) {
-            return res.status(200).json({ error_msg: 'Database error during deletion', details: err.message,response:false });
-          }
-          res.status(200).json({ success_msg: 'Banner video deleted successfully' ,response:true});
-        });
+        res.status(200).json({ success_msg: 'Banner video deleted successfully', response: true });
       });
     });
-  };
-    
+  });
+};

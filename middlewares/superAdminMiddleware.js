@@ -2,7 +2,7 @@ const db = require('../config');
 const jwt = require('jsonwebtoken');
 
 // Middleware to verify the token and extract customer_id
-exports.verifyCustomerToken = (req, res, next) => {
+exports.verifySuperAdminToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
 
   if (!authHeader) {

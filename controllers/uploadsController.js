@@ -30,7 +30,7 @@ exports.insertOrUpdateBannerImage = (req, res) => {
       return res.status(200).json({ error_msg:'Error uploading file', details: err.message,response:false });
     }
 
-    const banner_image = req.file ? `uploads/banner_images/${req.userId}/${req.file.filename}` : null;
+    const banner_image = req.file ? `/uploads/banner_images/${req.userId}/${req.file.filename}` : null;
     const userId = req.userId;
     const { banner_image_id } = req.body;
 
@@ -77,11 +77,18 @@ exports.getBannerImages = (req, res) => {
     if (results.length === 0) {
       return res.status(200).json({ error_msg: 'No banner images found for this user' ,response:false});
     }
-    res.status(200).json({ banner_images: results });
+    const updatedResults = results.map(image => {
+      image.banner_image = `${process.env.BASE_URL}${image.banner_image}`;
+      return image;
+    });
+    res.status(200).json({
+      banner_image: updatedResults,
+      success_msg: 'Banner image retrieved successfully',
+      response: true
+    });
   });
 };
 
-// Delete a specific banner image
 exports.deleteBannerImage = (req, res) => {
   const { banner_image_id } = req.params;
   const userId = req.userId;
@@ -92,27 +99,27 @@ exports.deleteBannerImage = (req, res) => {
   // First, find the banner image to delete the file from the filesystem
   db.query(selectQuery, [banner_image_id, userId], (err, result) => {
     if (err) {
-      return res.status(200).json({ error_msg:'Database error during deletion', details: err.message ,response:false});
+      return res.status(500).json({ error_msg: 'Database error during deletion', details: err.message, response: false });
     }
     if (result.length === 0) {
-      return res.status(200).json({ error_msg: 'Banner image not found or user not authorized' ,response:false});
+      return res.status(404).json({ error_msg: 'Banner image not found or user not authorized', response: false });
     }
 
-    // Get the file path
-    const filePath = `uploads/banner_images/${userId}/${result[0].banner_image}`;
-
-    // Delete the file from the file system
+    // Construct the file path
+    
+    const filePath = path.join(__dirname, '..', result[0].banner_image);
+    // Delete the file from the filesystem
     fs.unlink(filePath, (err) => {
       if (err) {
-        return res.status(200).json({ error_msg:'Error deleting image file', details: err.message ,response:false});
+        return res.status(500).json({ error_msg: 'Error deleting image file', details: err.message, response: false });
       }
 
       // Now delete the record from the database
       db.query(deleteQuery, [banner_image_id, userId], (err, result) => {
         if (err) {
-          return res.status(200).json({ error_msg:'Database error during deletion', details: err.message,response:false });
+          return res.status(500).json({ error_msg: 'Database error during deletion', details: err.message, response: false });
         }
-        res.status(200).json({ success_msg: 'Banner image deleted successfully',response:true });
+        res.status(200).json({ success_msg: 'Banner image deleted permanently and record removed successfully', response: true });
       });
     });
   });

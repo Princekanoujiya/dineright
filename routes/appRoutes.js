@@ -11,7 +11,7 @@ const { insertOrUpdateCuisineSection,getAllCuisinsSections ,getCuisionSectionByI
 //restroadmin
 const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails } = require('../controllers/restorant/restorantBookingController');
 const { 
-    createOrUpdateOneStep, stepTwo, getAllDiningAreas,getAllCities,
+    createOrUpdateOneStep, stepTwo, getAllDiningAreas,getAllCities,resendrestaurantOtp,
     getDaysListing,sendOtp, login, verifyOtp, setPassword, insertTimingData ,insertDiningArea, 
     loginWithOtp,verifyLoginOtp,stepTwoAndSendOtp,insertOrUpdateTimingData,restro_guest_time_duration,
     insertDiningTable,getUserInfo,getTimingData,getDiningAreas,getDiningTables,getUsersInfo,getSelectedCuisines,
@@ -63,6 +63,7 @@ router.get('/getUsersInfo', getUsersInfo);
 router.post('/loginWithOtp', loginWithOtp);
 router.post('/verifyLoginOtp', verifyLoginOtp);
 router.post('/login', login);
+router.post('/resendrestaurantOtp', resendrestaurantOtp);
 router.get('/getSelectedCuisines', getSelectedCuisines);
 router.get('/getDaysListing', getDaysListing);
 router.get('/getAllDiningAreas', getAllDiningAreas);
@@ -125,6 +126,7 @@ router.post('/banner_video', verifyToken, uploadsVideoController.insertOrUpdateB
 router.get('/banner_video', verifyToken, uploadsVideoController.getBannerVideos);//done
 router.delete('/banner_video/:banner_video_id', verifyToken, uploadsVideoController.deleteBannerVideo);//done
 router.post('/gallery', verifyToken, uploadGalleryController.insertOrUpdateBannerGallery);//done
+router.delete('/banner_gallery/:banner_gallery_id', verifyToken, uploadGalleryController.deleteBannerGalleryItem);//done
 
 // restorant routes
 router.get('/getAllbookings', verifyToken, getAllBookings);

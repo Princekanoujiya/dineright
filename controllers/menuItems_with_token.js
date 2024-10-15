@@ -26,9 +26,9 @@ const upload = multer({ storage: storage }).single('menu_item_image');
 exports.insertOrUpdateMenuItem = (req, res) => {
   upload(req, res, function (err) {
     if (err instanceof multer.MulterError) {
-      return res.status(200).json({ error_msg: 'Multer error', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Multer error', details: err.message, response: false });
     } else if (err) {
-      return res.status(200).json({ error_msg: 'Error uploading file', details: err.message ,response:false});
+      return res.status(200).json({ error_msg: 'Error uploading file', details: err.message, response: false });
     }
 
     const { menu_item_id, course_menu_linking_id, menu_item_name, menu_item_price, menu_item_description } = req.body;
@@ -46,14 +46,14 @@ exports.insertOrUpdateMenuItem = (req, res) => {
       const getImageQuery = 'SELECT menu_item_image FROM menu_items WHERE menu_item_id = ?';
       db.query(getImageQuery, [menu_item_id], (err, result) => {
         if (err) {
-          return res.status(200).json({ error_msg: 'Database error fetching existing image', details: err.message ,response:false});
+          return res.status(200).json({ error_msg: 'Database error fetching existing image', details: err.message, response: false });
         }
 
         const oldImage = result[0]?.menu_item_image;
 
         db.query(updateQuery, [course_menu_linking_id, menu_item_name, menu_item_price, menu_item_description, menu_item_image || oldImage, menu_item_id, userId], (err) => {
           if (err) {
-            return res.status(200).json({ error_msg: 'Database error during update', details: err.message ,response:false});
+            return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
           }
 
           // If a new image is uploaded, delete the old image
@@ -66,7 +66,7 @@ exports.insertOrUpdateMenuItem = (req, res) => {
             });
           }
 
-          res.status(200).json({ success_msg: 'Menu item updated successfully', menu_item_id ,response:true});
+          res.status(200).json({ success_msg: 'Menu item updated successfully', menu_item_id, response: true });
         });
       });
 
@@ -78,11 +78,11 @@ exports.insertOrUpdateMenuItem = (req, res) => {
 
       db.query(insertQuery, [userId, course_menu_linking_id, menu_item_name, menu_item_price, menu_item_description, menu_item_image], (err, result) => {
         if (err) {
-          return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message,response:false });
+          return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
         }
 
         const newMenuItemId = result.insertId;
-        res.status(201).json({ success_msg: 'Menu item created successfully', menu_item_id: newMenuItemId ,response:true});
+        res.status(201).json({ success_msg: 'Menu item created successfully', menu_item_id: newMenuItemId, response: true });
       });
     }
   });
@@ -95,13 +95,10 @@ exports.getMenuItems = (req, res) => {
 
   const query = `SELECT * FROM menu_items WHERE userId = ?`;
 
-  // Log the raw query with the actual values being passed
-  console.log("Executing SQL query:", query, [userId]);
-
   db.query(query, [userId], (err, results) => {
     if (err) {
       console.error("Database error_msg:", err); // Log the error details
-      return res.status(200).json({ error_msg: 'Database error during retrieval', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Database error during retrieval', details: err.message, response: false });
     }
 
     // Log the results to verify what the database returns
@@ -109,68 +106,69 @@ exports.getMenuItems = (req, res) => {
 
     if (results.length === 0) {
       console.log("No menu items found for this user");
-      return res.status(200).json({ error_msg: 'No menu items found for this user',response:false});
+      return res.status(200).json({ error_msg: 'No menu items found for this user', response: false });
     }
 
     // If results are found, log and return all menu items
     console.log("Menu items found:", results);
-    res.status(200).json({ menu_items: results ,response:true,success_msg:true});
+    res.status(200).json({ menu_items: results, response: true, success_msg: true });
   });
 };
 
-exports.getMenuItemsbyId = (req, res) => {
-  const { menu_item_id } = req.params; // Fetching menu_item_id from request params
+exports.getMenuItemsbyId = async (req, res) => {
+  try {
+    const { menuId } = req.params; // Correct destructuring
 
-  // Log the parameters being used in the query for debugging
-  console.log("Request parameter (menu_item_id):", menu_item_id);
+    const menuQuery = `SELECT * FROM menus WHERE menu_id = ?`;
+    const [menuResults] = await db.promise().query(menuQuery, [menuId]); // Get the first element from the array
 
-  const query = `SELECT * FROM menu_items WHERE menu_item_id = ?`; // Query now only filters by menu_item_id
-
-  // Log the raw query with the actual values being passed
-  console.log("Executing SQL query:", query, [menu_item_id]);
-
-  db.query(query, [menu_item_id], (err, results) => {
-    if (err) {
-      console.error("Database error_msg:", err); // Log the error details
-      return res.status(200).json({ error_msg: 'Database error during retrieval', details: err.message ,response:false});
+    if (menuResults.length === 0) {
+      return res.status(404).json({ message: "Menu not found" }); // Handle no menu found
     }
 
-    // Log the results to verify what the database returns
-    console.log("Query results:", results);
+    const menu = menuResults[0]; // Extract the first menu item from the array
 
-    if (results.length === 0) {
-      console.log("Menu item not found or has been deleted");
-      return res.status(200).json({ error_msg: 'Menu item not found or has been deleted' ,response:false});
-    }
+    const menuItemQuery = `SELECT mi.* FROM menu_item_linking mil
+      JOIN master_items mi ON mil.master_item_id = mi.master_item_id
+      WHERE mil.menu_id = ? AND mil.is_deleted = 0`;
+      
+    const [menuItems] = await db.promise().query(menuItemQuery, [menuId]);
 
-    // If a result is found, log and return the first result
-    console.log("Menu item found:", results[0]);
-    res.status(200).json(results[0]);
-  });
+    // Attach the menu items to the menu object
+    menu.menu_items = menuItems;
+
+    res.status(200).json(menu); // Send the menu data
+
+  } catch (error) {
+    res.status(500).json({ error: error.message }); // Send the error message for better debugging
+  }
 };
+
+
+
 exports.deleteMenuItem = (req, res) => {
   const { menu_item_id } = req.params;
-  
+
   // First, check if the menu_item_id exists
   const checkQuery = `SELECT * FROM menu_items WHERE menu_item_id = ? AND userId = ?`;
   db.query(checkQuery, [menu_item_id, req.userId], (err, results) => {
     if (err) {
-      return res.status(200).json({ error_msg: 'Database error during check', details: err.message ,response:false});
+      return res.status(200).json({ error_msg: 'Database error during check', details: err.message, response: false });
     }
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'Menu item not found',response:false });
+      return res.status(200).json({ error_msg: 'Menu item not found', response: false });
     }
 
     // Update the is_deleted flag to 1 instead of deleting the record
     const updateQuery = `UPDATE menu_items SET is_deleted = 1 WHERE menu_item_id = ? AND userId = ?`;
     db.query(updateQuery, [menu_item_id, req.userId], (err, result) => {
       if (err) {
-        return res.status(200).json({ error_msg: 'Database error during update', details: err.message ,response:false});
+        return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
       }
       if (result.affectedRows === 0) {
-        return res.status(200).json({ error_msg: 'Menu item not found or not updated' ,response:false});
+        return res.status(200).json({ error_msg: 'Menu item not found or not updated', response: false });
       }
-      res.status(200).json({ success_msg: 'Menu item marked as deleted successfully',response:true });
+      res.status(200).json({ success_msg: 'Menu item marked as deleted successfully', response: true });
     });
   });
 };
@@ -179,7 +177,7 @@ exports.getActiveMenuItems = (req, res) => {
 
   db.query(query, [req.userId], (err, results) => {
     if (err) {
-      return res.status(200).json({ error_msg: 'Database error during retrieval', details: err.message ,response:false});
+      return res.status(200).json({ error_msg: 'Database error during retrieval', details: err.message, response: false });
     }
     res.status(200).json(results);
   });

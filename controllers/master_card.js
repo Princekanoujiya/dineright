@@ -159,34 +159,34 @@ const upload = multer({ storage: storage }).single('master_item_image');
 exports.insertMasterMenuItem = (req, res) => {
   upload(req, res, function (err) {
     if (err instanceof multer.MulterError) {
-      return res.status(200).json({ error_msg: 'Multer error', details: err.message, response: false });
+      return res.status(400).json({ error_msg: 'Multer error', details: err.message, response: false });
     } else if (err) {
-      return res.status(200).json({ error_msg: 'Error uploading file', details: err.message, response: false });
+      return res.status(400).json({ error_msg: 'Error uploading file', details: err.message, response: false });
     }
 
-    const { master_item_id, master_item_name, master_item_price, master_item_description, menu_id } = req.body; // Add menu_id from req.body
+    const { master_item_id, master_item_name, master_item_price, master_item_description, menu_id } = req.body;
     const master_item_image = req.file ? `/uploads/menu_items_with_token/${req.userId}/${req.file.filename}` : null;
     const userId = req.userId;
 
     if (master_item_id) {
       // Update operation
       const updateQuery = `
-          UPDATE master_items 
-          SET master_item_name = ?, master_item_price = ?, master_item_description = ?, master_item_image = ?
-          WHERE master_item_id = ? AND userId = ?`;
+        UPDATE master_items 
+        SET master_item_name = ?, master_item_price = ?, master_item_description = ?, master_item_image = ?
+        WHERE master_item_id = ? AND userId = ?`;
 
       // Fetch the existing image before updating (to delete if necessary)
       const getImageQuery = 'SELECT master_item_image FROM master_items WHERE master_item_id = ?';
       db.query(getImageQuery, [master_item_id], (err, result) => {
         if (err) {
-          return res.status(200).json({ error_msg: 'Database error fetching existing image', details: err.message });
+          return res.status(500).json({ error_msg: 'Database error fetching existing image', details: err.message });
         }
 
         const oldImage = result[0]?.master_item_image;
 
         db.query(updateQuery, [master_item_name, master_item_price, master_item_description, master_item_image || oldImage, master_item_id, userId], (err) => {
           if (err) {
-            return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
+            return res.status(500).json({ error_msg: 'Database error during update', details: err.message, response: false });
           }
 
           // If a new image is uploaded, delete the old image
@@ -199,43 +199,30 @@ exports.insertMasterMenuItem = (req, res) => {
             });
           }
 
-          // After updating, insert or update the record in the menu_item_linking table
-          const linkQuery = `
-              INSERT INTO menu_item_linking (userId, master_item_id, menu_id) 
-              VALUES (?, ?, ?)
-              ON DUPLICATE KEY UPDATE master_item_id = ?, menu_id = ?`; // Update both master_item_id and menu_id
-
-          db.query(linkQuery, [userId, master_item_id, menu_id, master_item_id, menu_id], (err) => {
-            if (err) {
-              return res.status(200).json({ error_msg: 'Database error linking menu item', details: err.message, response: false });
-            }
-
-            res.status(200).json({ success_msg: 'Menu item updated successfully', master_item_id, response: true });
-          });
+          res.status(200).json({ success_msg: 'Menu item updated successfully', master_item_id, response: true });
         });
       });
-
     } else {
       // Insert operation
       const insertQuery = `
-          INSERT INTO master_items (userId, master_item_name, master_item_price, master_item_description, master_item_image) 
-          VALUES (?, ?, ?, ?, ?)`;
+        INSERT INTO master_items (userId, master_item_name, master_item_price, master_item_description, master_item_image) 
+        VALUES (?, ?, ?, ?, ?)`;
 
       db.query(insertQuery, [userId, master_item_name, master_item_price, master_item_description, master_item_image], (err, result) => {
         if (err) {
-          return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
+          return res.status(500).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
         }
 
         const newMasterItemId = result.insertId;
 
         // After inserting, insert into the menu_item_linking table with the menu_id
         const linkQuery = `
-            INSERT INTO menu_item_linking (userId, master_item_id, menu_id) 
-            VALUES (?, ?, ?)`;
+          INSERT INTO menu_item_linking (userId, master_item_id, menu_id) 
+          VALUES (?, ?, ?)`;
 
         db.query(linkQuery, [userId, newMasterItemId, menu_id], (err) => {
           if (err) {
-            return res.status(200).json({ error_msg: 'Database error linking menu item', details: err.message, response: false });
+            return res.status(500).json({ error_msg: 'Database error linking menu item', details: err.message, response: false });
           }
 
           res.status(201).json({ success_msg: 'Menu item created successfully', master_item_id: newMasterItemId, response: true });
@@ -244,6 +231,7 @@ exports.insertMasterMenuItem = (req, res) => {
     }
   });
 };
+
 
 
 exports.getMasterMenuItems = async (req, res) => {
@@ -310,8 +298,6 @@ exports.deleteMasterMenuItem = (req, res) => {
   const { master_item_id, menu_id } = req.body; // Expect both master_item_id and menu_id from the request body
   const userId = req.userId;
 
-  console.log(`Deleting menu item with master_item_id: ${master_item_id}, menu_id: ${menu_id}, userId: ${userId}`);
-
   // Check if the item exists and is not already deleted
   const checkQuery = `
       SELECT is_deleted 
@@ -322,8 +308,6 @@ exports.deleteMasterMenuItem = (req, res) => {
     if (err) {
       return res.status(200).json({ error_msg: 'Database error checking item', details: err.message, response: false });
     }
-
-    console.log('Result from check query:', result);
 
     if (result.length === 0) {
       return res.status(200).json({ error_msg: 'Menu item not found', response: false });

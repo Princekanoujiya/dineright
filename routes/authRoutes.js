@@ -96,7 +96,7 @@ router.delete('/menu_item/:menu_item_id?', deleteMenuItem);//-----------------
 router.delete('/menu_item/:menu_item_id?', softDeleteMenuItem);//---------------
 
 router.post('/menu_item_token', verifyToken, menuItemsController.insertOrUpdateMenuItem);//done
-router.get('/getMenuItemsbyId/:menu_item_id',  menuItemsController.getMenuItemsbyId);
+router.get('/getMenuItemsbyId/:menuId',  menuItemsController.getMenuItemsbyId);
 router.get('/menu_item_token/active', verifyToken, menuItemsController.getActiveMenuItems);
 router.get('/menu_item_token', verifyToken, menuItemsController.getMenuItems);
 router.delete('/menu_item_token/:menu_item_id', verifyToken, menuItemsController.deleteMenuItem);
@@ -111,7 +111,8 @@ router.get('/getMasterMenuItems', verifyToken, master_card.getMasterMenuItems);
 router.delete('/deleteMasterMenuItem', verifyToken, master_card.deleteMasterMenuItem);
 
 
-
+router.get('/getAllBeverages', verifyToken, beverage_itemController.getAllBeverages);
+router.get('/getBeverageItemsbyId/:beverageId',  beverage_itemController.getBeverageItemsbyId);
 router.post('/insertMasterBeverageItem', verifyToken, beverage_itemController.insertMasterBeverageItem);
 router.get('/getMasterBeverageItems', verifyToken, beverage_itemController.getMasterBeverageItems);
 router.delete('/deleteMasterBeverageItem', verifyToken, beverage_itemController.deleteMasterBeverageItem);

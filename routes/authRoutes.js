@@ -165,14 +165,14 @@ router.post('/verify_payment', razorpayVerifyPayment);
 
 //superadmin
 router.post('/superadminlogin', loginSuperadmin);
-router.get('/getGuests', getGuests);
-router.get('/getGuestsbyID', getGuestsbyID);
-router.put('/updateUserStatusAndCommission/:id', updateUserStatusAndCommission );
-router.put('/updateCommissionStatus/:id', updateCommissionStatus);
-router.post('/insertOrUpdateBlog', insertOrUpdateBlog);
-router.post('/deleteBlog', deleteBlog);
-router.get('/getAllBlogs', getAllBlogs);
-router.post('/getBlog', getBlog);
-router.get('/getDeactivatedRestaurants', getDeactivatedRestaurants);
+router.get('/getGuests', verifySuperAdminToken, getGuests);
+router.get('/getGuestsbyID', verifySuperAdminToken, getGuestsbyID);
+router.put('/updateUserStatusAndCommission/:id', verifySuperAdminToken, updateUserStatusAndCommission );
+router.put('/updateCommissionStatus/:id', verifySuperAdminToken, updateCommissionStatus);
+router.post('/insertOrUpdateBlog', verifySuperAdminToken, insertOrUpdateBlog);
+router.post('/deleteBlog', verifySuperAdminToken, deleteBlog);
+router.get('/getAllBlogs', verifySuperAdminToken, verifySuperAdminToken, getAllBlogs);
+router.post('/getBlog', verifySuperAdminToken, getBlog);
+router.get('/getDeactivatedRestaurants', verifySuperAdminToken, getDeactivatedRestaurants);
 
 module.exports = router;

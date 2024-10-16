@@ -15,7 +15,7 @@ const {
     getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
     loginWithOtp, verifyLoginOtp, stepTwoAndSendOtp, insertOrUpdateTimingData, restro_guest_time_duration,
     insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines,
-    getSelectedRestaurantTypes, getRestroInfo, getUserInfoWithCuisinesAndRestaurantTypes
+    getSelectedRestaurantTypes, getRestroInfo, resendrestaurantOtpAfterLogin,getUserInfoWithCuisinesAndRestaurantTypes,getRestraurantProfileDetails,updateRestraurantProfileDetails
 } = require('../controllers/authController');
 
 const blogController = require('../controllers/customer/blogController');
@@ -37,7 +37,7 @@ const beverage_itemController = require('../controllers/beverage_itemController'
 const { getRazorpayKey, razorpayVerifyPayment } = require('../controllers/razorpayController');
 
 //user
-const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
+const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails ,getUserProfileDetails, searchAllRestorantByname} = require('../controllers/app_user_authcontroller');
 const { getCourseMenuAndMenuItems } = require('../controllers/customer/restorantConroller');
 
 // verify Token middleware
@@ -64,10 +64,13 @@ router.post('/loginWithOtp', loginWithOtp);
 router.post('/verifyLoginOtp', verifyLoginOtp);
 router.post('/login', login);
 router.post('/resendrestaurantOtp', resendrestaurantOtp);
+router.post('/resendrestaurantOtpAfterLogin', resendrestaurantOtpAfterLogin);
 router.get('/getSelectedCuisines', getSelectedCuisines);
 router.get('/getDaysListing', getDaysListing);
 router.get('/getAllDiningAreas', getAllDiningAreas);
 router.get('/getAllCities', getAllCities);
+router.get('/getRestraurantProfileDetails',verifyToken, getRestraurantProfileDetails);
+router.post('/updateRestraurantProfileDetails', verifyToken, updateRestraurantProfileDetails);
 
 router.get('/user/:userId', getUserInfo);//done
 router.get('/timing/:userId', getTimingData);//done
@@ -149,6 +152,7 @@ router.post('/book_product', verifyCustomerToken, book_product);
 router.get('/getrestrodaydetails', getrestrodaydetails);
 router.get('/getAllRestaurantWithTime', getAllRestaurantWithTime);
 router.get('/getDaysListing', verifyCustomerToken, getDaysListing);
+router.get('/getUserProfileDetails', verifyCustomerToken, getUserProfileDetails);
 router.post('/enquiry', enquiry);
 //filters
 router.get('/getRestaurantType', getRestaurantType);

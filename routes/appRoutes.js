@@ -99,7 +99,7 @@ router.delete('/menu_item_token/:menu_item_id', verifyToken, menuItemsController
 
 router.get('/getCourseMenu', getCourseMenu);
 router.get('/getAllMasterMenus', verifyToken, master_card.getAllMasterMenus);
-router.get('/getCourseMenuGroupByCourseId', getCourseMenuGroupByCourseId);
+router.get('/getCourseMenuGroupByCourseId', verifyToken, getCourseMenuGroupByCourseId);
 
 router.post('/insertMasterMenuItem', verifyToken, master_card.insertMasterMenuItem);
 router.get('/getMasterMenuItems', verifyToken, master_card.getMasterMenuItems);
@@ -166,7 +166,7 @@ router.get('/getRestroInfo', getRestroInfo);
 router.get('/getUserInfoWithCuisinesAndRestaurantTypes', getUserInfoWithCuisinesAndRestaurantTypes);
 router.get('/getUserIdsByFilters', getUserIdsByFilters);
 router.get('/getCourseMenuAndMenuItems/:userId', getCourseMenuAndMenuItems);
-router.get('/searchAllRestorantByname', searchAllRestorantByname);
+router.post('/searchAllRestorantByname', searchAllRestorantByname);
 router.get('/blogs', blogController.getAllBlogs);
 
 // Razorpay Routes

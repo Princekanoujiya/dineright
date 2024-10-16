@@ -83,50 +83,51 @@ exports.getCourseMenuGroupByCourseId = async (req, res) => {
   try {
     const userId = req.userId;
 
-    const query = `SELECT course_id, course_name FROM courses`;
-
-    const [courses] = await db.promise().query(query); // Use promise-based query
-
+    const query = `SELECT course_id, course_name FROM courses WHERE course_status = 'Yes'`;
+    const [courses] = await db.promise().query(query);
 
     let courseArray = [];
     for (const course of courses) {
 
       const menuQuery = `
-      SELECT  m.menu_id, m.menu_name
-      FROM course_menu_static_linking cml
-      JOIN menus m ON cml.menu_id = m.menu_id
-      WHERE cml.course_id = ?
+      SELECT m.menu_id, m.menu_name
+      FROM course_menu_static_linking cmsl
+      JOIN menus m ON cmsl.menu_id = m.menu_id
+      WHERE cmsl.course_id = ? AND m.is_deleted = 0
     `;
 
-      const [menus] = await db.promise().query(menuQuery, [course.course_id]); // Use promise-based query
-
+      const [menus] = await db.promise().query(menuQuery, [course.course_id]);
 
       // menu items
       let menuItemArray = [];
       for (const menu of menus) {
 
         const itemQuery = `
-      SELECT  mi.*
+      SELECT mi.*
       FROM menu_item_linking mil
-      JOIN master_items mi ON mil.master_item_id = mi.master_item_id
-      WHERE mil.menu_id = ?
+      JOIN master_items mi ON mi.master_item_id = mil.master_item_id
+      WHERE mil.menu_id = ? AND mil.userId = ? AND mil.is_deleted = 0
     `;
 
-        const [items] = await db.promise().query(itemQuery, [menu.menu_id, userId]); // Use promise-based query
+        const [items] = await db.promise().query(itemQuery, [menu.menu_id, userId]);
+
+        // Assuming each item in 'items' has a 'master_item_image' property
+        if (items.length > 0) {
+          items.forEach(item => {
+            item.master_item_image = process.env.BASE_URL + item.master_item_image;
+          });
+        }
 
         menu.menu_items = items;
         menuItemArray.push(menu);
       }
 
       course.menus = menus;
-
       courseArray.push(course);
-
     }
 
-
-
     res.status(200).json({
+      userId,
       success_msg: 'Course menu details retrieved successfully',
       response: true,
       data: courseArray

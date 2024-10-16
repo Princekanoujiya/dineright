@@ -346,62 +346,87 @@ exports.getrestrodaydetails = (req, res) => {
 
 // Get all restaurants search by name
 exports.searchAllRestorantByname = async (req, res) => {
-  const { name, city, type, cuisines } = req.query; // Get the search term from the query parameters
+  const { name, city_id, type_ids, cuisines_ids, city_name } = req.body; // Get the search term from the query parameters
 
   try {
-    // Define the SQL query, using LIKE for partial matching
-    const selectQuery = `
-      SELECT id, username, email, restaurantName, restaurantAddress, restaurant_logo, license_image FROM users 
-      WHERE is_deleted = 0 AND status = 'Activated' 
-      AND restaurantName LIKE ?`;
+    // Base SQL query with joins to `selected_restorant_types`, `selected_cuisines`, and `cities` for city_name search
+    let selectQuery = `
+      SELECT u.id, u.username, u.email, u.restaurantName, u.restaurantAddress, u.restaurant_logo, u.license_image, c.city_name
+      FROM users u
+      LEFT JOIN selected_restaurant_types srt ON u.id = srt.userId
+      LEFT JOIN selected_cuisines sc ON u.id = sc.userId
+      LEFT JOIN cities c ON u.city_id = c.city_id
+      WHERE u.is_deleted = 0 
+      AND u.status = 'Activated'
+    `;
+
+    // Array to hold query parameters
+    let queryParams = [];
+
+    // Dynamically add conditions based on provided query parameters
+    if (name) {
+      selectQuery += ` AND u.restaurantName LIKE ?`;
+      queryParams.push(`%${name}%`);
+    }
+
+    if (city_id) {
+      selectQuery += ` AND u.city_id = ?`;
+      queryParams.push(city_id);
+    }
+
+    if (city_name) {
+      selectQuery += ` AND c.city_name LIKE ?`;
+      queryParams.push(`%${city_name}%`);
+    }
+
+    if (type_ids && type_ids.length > 0) {
+      selectQuery += ` AND srt.restaurant_type_id IN (?)`;
+      queryParams.push(type_ids);
+    }
+
+    if (cuisines_ids && cuisines_ids.length > 0) {
+      selectQuery += ` AND sc.cuisine_id IN (?)`;
+      queryParams.push(cuisines_ids);
+    }
+
+    // Group results to avoid duplicate rows due to joins
+    selectQuery += ` GROUP BY u.id`;
 
     // Execute the main query
-    const [results] = await db.promise().query(selectQuery, [`%${name}%`]);
+    const [results] = await db.promise().query(selectQuery, queryParams);
 
-    let restorantArray = [];
-
-    for (const result of results) {
+    // Process each result and fetch related banner images, galleries, and videos
+    let restorantArray = await Promise.all(results.map(async (result) => {
       const userId = result.id; // Use the 'id' from the initial query result
 
       // Prepend BASE_URL to the license_image field
       result.license_image = `${process.env.BASE_URL}${result.license_image}`;
 
       // Fetch related data from banner_images, banner_galleries, and banner_videos tables
-      const bannerImagesQuery = `SELECT * FROM banner_images WHERE userId = ?`;
-      const [bannerImages] = await db.promise().query(bannerImagesQuery, [userId]);
-
-      const bannerGalleryQuery = `SELECT * FROM banner_galleries WHERE userId = ?`;
-      const [bannerGallery] = await db.promise().query(bannerGalleryQuery, [userId]);
-
-      const bannerVideoQuery = `SELECT * FROM banner_videos WHERE userId = ?`;
-      const [bannerVideos] = await db.promise().query(bannerVideoQuery, [userId]);
+      const [bannerImages] = await db.promise().query(`SELECT * FROM banner_images WHERE userId = ?`, [userId]);
+      const [bannerGallery] = await db.promise().query(`SELECT * FROM banner_galleries WHERE userId = ?`, [userId]);
+      const [bannerVideos] = await db.promise().query(`SELECT * FROM banner_videos WHERE userId = ?`, [userId]);
 
       // Prepend BASE_URL to each banner image URL using map
-      const updatedBannerImages = bannerImages.map(image => ({
+      result.banner_images = bannerImages.map(image => ({
         ...image,
         banner_image: `${process.env.BASE_URL}${image.banner_image}`
       }));
 
       // Prepend BASE_URL to each gallery file URL using map
-      const updatedBannerGallery = bannerGallery.map(gallery => ({
+      result.banner_gallery = bannerGallery.map(gallery => ({
         ...gallery,
         files: `${process.env.BASE_URL}${gallery.files}`
       }));
 
       // Prepend BASE_URL to each banner video URL using map
-      const updatedBannerVideos = bannerVideos.map(video => ({
+      result.banner_videos = bannerVideos.map(video => ({
         ...video,
         banner_video: `${process.env.BASE_URL}${video.banner_video}`
       }));
 
-      // Append related data to the result
-      result.banner_images = updatedBannerImages;
-      result.banner_gallery = updatedBannerGallery;
-      result.banner_videos = updatedBannerVideos;
-
-      // Push the result to the array
-      restorantArray.push(result);
-    }
+      return result; // Return the processed result
+    }));
 
     // Send the response with the final array of restaurants
     res.status(200).json({

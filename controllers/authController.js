@@ -11,6 +11,78 @@ const { response } = require('express');
 
 
 
+exports.resendrestaurantOtpAfterLogin = (req, res) => {
+  const { userId } = req.body;
+
+  // Check if userId is provided
+  if (!userId) {
+    return res.status(200).json({ error_msg: "User ID is required", response: false });
+  }
+
+  const idCheckQuery = 'SELECT * FROM users WHERE id = ?';
+  
+  // Check if user exists
+  db.query(idCheckQuery, [userId], (err, result) => {
+    if (err) {
+      return res.status(200).json({ error_msg: 'Database error while checking user ID', details: err.message, response: false });
+    }
+    if (result.length === 0) {
+      return res.status(200).json({ error_msg: "User with this ID does not exist", response: false });
+    }
+
+    const user = result[0];  // User found
+
+    // Check if the user has signup_status = 1
+    if (user.signup_status !== 1) {
+      return res.status(200).json({ error_msg: 'User is not signed up. OTP cannot be sent.', response: false });
+    }
+
+    const otp = Math.floor(1000 + Math.random() * 9000);  
+
+    const updateOtpQuery = 'UPDATE users SET otp = ? WHERE id = ?';
+
+    // Update the user's OTP in the database
+    db.query(updateOtpQuery, [otp, user.id], (err, updateResult) => {
+      if (err) {
+        return res.status(200).json({ error_msg: 'Database error while updating OTP', details: err.message, response: false });
+      }
+
+      // Function to send OTP email
+      const sendOtpEmail = (email, otp) => {
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.EMAIL_SERVICE,
+            pass: process.env.EMAIL_PASSWORD,
+          },
+          tls: {
+            rejectUnauthorized: false,
+          }
+        });
+
+        const mailOptions = {
+          from: process.env.EMAIL_SERVICE,
+          to: email,  // Send to user's email
+          subject: 'Resend OTP Verification',
+          text: `Your new OTP is ${otp}. Please use this to verify your account.`,
+        };
+
+        // Send email
+        transporter.sendMail(mailOptions, (error, info) => {
+          if (error) {
+            console.error('Error sending email:', error);
+            return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message, response: false });
+          }
+          console.log('OTP resent to email:', email);
+          res.status(200).json({ success_msg: 'OTP resent successfully to your email', userId: user.id, response: true });
+        });
+      };
+
+      // Send the new OTP email
+      sendOtpEmail(user.email, otp);
+    });
+  });
+};
 exports.resendrestaurantOtp = (req, res) => {
   const { userId } = req.body;
 
@@ -811,7 +883,6 @@ exports.getDiningTables = (req, res) => {
   });
 };
 
-
 // exports.loginWithOtp = (req, res) => {
 //   const { email } = req.body;
 
@@ -873,9 +944,6 @@ exports.getDiningTables = (req, res) => {
 
 
 // OTP verification function
-
-
-
 
 exports.loginWithOtp = (req, res) => {
   const { email } = req.body;
@@ -1441,3 +1509,88 @@ exports.getAllCities = (req, res) => {
 //       });
 //   });
 // };
+
+
+
+
+exports.getRestraurantProfileDetails = (req, res) => {
+  const userId = req.userId; 
+  const query = 'SELECT username, email, phone, pancard, restaurantName, restaurantAddress ,resataurantDescription, fassai_licence_no,gst_no, restaurant_bank_account_no ,restaurant_ifsc_code,restaurant_bank_name FROM users WHERE id = ?';
+
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(200).json({ error_msg: 'Database error while fetching user details', details: err.message, response: false });
+    }
+    if (results.length === 0) {
+      return res.status(200).json({ error_msg: 'User not found', response: false });
+    }
+    const resaturantProfileDetails = results[0];
+  
+    res.status(200).json({ success_msg: 'User details fetched successfully', userId , resaturantProfileDetails, response: true });
+  });
+};
+
+exports.updateRestraurantProfileDetails = (req, res) => {
+  const userId = req.userId; 
+  const {
+    username,
+    email,
+    phone,
+    pancard,
+    restaurantName,
+    restaurantAddress,
+    resataurantDescription,
+    fassai_licence_no,
+    gst_no,
+    restaurant_bank_account_no,
+    restaurant_ifsc_code,
+    restaurant_bank_name
+  } = req.body;
+
+  // Validate that required fields are provided
+  if (!username || !email || !phone || !restaurantName ||!restaurantAddress ||!gst_no) {
+    return res.status(400).json({ error_msg: 'All required fields must be filled', response: false });
+  }
+
+  const updateQuery = `
+    UPDATE users 
+    SET username = ?, email = ?, phone = ?, pancard = ?, restaurantName = ?, restaurantAddress = ?, 
+        resataurantDescription = ?, fassai_licence_no = ?, gst_no = ?, 
+        restaurant_bank_account_no = ?, restaurant_ifsc_code = ?, restaurant_bank_name = ? 
+    WHERE id = ?
+  `;
+
+  const values = [
+    username,
+    email,
+    phone,
+    pancard,
+    restaurantName,
+    restaurantAddress,
+    resataurantDescription,
+    fassai_licence_no,
+    gst_no,
+    restaurant_bank_account_no,
+    restaurant_ifsc_code,
+    restaurant_bank_name,
+    userId
+  ];
+
+  // Execute the query to update the profile
+  db.query(updateQuery, values, (err, result) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(200).json({ error_msg: 'Database error while updating profile details', details: err.message, response: false });
+    }
+
+    // If no rows were updated, return an error
+    if (result.affectedRows === 0) {
+      return res.status(200).json({ error_msg: 'User not found or no changes made', response: false });
+    }
+
+    res.status(200).json({ success_msg: 'Restaurant profile details updated successfully', response: true });
+  });
+};
+   
+        

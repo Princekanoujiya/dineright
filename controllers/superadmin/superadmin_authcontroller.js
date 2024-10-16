@@ -110,8 +110,6 @@ exports.getDeactivatedRestaurants = (req, res) => {
     res.status(200).json({ users: results, response: true, success_msg: 'Deactivated users retrieved successfully' });
   });
 };
-
-
 exports.getGuestsbyID = (req, res) => {
   const { id } = req.body; // Replace userId with id
   let query = 'SELECT * FROM users';

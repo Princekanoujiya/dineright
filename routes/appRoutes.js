@@ -18,6 +18,8 @@ const {
     getSelectedRestaurantTypes, getRestroInfo, getUserInfoWithCuisinesAndRestaurantTypes
 } = require('../controllers/authController');
 
+const blogController = require('../controllers/customer/blogController');
+
 const { createOrUpdateCourse, getAllCourses, DeleteCourse, getCourseById } = require('../controllers/coursesController');
 const { createOrUpdateMenu, getMenu, DeleteMenu } = require('../controllers/menusController');
 const { createOrUpdateMenuItem, getMenuItem, deleteMenuItem, softDeleteMenuItem } = require('../controllers/menuItemsController');
@@ -35,7 +37,7 @@ const beverage_itemController = require('../controllers/beverage_itemController'
 const { getRazorpayKey, razorpayVerifyPayment } = require('../controllers/razorpayController');
 
 //user
-const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails } = require('../controllers/app_user_authcontroller');
+const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
 const { getCourseMenuAndMenuItems } = require('../controllers/customer/restorantConroller');
 
 // verify Token middleware
@@ -156,6 +158,8 @@ router.get('/getRestroInfo', getRestroInfo);
 router.get('/getUserInfoWithCuisinesAndRestaurantTypes', getUserInfoWithCuisinesAndRestaurantTypes);
 router.get('/getUserIdsByFilters', getUserIdsByFilters);
 router.get('/getCourseMenuAndMenuItems/:userId', getCourseMenuAndMenuItems);
+router.get('/searchAllRestorantByname', searchAllRestorantByname);
+router.get('/blogs', blogController.getAllBlogs);
 
 // Razorpay Routes
 router.get('/razorpay_key', getRazorpayKey);

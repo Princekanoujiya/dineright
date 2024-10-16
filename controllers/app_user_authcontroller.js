@@ -6,17 +6,17 @@ const nodemailer = require('nodemailer');
 exports.createOrUpdateCustomer = (req, res) => {
   const { customer_id, customer_name, customer_email } = req.body;
   if (!customer_name || !customer_email) {
-    return res.status(200).json({ error_msg: "Customer name and email are required",response:false });
+    return res.status(200).json({ error_msg: "Customer name and email are required", response: false });
   }
   // Check if the email is unique before insert or update
   const emailCheckQuery = 'SELECT * FROM customers WHERE customer_email = ? AND customer_id != ?';
   db.query(emailCheckQuery, [customer_email, customer_id || 0], (err, result) => {
     if (err) {
-      return res.status(200).json({ error_msg: err.message ,response:false}); 
+      return res.status(200).json({ error_msg: err.message, response: false });
     }
 
     if (result.length > 0) {
-      return res.status(200).json({ error_msg: "Email is already in use",response:false });
+      return res.status(200).json({ error_msg: "Email is already in use", response: false });
     }
 
     // Function to send OTP email
@@ -42,13 +42,13 @@ exports.createOrUpdateCustomer = (req, res) => {
       transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
           console.error('Error sending email:', error);
-          return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message,response:false });
+          return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message, response: false });
         }
         console.log('OTP sent to email:', email);
-        res.status(200).json({ 
+        res.status(200).json({
           success_msg: 'Customer processed successfully and OTP sent to email',
-          customer_id: customerId ,
-          response:true
+          customer_id: customerId,
+          response: true
         });
       });
     };
@@ -59,9 +59,9 @@ exports.createOrUpdateCustomer = (req, res) => {
       // Update existing customer
       const updateQuery = 'UPDATE customers SET customer_name = ?, customer_email = ?, otp = ? WHERE customer_id = ?';
       db.query(updateQuery, [customer_name, customer_email, otp, customer_id], (err, result) => {
-        if (err) return res.status(200).json({ error_msg: err.message ,response:false}); 
+        if (err) return res.status(200).json({ error_msg: err.message, response: false });
         if (result.affectedRows === 0) {
-          return res.status(200).json({ error_msg: "Customer not found" ,response:false});
+          return res.status(200).json({ error_msg: "Customer not found", response: false });
         }
         // Send OTP after updating
         sendOtpEmail(customer_email, otp, customer_id);
@@ -70,9 +70,9 @@ exports.createOrUpdateCustomer = (req, res) => {
       // Insert new customer
       const insertQuery = 'INSERT INTO customers (customer_name, customer_email, otp) VALUES (?, ?, ?)';
       db.query(insertQuery, [customer_name, customer_email, otp], (err, result) => {
-        if (err) return res.status(200).json({ error_msg: err.message ,response:false});
-        const newCustomerId = result.insertId; 
-        sendOtpEmail(customer_email, otp, newCustomerId); 
+        if (err) return res.status(200).json({ error_msg: err.message, response: false });
+        const newCustomerId = result.insertId;
+        sendOtpEmail(customer_email, otp, newCustomerId);
       });
     }
   });
@@ -85,32 +85,32 @@ exports.verifyCustomerOtp = (req, res) => {
 
   // Check if required fields are provided
   if (!customer_id || !otp) {
-    return res.status(200).json({ error_msg: "Customer ID and OTP are required" ,response:false});
+    return res.status(200).json({ error_msg: "Customer ID and OTP are required", response: false });
   }
   const otpCheckQuery = 'SELECT * FROM customers WHERE customer_id = ? AND otp = ?';
   db.query(otpCheckQuery, [customer_id, otp], (err, result) => {
     if (err) {
-      return res.status(200).json({ error_msg: err.message ,response:false});
+      return res.status(200).json({ error_msg: err.message, response: false });
     }
     if (result.length === 0) {
-      return res.status(200).json({ error_msg: "Invalid OTP or Customer ID",response:false });
+      return res.status(200).json({ error_msg: "Invalid OTP or Customer ID", response: false });
     }
-    const customer = result[0]; 
+    const customer = result[0];
 
     const verifyCustomerQuery = 'UPDATE customers SET otp = NULL WHERE customer_id = ?';
     db.query(verifyCustomerQuery, [customer_id], (err, result) => {
       if (err) {
-        return res.status(200).json({ error_msg: err.message ,response:false});
+        return res.status(200).json({ error_msg: err.message, response: false });
       }
 
       if (result.affectedRows === 0) {
-        return res.status(200).json({ error_msg: "Customer not found",response:false});
+        return res.status(200).json({ error_msg: "Customer not found", response: false });
       }
 
       // Generate JWT token
       const token = jwt.sign(
         { customer_id: customer.customer_id, customer_email: customer.customer_email },
-        process.env.JWT_SECRET, 
+        process.env.JWT_SECRET,
         { expiresIn: 31536000 * 90 }
       );
 
@@ -118,7 +118,7 @@ exports.verifyCustomerOtp = (req, res) => {
         success_msg: "OTP verified successfully",
         token: token,
         customer_id: customer.customer_id,
-        response:true,
+        response: true,
       });
     });
   });
@@ -151,14 +151,14 @@ exports.getCustomerInfo = (req, res) => {
   db.query(query, [customer_id], (err, results) => {
     if (err) {
       console.error('Database error:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
 
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'Customer not found' ,response:false});
+      return res.status(200).json({ error_msg: 'Customer not found', response: false });
     }
 
-    res.status(200).json({ user: results[0] ,response:true,success_msg:'Customer found successfully'});
+    res.status(200).json({ user: results[0], response: true, success_msg: 'Customer found successfully' });
   });
 };
 exports.loginWithEmail = (req, res) => {
@@ -166,18 +166,18 @@ exports.loginWithEmail = (req, res) => {
 
   // Check if the customer_email is provided
   if (!customer_email) {
-    return res.status(200).json({ error_msg: "Customer email is required",response:false });
+    return res.status(200).json({ error_msg: "Customer email is required", response: false });
   }
 
   // Query to check if the email exists in the database
   const emailCheckQuery = 'SELECT * FROM customers WHERE customer_email = ?';
   db.query(emailCheckQuery, [customer_email], (err, result) => {
     if (err) {
-      return res.status(200).json({ error_msg: err.message ,response:false});
+      return res.status(200).json({ error_msg: err.message, response: false });
     }
 
     if (result.length === 0) {
-      return res.status(200).json({ error_msg: "Customer with this email does not exist" ,response:false});
+      return res.status(200).json({ error_msg: "Customer with this email does not exist", response: false });
     }
 
     const customer = result[0];
@@ -189,7 +189,7 @@ exports.loginWithEmail = (req, res) => {
     const updateOtpQuery = 'UPDATE customers SET otp = ? WHERE customer_id = ?';
     db.query(updateOtpQuery, [otp, customer.customer_id], (err, result) => {
       if (err) {
-        return res.status(200).json({ error_msg: err.message ,response:false});
+        return res.status(200).json({ error_msg: err.message, response: false });
       }
 
       // Function to send OTP email
@@ -215,10 +215,10 @@ exports.loginWithEmail = (req, res) => {
         transporter.sendMail(mailOptions, (error, info) => {
           if (error) {
             console.error('Error sending email:', error);
-            return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message ,response:false});
+            return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message, response: false });
           }
           console.log('OTP sent to email:', email);
-          res.status(200).json({ success_msg: 'OTP sent successfully to your email', customer_id: customer.customer_id ,response:true});
+          res.status(200).json({ success_msg: 'OTP sent successfully to your email', customer_id: customer.customer_id, response: true });
         });
       };
 
@@ -228,24 +228,24 @@ exports.loginWithEmail = (req, res) => {
   });
 };
 exports.resendOtp = (req, res) => {
-  const {customer_id} = req.body;
+  const { customer_id } = req.body;
   if (!customer_id) {
-    return res.status(200).json({ error_msg: "Customer ID is required",response:false });
+    return res.status(200).json({ error_msg: "Customer ID is required", response: false });
   }
   const idCheckQuery = 'SELECT * FROM customers WHERE customer_id = ?';
   db.query(idCheckQuery, [customer_id], (err, result) => {
     if (err) {
-      return res.status(200).json({ error_msg: err.message ,response:false});
+      return res.status(200).json({ error_msg: err.message, response: false });
     }
     if (result.length === 0) {
-      return res.status(200).json({ error_msg: "Customer with this ID does not exist",response:false });
+      return res.status(200).json({ error_msg: "Customer with this ID does not exist", response: false });
     }
     const customer = result[0];
     const otp = Math.floor(1000 + Math.random() * 9000);
     const updateOtpQuery = 'UPDATE customers SET otp = ? WHERE customer_id = ?';
     db.query(updateOtpQuery, [otp, customer.customer_id], (err, result) => {
       if (err) {
-        return res.status(200).json({ error_msg: err.message ,response:false});
+        return res.status(200).json({ error_msg: err.message, response: false });
       }
       // Function to send OTP email
       const sendOtpEmail = (email, otp) => {
@@ -262,7 +262,7 @@ exports.resendOtp = (req, res) => {
 
         const mailOptions = {
           from: process.env.EMAIL_SERVICE,
-          to: customer.customer_email, 
+          to: customer.customer_email,
           subject: 'Resend OTP Verification',
           text: `Your new OTP is ${otp}`,
         };
@@ -270,10 +270,10 @@ exports.resendOtp = (req, res) => {
         transporter.sendMail(mailOptions, (error, info) => {
           if (error) {
             console.error('Error sending email:', error);
-            return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message,response:false});
+            return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message, response: false });
           }
           console.log('OTP resent to email:', customer.customer_email);
-          res.status(200).json({ success_msg: 'OTP resent successfully to your email', customer_id: customer.customer_id ,response:true});
+          res.status(200).json({ success_msg: 'OTP resent successfully to your email', customer_id: customer.customer_id, response: true });
         });
       };
 
@@ -292,7 +292,7 @@ exports.getAllRestaurantWithTime = (req, res) => {
 
   db.query(selectQuery, (err, results) => {
     if (err) return res.status(200).json({ error_msg: err.message, response: false });
-    
+
     res.status(200).json({
       success_msg: "Data fetched successfully",
       response: true,
@@ -318,7 +318,7 @@ exports.getrestrodaydetails = (req, res) => {
     const groupedData = results.reduce((acc, row) => {
       if (!acc[row.userId]) {
         acc[row.userId] = {
-          id: row.userId,  
+          id: row.userId,
           days: []
         };
       }
@@ -336,11 +336,86 @@ exports.getrestrodaydetails = (req, res) => {
 
     // Convert the grouped data object to an array
     const resultArray = Object.values(groupedData);
-    
+
     res.status(200).json({
-      success_msg: "Day details fetched successfully", 
+      success_msg: "Day details fetched successfully",
       response: true,
       data: resultArray
     });
   });
 };
+
+// Get all restaurants search by name
+exports.searchAllRestorantByname = async (req, res) => {
+  const { name, city, type, cuisines } = req.query; // Get the search term from the query parameters
+
+  try {
+    // Define the SQL query, using LIKE for partial matching
+    const selectQuery = `
+      SELECT id, username, email, restaurantName, restaurantAddress, restaurant_logo, license_image FROM users 
+      WHERE is_deleted = 0 AND status = 'Activated' 
+      AND restaurantName LIKE ?`;
+
+    // Execute the main query
+    const [results] = await db.promise().query(selectQuery, [`%${name}%`]);
+
+    let restorantArray = [];
+
+    for (const result of results) {
+      const userId = result.id; // Use the 'id' from the initial query result
+
+      // Prepend BASE_URL to the license_image field
+      result.license_image = `${process.env.BASE_URL}${result.license_image}`;
+
+      // Fetch related data from banner_images, banner_galleries, and banner_videos tables
+      const bannerImagesQuery = `SELECT * FROM banner_images WHERE userId = ?`;
+      const [bannerImages] = await db.promise().query(bannerImagesQuery, [userId]);
+
+      const bannerGalleryQuery = `SELECT * FROM banner_galleries WHERE userId = ?`;
+      const [bannerGallery] = await db.promise().query(bannerGalleryQuery, [userId]);
+
+      const bannerVideoQuery = `SELECT * FROM banner_videos WHERE userId = ?`;
+      const [bannerVideos] = await db.promise().query(bannerVideoQuery, [userId]);
+
+      // Prepend BASE_URL to each banner image URL using map
+      const updatedBannerImages = bannerImages.map(image => ({
+        ...image,
+        banner_image: `${process.env.BASE_URL}${image.banner_image}`
+      }));
+
+      // Prepend BASE_URL to each gallery file URL using map
+      const updatedBannerGallery = bannerGallery.map(gallery => ({
+        ...gallery,
+        files: `${process.env.BASE_URL}${gallery.files}`
+      }));
+
+      // Prepend BASE_URL to each banner video URL using map
+      const updatedBannerVideos = bannerVideos.map(video => ({
+        ...video,
+        banner_video: `${process.env.BASE_URL}${video.banner_video}`
+      }));
+
+      // Append related data to the result
+      result.banner_images = updatedBannerImages;
+      result.banner_gallery = updatedBannerGallery;
+      result.banner_videos = updatedBannerVideos;
+
+      // Push the result to the array
+      restorantArray.push(result);
+    }
+
+    // Send the response with the final array of restaurants
+    res.status(200).json({
+      success_msg: "Data fetched successfully",
+      response: true,
+      data: restorantArray
+    });
+
+  } catch (err) {
+    // Handle any errors that occur during the query execution
+    return res.status(500).json({ error_msg: err.message, response: false });
+  }
+};
+
+
+

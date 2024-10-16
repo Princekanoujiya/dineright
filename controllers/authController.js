@@ -7,6 +7,7 @@ const nodemailer = require('nodemailer');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { response } = require('express');
 
 
 
@@ -491,8 +492,8 @@ exports.insertOrUpdateTimingData = (req, res) => {
 
   // Wait for all promises to resolve
   Promise.all(promises)
-    .then((results) => res.status(200).json({ messages: results }))
-    .catch((error) => res.status(200).json({ error_msg: 'Error processing timing data', details: error }));
+    .then((results) => res.status(200).json({ messages: results, response: true }))
+    .catch((error) => res.status(200).json({ error_msg: 'Error processing timing data', details: error, response:false }));
 };
 
 exports.insertDiningArea = (req, res) => {
@@ -781,7 +782,10 @@ exports.getDiningAreas = (req, res) => {
   const { userId } = req.params;
 
   // Query to fetch dining area data
-  const query = 'SELECT * FROM selected_dining_areas WHERE userId = ?';
+  const query = `SELECT da.dining_area_id, da.dining_area_type 
+  FROM selected_dining_areas sda
+  JOIN dining_areas da ON da.dining_area_id = sda.dining_area_id
+   WHERE userId = ?`;
   db.query(query, [userId], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
@@ -964,10 +968,12 @@ exports.verifyLoginOtp = (req, res) => {
       if (err) {
         console.error('Database error during OTP clearing:', err); // Log error
         return res.status(200).json({ error_msg: 'Database error while clearing OTP', details: err.message,response:false });
-      }
+      }      
+
+      const restorantName = user.restaurantName;
 
       // Step 3: Send success response with token
-      res.status(200).json({ success_msg: 'Login successful', token,response:true });
+      res.status(200).json({ success_msg: 'Login successful', restorantName, token,response:true });
     });
   });
 };

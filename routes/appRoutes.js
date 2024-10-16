@@ -37,7 +37,7 @@ const beverage_itemController = require('../controllers/beverage_itemController'
 const { getRazorpayKey, razorpayVerifyPayment } = require('../controllers/razorpayController');
 
 //user
-const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails ,getUserProfileDetails, searchAllRestorantByname} = require('../controllers/app_user_authcontroller');
+const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails ,getUserProfileDetails,updateUserProfileDetails, searchAllRestorantByname} = require('../controllers/app_user_authcontroller');
 const { getCourseMenuAndMenuItems } = require('../controllers/customer/restorantConroller');
 
 // verify Token middleware
@@ -64,7 +64,7 @@ router.post('/loginWithOtp', loginWithOtp);
 router.post('/verifyLoginOtp', verifyLoginOtp);
 router.post('/login', login);
 router.post('/resendrestaurantOtp', resendrestaurantOtp);
-router.post('/resendrestaurantOtpAfterLogin', resendrestaurantOtpAfterLogin);
+router.post('/resendrestaurantOtpAfterRegister', resendrestaurantOtpAfterLogin);
 router.get('/getSelectedCuisines', getSelectedCuisines);
 router.get('/getDaysListing', getDaysListing);
 router.get('/getAllDiningAreas', getAllDiningAreas);
@@ -129,7 +129,10 @@ router.post('/banner_video', verifyToken, uploadsVideoController.insertOrUpdateB
 router.get('/banner_video', verifyToken, uploadsVideoController.getBannerVideos);//done
 router.delete('/banner_video/:banner_video_id', verifyToken, uploadsVideoController.deleteBannerVideo);//done
 router.post('/gallery', verifyToken, uploadGalleryController.insertOrUpdateBannerGallery);//done
-router.delete('/banner_gallery/:banner_gallery_id', verifyToken, uploadGalleryController.deleteBannerGalleryItem);//done
+
+router.get('/getBannerGallery', uploadGalleryController.getBannerGallery);//done
+router.post('/deleteBannerGallery', uploadGalleryController.deleteBannerGallery);//done
+router.get('/getAllBannerGalleries', uploadGalleryController.getAllBannerGalleries);//done
 
 // restorant routes
 router.get('/getAllbookings', verifyToken, getAllBookings);
@@ -153,6 +156,7 @@ router.get('/getrestrodaydetails', getrestrodaydetails);
 router.get('/getAllRestaurantWithTime', getAllRestaurantWithTime);
 router.get('/getDaysListing', verifyCustomerToken, getDaysListing);
 router.get('/getUserProfileDetails', verifyCustomerToken, getUserProfileDetails);
+router.post('/updateUserProfileDetails', verifyCustomerToken, updateUserProfileDetails);
 router.post('/enquiry', enquiry);
 //filters
 router.get('/getRestaurantType', getRestaurantType);

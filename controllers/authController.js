@@ -1003,7 +1003,7 @@ exports.loginWithOtp = (req, res) => {
             return res.status(200).json({ error_msg: 'Database error while saving OTP', details: err.message, response: false });
           }
           // Step 6: Send response after successful OTP generation and email
-          res.status(200).json({ success_msg: 'OTP sent to email successfully. Please verify OTP to complete login.', response: true });
+          res.status(200).json({  userId:user.id, success_msg: 'OTP sent to email successfully. Please verify OTP to complete login.', response: true });
         });
       });
     }

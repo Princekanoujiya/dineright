@@ -67,15 +67,27 @@ exports.getGuests = (req, res) => {
       return res.status(200).json({ error_msg: 'No users found', response: false });
     }
 
-    res.status(200).json({ users: results, response: true, success_msg: true });
+    // Base URL for the images
+    const baseUrl = process.env.BASE_URL;
+
+    // Modify results to include the full URL for license_image
+    results.forEach(user => {
+      user.license_image = user.license_image ? `${baseUrl}/uploads/registered_restaurants/${user.id}/${user.license_image}` : null;
+    });
+
+    res.status(200).json({ users: results, response: true, success_msg: 'Users retrieved successfully' });
   });
 };
+
+
+
 exports.getDeactivatedRestaurants = (req, res) => {
   const query = `
     SELECT 
       users.*, 
       cities.city_name, 
-      GROUP_CONCAT(restaurant_fassai_images.restaurant_fassai_image_name) AS restaurant_fassai_images
+      GROUP_CONCAT(restaurant_fassai_images.restaurant_fassai_image_name) AS restaurant_fassai_images,
+      users.license_image
     FROM 
       users
     LEFT JOIN 
@@ -101,15 +113,26 @@ exports.getDeactivatedRestaurants = (req, res) => {
     // Base URL for the images
     const baseUrl = `${process.env.BASE_URL}`;
 
-    // Convert the restaurant_fassai_images string to an array and prepend the base URL
+    // Modify the result to include the full URL for `restaurant_fassai_images` and `license_image`
     results.forEach(user => {
+      // Handle restaurant_fassai_images array
       user.restaurant_fassai_images = user.restaurant_fassai_images ? 
-        user.restaurant_fassai_images.split(',').map(image => `${baseUrl}/uploads/registered_restaurants/${user.id}/${image}`) : [];
-    });
-
+          user.restaurant_fassai_images.split(',').map(image => `${baseUrl}/uploads/registered_restaurants/${user.id}/${image}`) : [];
+      
+      // Handle license_image by appending the base URL
+      if (user.license_image) {
+          user.license_image = `${baseUrl}/uploads/registered_restaurants/${user.id}/${user.license_image}`;
+      } else {
+          user.license_image = null; // Explicitly set to null if no license image
+      }
+  });
     res.status(200).json({ users: results, response: true, success_msg: 'Deactivated users retrieved successfully' });
   });
 };
+
+
+
+
 exports.getGuestsbyID = (req, res) => {
   const { id } = req.body; // Replace userId with id
   let query = 'SELECT * FROM users';

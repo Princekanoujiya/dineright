@@ -3,15 +3,15 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// Multer setup for multiple image and video uploads, storing in 'uploads/banner_gallery/userId/'
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const dir = path.join(__dirname, `/uploads/banner_gallery/${req.userId}`);
-
+    // const dir = `uploads/banner_gallery/${req.userId}`;
+    const dir = `uploads/banner_gallery/${req.userId}`;
     // Create the directory if it does not exist
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    
     cb(null, dir);
   },
   filename: function (req, file, cb) {
@@ -21,134 +21,115 @@ const storage = multer.diskStorage({
 });
 
 
+const upload = multer({ storage: storage }).array('files'); 
 
-// Multer config for handling multiple files (both images and videos)
-const upload = multer({
-  storage: storage,
-  fileFilter: function (req, file, cb) {
-    const filetypes = /jpeg|jpg|png|gif|mp4|avi|mov/; 
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only images and videos are allowed!'));
-    }
-  }
-}).array('files');
-
-// Insert or Update multiple gallery images/videos with unique IDs for each, storing full file paths
+// Insert multiple images or videos
 exports.insertOrUpdateBannerGallery = (req, res) => {
   upload(req, res, function (err) {
     if (err instanceof multer.MulterError) {
-      return res.status(200).json({ error_msg:'Multer error', details: err.message ,response:false });
+      return res.status(200).json({ error_msg: 'Multer error', details: err.message, response: false });
     } else if (err) {
-      return res.status(200).json({ error_msg:'Error uploading files', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Error uploading files', details: err.message, response: false });
     }
-    const files = req.files;
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(200).json({ error_msg: 'No files uploaded', response: false });
+    }
+
     const userId = req.userId;
-    const { banner_gallery_id } = req.body;
-    if (!files || files.length === 0) {
-      return res.status(200).json({ error_msg:'No files uploaded',response:false });
-    }
-    // Generate file paths to store in the database
-    const filePaths = files.map(file => `/uploads/banner_gallery/${userId}/${file.filename}`);
-      // Insert multiple new gallery items with full paths
-      const insertQuery = `INSERT INTO banner_galleries (userId, files) VALUES (?, ?)`;
+    const fileDetails = req.files.map(file => ({
+      filePath: `/uploads/banner_gallery/${req.userId}/${file.filename}`,
+      mimeType: file.mimetype
+    }));
 
-      // Start a transaction to ensure either all records are inserted or none
-      db.beginTransaction((err) => {
-        if (err) {
-          return res.status(200).json({ error_msg: 'Error starting transaction', details: err.message, response: false });
-        }
+    // Prepare insert query for multiple files
+    const insertQuery = `INSERT INTO banner_galleries (userId, files, file_type) VALUES ?`;
+    const values = fileDetails.map(file => [userId, file.filePath, file.mimeType]);
 
-        const promises = files.map(file => {
-          return new Promise((resolve, reject) => {
-            const filePath = `/uploads/banner_gallery/${userId}/${file.filename}`;
-            db.query(insertQuery, [userId, filePath], (err, result) => {
-              if (err) return reject(err);
-              resolve(result.insertId); 
-            });
-          });
-        });
-
-        // Execute all insert queries
-        Promise.all(promises)
-          .then(insertedIds => {
-            db.commit((err) => {
-              if (err) {
-                return db.rollback(() => {
-                  return res.status(200).json({ error_msg: 'Transaction failed', details: err.message, response: false });
-                });
-              }
-              res.status(200).json({ success_msg: 'Files uploaded and saved successfully', insertedIds, response:true });
-            });
-          })
-          .catch(err => {
-            db.rollback(() => {
-              return res.status(200).json({ error_msg: 'Error during file insertion', details: err.message, response: false });
-            });
-          });
-      });
-    
+    // Insert files into database
+    db.query(insertQuery, [values], (err, result) => {
+      if (err) {
+        return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
+      }
+      res.status(200).json({ success_msg: 'Files uploaded successfully', insertedCount: result.affectedRows, response: true });
+    });
   });
 };
 
-// Delete a single gallery item and its associated file using banner_gallery_id from URL params
-exports.deleteBannerGalleryItem = (req, res) => {
-  const { banner_gallery_id } = req.params; // The ID of the gallery item to be deleted from the URL parameters
+
+// Get banner gallery files (non-deleted files only)
+exports.getBannerGallery = (req, res) => {
   const userId = req.userId;
 
-  if (!banner_gallery_id) {
-    return res.status(400).json({ error_msg: 'No gallery ID provided', response: false });
-  }
-
-  // Fetch the file path for the gallery item to be deleted
-  const selectQuery = `SELECT files FROM banner_galleries WHERE userId = ? AND banner_gallery_id = ?`;
-  db.query(selectQuery, [userId, banner_gallery_id], (err, results) => {
+  // Query to fetch non-deleted files
+  const getQuery = `SELECT * FROM banner_galleries WHERE userId = ? AND is_deleted = 0`;
+  db.query(getQuery, [userId], (err, results) => {
     if (err) {
-      return res.status(500).json({ error_msg: 'Error fetching gallery item', details: err.message, response: false });
+      return res.status(200).json({ error_msg: 'Database error during retrieval', details: err.message, response: false });
     }
 
     if (results.length === 0) {
-      return res.status(404).json({ error_msg: 'No gallery item found for the provided ID', response: false });
+      return res.status(200).json({ success_msg: 'No files found', response: true });
     }
 
-    // Delete the file from the file system
-    const filePath = results[0].files;
-    const fullPath = path.join(__dirname, `..${filePath}`); // Get the full file path
-    console.log('Full path to file:', fullPath);
-
-    if (fs.existsSync(fullPath)) {
-      fs.unlink(fullPath, (err) => {
-        if (err) {
-          return res.status(500).json({ error_msg: 'Error deleting file', details: err.message, response: false });
-        }
-        
-        // Delete the record from the database
-        const deleteQuery = `DELETE FROM banner_galleries WHERE userId = ? AND banner_gallery_id = ?`;
-        db.query(deleteQuery, [userId, banner_gallery_id], (err, result) => {
-          if (err) {
-            return res.status(500).json({ error_msg: 'Error deleting gallery item from database', details: err.message, response: false });
-          }
-
-          res.status(200).json({ success_msg: 'Gallery item deleted successfully', response: true });
-        });
-      });
-    } else {
-      console.log('File not found, proceeding with database record deletion');
-
-      // Proceed with database deletion even if the file doesn't exist
-      const deleteQuery = `DELETE FROM banner_galleries WHERE userId = ? AND banner_gallery_id = ?`;
-      db.query(deleteQuery, [userId, banner_gallery_id], (err, result) => {
-        if (err) {
-          return res.status(500).json({ error_msg: 'Error deleting gallery item from database', details: err.message, response: false });
-        }
-
-        res.status(200).json({ success_msg: 'File not found, but gallery item deleted from database', response: true });
-      });
-    }
+    res.status(200).json({ success_msg: 'Files retrieved successfully', data: results, response: true });
   });
 };
 
+// Delete banner gallery file (set is_deleted = 1)
+exports.deleteBannerGallery = (req, res) => {
+  const { banner_gallery_id } = req.body;
+  if (!banner_gallery_id) {
+    return res.status(200).json({ error_msg: 'No banner_gallery_id provided', response: false });
+  }
+
+  // Query to update is_deleted to 1
+  const deleteQuery = `UPDATE banner_galleries SET is_deleted = 1 WHERE banner_gallery_id = ?`;
+  db.query(deleteQuery, [banner_gallery_id], (err, result) => {
+    if (err) {
+      return res.status(200).json({ error_msg: 'Database error during deletion', details: err.message, response: false });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(200).json({ error_msg: 'No file found with the provided ID', response: false });
+    }
+
+    res.status(200).json({ success_msg: 'File deleted successfully (marked as deleted)', response: true });
+  });
+};
+
+
+exports.getAllBannerGalleries = (req, res) => {
+  // Query to fetch all non-deleted banner galleries
+  const getQuery = `SELECT * FROM banner_galleries WHERE is_deleted = 0`;
+
+  db.query(getQuery, (err, results) => {
+    if (err) {
+      return res.status(200).json({ error_msg: 'Database error during retrieval', details: err.message, response: false });
+    }
+
+    if (results.length === 0) {
+      return res.status(200).json({ success_msg: 'No files found', response: true });
+    }
+
+    // Grouping the results by `userId` with formatted structure
+    const groupedByUserId = results.reduce((acc, item) => {
+      if (!acc[item.userId]) {
+        acc[item.userId] = {
+          userId: item.userId,
+          galleries: []
+        };
+      }
+
+      acc[item.userId].galleries.push({
+        banner_gallery_id: item.banner_gallery_id,
+        file: process.env.BASE_URL + item.files,  
+        file_type: item.file_type
+      });
+
+      return acc;
+    }, {});
+
+    res.status(200).json({ success_msg: 'Files retrieved successfully', data: Object.values(groupedByUserId), response: true });
+  });
+};

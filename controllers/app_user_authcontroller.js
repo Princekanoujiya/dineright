@@ -419,3 +419,94 @@ exports.searchAllRestorantByname = async (req, res) => {
 
 
 
+exports.getUserProfileDetails = (req, res) => {
+  const customer_id = req.customer_id; 
+  const query = 'SELECT customer_name, customer_email,customer_profile_image FROM customers WHERE customer_id = ?';
+
+  db.query(query, [customer_id], (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(200).json({ error_msg: 'Database error while fetching user details', details: err.message, response: false });
+    }
+    if (results.length === 0) {
+      return res.status(200).json({ error_msg: 'Customer not found', response: false });
+    }
+    const userProfileDetails = results[0];
+  
+    res.status(200).json({ success_msg: 'Customer details fetched successfully', customer_id , userProfileDetails, response: true });
+  });
+};
+
+
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     const customer_id = req.customer_id;
+//     const dir = `./uploads/user_profile/${customer_id}`;
+
+//     // Check if the directory exists, if not, create it
+//     if (!fs.existsSync(dir)) {
+//       fs.mkdirSync(dir, { recursive: true });
+//     }
+
+//     cb(null, dir); // Save the file in the directory
+//   },
+//   filename: (req, file, cb) => {
+//     cb(null, `customer_profile_image${path.extname(file.originalname)}`); // Set the filename
+//   }
+// });
+
+// const upload = multer({ storage: storage }).single('customer_profile_image');
+
+// // Update user profile details
+// exports.updateUserProfileDetails = (req, res) => {
+//   const customer_id = req.customer_id;
+
+//   // Handle file upload using multer
+//   upload(req, res, (err) => {
+//     if (err) {
+//       console.error('Error during file upload:', err);
+//       return res.status(500).json({ error_msg: 'Error uploading file', details: err.message, response: false });
+//     }
+
+//     // If no file is uploaded, return an error
+//     if (!req.file) {
+//       return res.status(400).json({ error_msg: 'No file uploaded', response: false });
+//     }
+
+//     const { customer_name, customer_email } = req.body;
+//     const customer_profile_image = req.file.filename; 
+
+//     // Validate that required fields are provided
+//     if (!customer_name || !customer_email) {
+//       return res.status(200).json({ error_msg: 'All required fields must be filled', response: false });
+//     }
+
+//     const updateQuery = `
+//       UPDATE customers 
+//       SET customer_name = ?, customer_email = ?, customer_profile_image = ?
+//       WHERE customer_id = ?
+//     `;
+
+//     const values = [
+//       customer_name,
+//       customer_email,
+//       customer_profile_image, 
+//       customer_id
+//     ];
+
+//     // Execute the query to update the profile
+//     db.query(updateQuery, values, (err, result) => {
+//       if (err) {
+//         console.error('Database error:', err);
+//         return res.status(500).json({ error_msg: 'Database error while updating profile details', details: err.message, response: false });
+//       }
+
+//       // If no rows were updated, return an error
+//       if (result.affectedRows === 0) {
+//         return res.status(404).json({ error_msg: 'User not found or no changes made', response: false });
+//       }
+
+//       res.status(200).json({ success_msg: 'User profile details updated successfully', response: true });
+//     });
+//   });
+// };

@@ -162,7 +162,7 @@ router.get('/getRestroInfo', getRestroInfo);
 router.get('/getUserInfoWithCuisinesAndRestaurantTypes', getUserInfoWithCuisinesAndRestaurantTypes);
 router.get('/getUserIdsByFilters', getUserIdsByFilters);
 router.get('/getCourseMenuAndMenuItems/:userId', getCourseMenuAndMenuItems);
-router.get('/searchAllRestorantByname', searchAllRestorantByname);
+router.post('/searchAllRestorantByname', searchAllRestorantByname);
 router.get('/blogs', blogController.getAllBlogs);
 
 // Razorpay Routes

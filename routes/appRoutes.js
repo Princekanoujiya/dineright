@@ -18,6 +18,8 @@ const {
     getSelectedRestaurantTypes, getRestroInfo, resendrestaurantOtpAfterLogin,getUserInfoWithCuisinesAndRestaurantTypes,getRestraurantProfileDetails,updateRestraurantProfileDetails
 } = require('../controllers/authController');
 
+const restorantMenuController = require('../controllers/restorant/menuController');
+
 const blogController = require('../controllers/customer/blogController');
 
 const { createOrUpdateCourse, getAllCourses, DeleteCourse, getCourseById } = require('../controllers/coursesController');
@@ -100,6 +102,10 @@ router.delete('/menu_item_token/:menu_item_id', verifyToken, menuItemsController
 router.get('/getCourseMenu', getCourseMenu);
 router.get('/getAllMasterMenus', verifyToken, master_card.getAllMasterMenus);
 router.get('/getCourseMenuGroupByCourseId', verifyToken, getCourseMenuGroupByCourseId);
+
+// restorantMenuController updateMenuAndBeverageItems
+router.post('/insertMenuAndBeverageItems', verifyToken, restorantMenuController.insertMenuAndBeverageItems);
+router.patch('/updateMenuAndBeverageItems', verifyToken, restorantMenuController.updateMenuAndBeverageItems);
 
 router.post('/insertMasterMenuItem', verifyToken, master_card.insertMasterMenuItem);
 router.get('/getMasterMenuItems', verifyToken, master_card.getMasterMenuItems);

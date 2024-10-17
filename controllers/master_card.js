@@ -19,7 +19,6 @@ exports.getCourseMenu = (req, res) => {
   });
 };
 
-
 // exports.getCourseMenuGroupByCourseId = async (req, res) => {
 //   const query = `
 //     SELECT m.menu_id, m.menu_name, c.course_id, c.course_name
@@ -136,8 +135,6 @@ exports.getCourseMenuGroupByCourseId = async (req, res) => {
     res.status(500).json({ error_msg: err.message, response: false });
   }
 };
-
-
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {

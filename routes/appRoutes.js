@@ -29,6 +29,7 @@ const { enquiry } = require('../controllers/enquiryController');
 const { getRestaurantType, getCuisines, getUserIdsByFilters } = require('../controllers/filtersController');
 
 const menuItemsController = require('../controllers/menuItems_with_token');
+const flutter_controller = require('../controllers/customer/flutter_controller');
 const uploadsController = require('../controllers/uploadsController');
 const uploadsVideoController = require('../controllers/uploadVideosController');
 const uploadGalleryController = require('../controllers/uploadGalleryController');
@@ -168,6 +169,11 @@ router.get('/getUserIdsByFilters', getUserIdsByFilters);
 router.get('/getCourseMenuAndMenuItems/:userId', getCourseMenuAndMenuItems);
 router.post('/searchAllRestorantByname', searchAllRestorantByname);
 router.get('/blogs', blogController.getAllBlogs);
+//flutter
+router.get('/getCourseMenuByRestroID', flutter_controller.getCourseMenuByRestroID);
+router.post('/searchAllRestorantByCityName', flutter_controller.searchAllRestorantByCityName);
+router.post('/getMasterBeverageItemsSelectedByRestro', flutter_controller.getMasterBeverageItemsSelectedByRestro);
+
 
 // Razorpay Routes
 router.get('/razorpay_key', getRazorpayKey);
@@ -176,13 +182,16 @@ router.post('/verify_payment', razorpayVerifyPayment);
 //superadmin
 router.post('/superadminlogin', loginSuperadmin);
 router.get('/getGuests', verifySuperAdminToken, getGuests);
-router.get('/getGuestsbyID', verifySuperAdminToken, getGuestsbyID);
-router.put('/updateUserStatusAndCommission/:id', verifySuperAdminToken, updateUserStatusAndCommission);
+router.get('/getGuestsbyID/:id',verifySuperAdminToken, getGuestsbyID);
+router.post('/updateUserStatusAndCommission', verifySuperAdminToken, updateUserStatusAndCommission);
 router.put('/updateCommissionStatus/:id', verifySuperAdminToken, updateCommissionStatus);
 router.post('/insertOrUpdateBlog', verifySuperAdminToken, insertOrUpdateBlog);
 router.post('/deleteBlog', verifySuperAdminToken, deleteBlog);
 router.get('/getAllBlogs', verifySuperAdminToken, verifySuperAdminToken, getAllBlogs);
 router.post('/getBlog', verifySuperAdminToken, getBlog);
 router.get('/getDeactivatedRestaurants', verifySuperAdminToken, getDeactivatedRestaurants);
+
+
+
 
 module.exports = router;

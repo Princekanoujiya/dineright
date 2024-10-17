@@ -30,7 +30,7 @@ exports.createOrUpdateCourse = (req, res) => {
 };
 // Get all courses
 exports.getAllCourses = (req, res) => {
-  const selectQuery = 'SELECT * FROM courses WHERE is_deleted=0';
+  const selectQuery = 'SELECT course_id,course_name FROM courses WHERE is_deleted=0';
 
   db.query(selectQuery, (err, results) => {
     if (err) {

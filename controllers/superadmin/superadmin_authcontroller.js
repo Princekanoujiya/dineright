@@ -123,64 +123,99 @@ exports.getDeactivatedRestaurants = (req, res) => {
       if (user.license_image) {
           user.license_image = `${baseUrl}/uploads/registered_restaurants/${user.id}/${user.license_image}`;
       } else {
-          user.license_image = null; // Explicitly set to null if no license image
+          user.license_image = null; 
       }
   });
     res.status(200).json({ users: results, response: true, success_msg: 'Deactivated users retrieved successfully' });
   });
 };
 
-
-
-
 exports.getGuestsbyID = (req, res) => {
-  const { id } = req.body; // Replace userId with id
-  let query = 'SELECT * FROM users';
+  const { id } = req.params; // Get id from URL parameters
+  let query = `
+    SELECT u.*, rfi.restaurant_fassai_image_name 
+    FROM users u
+    LEFT JOIN restaurant_fassai_images rfi ON u.id = rfi.userID
+  `;
+  
   const queryParams = [];
 
   if (id) {
-      query += ' WHERE id = ?'; // Assuming 'id' is the column in your database
-      queryParams.push(id);
+    query += ' WHERE u.id = ?'; // Using id as the condition
+    queryParams.push(id);
   }
 
   db.query(query, queryParams, (err, results) => {
-      if (err) {
-          console.error('Database error_msg:', err);
-          return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
-      }
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
+    }
 
-      if (results.length === 0) {
-          return res.status(200).json({ error_msg: id ? 'User not found' : 'No users found', response: false });
-      }
+    if (results.length === 0) {
+      return res.status(200).json({ error_msg: 'User not found', response: false });
+    }
 
-      res.status(200).json({ users: results, response: true, success_msg: true });
+    const baseUrl = `${process.env.BASE_URL}`;
+    const usersMap = new Map(); // To store users and aggregate their images
+
+    results.forEach(user => {
+      // Check if the user is already in the map
+      if (!usersMap.has(user.id)) {
+        // If not, initialize user object and image array
+        usersMap.set(user.id, {
+          ...user,
+          restaurant_fassai_image_name: user.restaurant_fassai_image_name
+            ? [`${baseUrl}/uploads/registered_restaurants/${user.id}/${user.restaurant_fassai_image_name}`]
+            : [],
+          license_image: user.license_image
+            ? `${baseUrl}/uploads/registered_restaurants/${user.id}/${user.license_image}`
+            : null
+        });
+      } else {
+        // If user already exists, just add the new image
+        const existingUser = usersMap.get(user.id);
+        if (user.restaurant_fassai_image_name) {
+          existingUser.restaurant_fassai_image_name.push(`${baseUrl}/uploads/registered_restaurants/${user.id}/${user.restaurant_fassai_image_name}`);
+        }
+      }
+    });
+
+    // Convert map values to an array
+    const users = Array.from(usersMap.values());
+
+    // Return a single object if only one user is fetched
+    const responseUser = users.length === 1 ? users[0] : users;
+
+    res.status(200).json({ users: responseUser, response: true, success_msg: 'User retrieved successfully' });
   });
 };
+
+
 exports.updateUserStatusAndCommission = (req, res) => {
-    const { id } = req.params; 
-    const { status, commission } = req.body; 
+  const { id, status, commission } = req.body;  // Now extracting id from req.body
+
+  if (!id || !status || commission == null) {
+    return res.status(200).json({ error_msg: 'ID, status, and commission are required', response: false });
+  }
+
+  // Update query
+  const updateQuery = 'UPDATE users SET status = ?, commission = ? WHERE id = ?';
   
-    if (!status || commission == null) {
-      return res.status(200).json({ error_msg: 'Status and commission are required' ,response:false});
+  // Execute the update query
+  db.query(updateQuery, [status, commission, id], (err, result) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
-  
-    // Update query
-    const updateQuery = 'UPDATE users SET status = ?, commission = ? WHERE id = ?';
-    
-    // Execute the update query
-    db.query(updateQuery, [status, commission, id], (err, result) => {
-      if (err) {
-        console.error('Database error_msg:', err);
-        return res.status(200).json({ error_msg: 'Database error', details: err.message,response:false });
-      }
-  
-      if (result.affectedRows === 0) {
-        return res.status(200).json({ error_msg: 'User not found' ,response:false});
-      }
-  
-      res.status(200).json({ success_msg: 'User status and commission updated successfully',id ,response:true});
-    });
+
+    if (result.affectedRows === 0) {
+      return res.status(200).json({ error_msg: 'User not found', response: false });
+    }
+
+    res.status(200).json({ success_msg: 'User status and commission updated successfully', id, response: true });
+  });
 };
+
 exports.updateCommissionStatus = (req, res) => {
     const { id } = req.params; // Get user id from the request parameters
     const { commission_status } = req.body; // Get status and commission from the request body

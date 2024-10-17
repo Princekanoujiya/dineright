@@ -79,63 +79,243 @@ exports.getCourseMenu = (req, res) => {
 // };
 
 // 2
+// exports.getCourseMenuGroupByCourseId = async (req, res) => {
+//   try {
+//     const userId = req.userId;
+
+//     const query = `SELECT course_id, course_name FROM courses WHERE course_status = 'Yes'`;
+//     const [courses] = await db.promise().query(query);
+
+//     let courseArray = [];
+//     for (const course of courses) {
+
+//       const menuQuery = `
+//       SELECT m.menu_id, m.menu_name
+//       FROM course_menu_static_linking cmsl
+//       JOIN menus m ON cmsl.menu_id = m.menu_id
+//       WHERE cmsl.course_id = ? AND m.is_deleted = 0
+//     `;
+
+//       const [menus] = await db.promise().query(menuQuery, [course.course_id]);
+
+//       // menu items
+//       let menuItemArray = [];
+//       for (const menu of menus) {
+
+//         const itemQuery = `
+//       SELECT mi.*
+//       FROM menu_item_linking mil
+//       JOIN master_items mi ON mi.master_item_id = mil.master_item_id
+//       WHERE mil.menu_id = ? AND mil.userId = ? AND mil.is_deleted = 0
+//     `;
+
+//         const [items] = await db.promise().query(itemQuery, [menu.menu_id, userId]);
+
+//         // Assuming each item in 'items' has a 'master_item_image' property
+//         if (items.length > 0) {
+//           items.forEach(item => {
+//             item.master_item_image = process.env.BASE_URL + item.master_item_image;
+//           });
+//         }
+
+
+
+//         menu.menu_items = items;
+//         menuItemArray.push(menu);
+//       }
+
+//       const beverage = await beverageAndItems(userId);
+
+//       menuItemArray.push(beverage);
+
+//       course.menus = menus;
+//       courseArray.push(course);
+//     }
+
+//     res.status(200).json({
+//       userId,
+//       success_msg: 'Course menu details retrieved successfully',
+//       response: true,
+//       data: courseArray
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error_msg: err.message, response: false });
+//   }
+// };
+
+// // function to get all beverage and items
+// async function beverageAndItems(userId) {
+//   // Query to get all beverages
+//   const beverageQuery = `SELECT * FROM beverages`;
+
+//   try {
+//     // Get all beverages
+//     const [beverages] = await db.promise().query(beverageQuery);
+
+//     let beverageArray = [];
+
+//     // Loop through each beverage and fetch its associated items
+//     for (const beverage of beverages) {
+//       const beverageItemQuery = `
+//         SELECT mi.*
+//         FROM beverages_item_linking bil
+//         JOIN master_items mi ON mi.master_item_id = bil.master_item_id
+//         WHERE bil.beverage_id = ? AND bil.userId = ? AND bil.is_deleted = 0
+//       `;
+
+//       // Fetch items linked to the current beverage
+//       const [items] = await db.promise().query(beverageItemQuery, [beverage.beverage_id, userId]);
+
+//       // Append the base URL to each item's image if available
+//       if (items.length > 0) {
+//         items.forEach(item => {
+//           item.master_item_image = item.master_item_image ? process.env.BASE_URL + item.master_item_image : null;
+//         });
+//       }
+
+//       // Attach the items to the beverage object
+//       beverage.beverage_items = items;
+
+//       // Push the modified beverage object into the array
+//       beverageArray.push(beverage);
+//     }
+
+//     // Return the array of beverages with their associated items
+//     return beverageArray;
+
+//   } catch (err) {
+//     console.error('Error fetching beverage items:', err.message);
+//     throw new Error('Database error fetching beverage items');
+//   }
+// }
+
+//course, menu, menu items and beverage
 exports.getCourseMenuGroupByCourseId = async (req, res) => {
   try {
     const userId = req.userId;
 
+    // Query to get all courses where course_status is 'Yes'
     const query = `SELECT course_id, course_name FROM courses WHERE course_status = 'Yes'`;
     const [courses] = await db.promise().query(query);
 
     let courseArray = [];
-    for (const course of courses) {
 
+    // Loop through each course to get its associated menus
+    for (const course of courses) {
       const menuQuery = `
-      SELECT m.menu_id, m.menu_name
-      FROM course_menu_static_linking cmsl
-      JOIN menus m ON cmsl.menu_id = m.menu_id
-      WHERE cmsl.course_id = ? AND m.is_deleted = 0
-    `;
+        SELECT m.menu_id, m.menu_name
+        FROM course_menu_static_linking cmsl
+        JOIN menus m ON cmsl.menu_id = m.menu_id
+        WHERE cmsl.course_id = ? AND m.is_deleted = 0
+      `;
 
       const [menus] = await db.promise().query(menuQuery, [course.course_id]);
 
-      // menu items
       let menuItemArray = [];
-      for (const menu of menus) {
 
+      // Loop through each menu to get its associated items
+      for (const menu of menus) {
         const itemQuery = `
-      SELECT mi.*
-      FROM menu_item_linking mil
-      JOIN master_items mi ON mi.master_item_id = mil.master_item_id
-      WHERE mil.menu_id = ? AND mil.userId = ? AND mil.is_deleted = 0
-    `;
+          SELECT mi.*
+          FROM menu_item_linking mil
+          JOIN master_items mi ON mi.master_item_id = mil.master_item_id
+          WHERE mil.menu_id = ? AND mil.userId = ? AND mil.is_deleted = 0
+        `;
 
         const [items] = await db.promise().query(itemQuery, [menu.menu_id, userId]);
 
-        // Assuming each item in 'items' has a 'master_item_image' property
+        // Append base URL to each item's image if available
         if (items.length > 0) {
           items.forEach(item => {
-            item.master_item_image = process.env.BASE_URL + item.master_item_image;
+            item.master_item_image = item.master_item_image ? process.env.BASE_URL + item.master_item_image : null;
           });
         }
 
+        // Attach items to the menu object
         menu.menu_items = items;
         menuItemArray.push(menu);
       }
 
-      course.menus = menus;
+      // Attach menus (including beverages) to the course object
+      course.menus = menuItemArray;
+
+      // Add the course object to the final array
       courseArray.push(course);
     }
 
+    // Send success response with course array
     res.status(200).json({
       userId,
       success_msg: 'Course menu details retrieved successfully',
       response: true,
       data: courseArray
     });
+
   } catch (err) {
+    // Handle any errors that occur during execution
     res.status(500).json({ error_msg: err.message, response: false });
   }
 };
+
+// Function to get all beverages and their associated items
+exports.getBeverageAndItems = async (req, res) => {
+  try {
+    const userId = req.userId; // Extract userId from the request (ensure req.user is available)
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Fetch all beverages
+    const beverageQuery = `SELECT * FROM beverages`;
+    const [beverages] = await db.promise().query(beverageQuery);
+
+    let beverageArray = [];
+
+    // Loop through each beverage to fetch associated items
+    for (const beverage of beverages) {
+      const beverageItemQuery = `
+        SELECT mi.*
+        FROM beverages_item_linking bil
+        JOIN master_items mi ON mi.master_item_id = bil.master_item_id
+        WHERE bil.beverage_id = ? AND bil.userId = ? AND bil.is_deleted = 0
+      `;
+
+      const [items] = await db.promise().query(beverageItemQuery, [beverage.beverage_id, userId]);
+
+      // Append the base URL to each item's image if available
+      items.forEach(item => {
+        item.master_item_image = item.master_item_image ? process.env.BASE_URL + item.master_item_image : null;
+      });
+
+      // Attach items to the beverage object
+      beverage.beverage_items = items;
+
+      // Push the beverage object into the beverage array
+      beverageArray.push(beverage);
+    }
+
+    const obj = {
+      menu_id: 6,
+      menu_name: "Beverages",
+      created_at: "2024-09-27T06:07:00.000Z",
+      updated_at: "2024-09-27T06:07:00.000Z",
+      is_deleted: 0,
+      menu_items: beverageArray,
+    }
+
+
+    // Send the array of beverages with their associated items as the response
+    return res.json(obj);
+
+  } catch (err) {
+    console.error('Error fetching beverage items:', err.message);
+    return res.status(500).json({ error: 'Database error fetching beverage items' });
+  }
+};
+
+
+
 
 
 
@@ -332,6 +512,91 @@ exports.deleteMasterMenuItem = (req, res) => {
       res.status(200).json({ success_msg: 'Menu item deleted successfully', master_item_id, response: true });
     });
   });
+};
+
+
+// getMasterMenuItemsDetails
+exports.getMasterMenuItemsDetails = async (req, res) => {
+  try {
+    const { master_item_id } = req.params;
+    const userId = req.userId;
+
+    // Validation: Ensure required params are present
+    if (!master_item_id || !userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid request parameters',
+      });
+    }
+
+    const menuItemsQuery = `
+      SELECT mil.menu_id, mi.* 
+      FROM menu_item_linking mil
+      JOIN master_items mi ON mil.master_item_id = mi.master_item_id AND mil.userId = mi.userId
+      WHERE mil.master_item_id = ? AND mil.userId = ? AND mil.is_deleted = 0
+    `;
+
+    const [items] = await db.promise().query(menuItemsQuery, [master_item_id, userId]);
+
+    if (items.length > 0) {
+      items[0].master_item_image = process.env.BASE_URL + items[0].master_item_image;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: items,
+    });
+  } catch (error) {
+    console.error('Error fetching item:', error.message);
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve item',
+      error: error.message,
+    });
+  }
+};
+
+// getMasterBeverageItemsDetails
+exports.getMasterBeverageItemsDetails = async (req, res) => {
+  try {
+    const { master_item_id } = req.params;
+    const userId = req.userId;
+
+    // Validation: Ensure required params are present
+    if (!master_item_id || !userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid request parameters',
+      });
+    }
+
+    const menuItemsQuery = `
+      SELECT bil.beverage_id, mi.* 
+      FROM beverages_item_linking bil
+      JOIN master_items mi ON bil.master_item_id = mi.master_item_id AND bil.userId = mi.userId
+      WHERE bil.master_item_id = ? AND bil.userId = ? AND bil.is_deleted = 0
+    `;
+
+    const [items] = await db.promise().query(menuItemsQuery, [master_item_id, userId]);
+
+    if (items.length > 0) {
+      items[0].master_item_image = process.env.BASE_URL + items[0].master_item_image;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: items,
+    });
+  } catch (error) {
+    console.error('Error fetching item:', error.message);
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve item',
+      error: error.message,
+    });
+  }
 };
 
 

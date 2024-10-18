@@ -90,10 +90,28 @@ exports.updateMenuAndBeverageItems = async (req, res) => {
         const master_item_image = req.file ? `/uploads/menu_items_with_token/${req.userId}/${req.file.filename}` : null;
         const userId = req.userId;
 
-        console.log('updateMenuAndBeverageItems');
-        console.log('body', req.body);
-
         try {
+            // validations
+            if (!['menu', 'beverage'].includes(menu_type)) {
+                return res.status(400).json({ error_msg: 'Invalid menu type', response: false });
+            }
+            
+            // check existing item
+            if(menu_type === 'menu'){
+                const [existingItem] = await db.promise().query(`
+                    SELECT * FROM menu_item_linking WHERE master_item_id = ? AND userId = ? AND is_deleted = 0`, [master_item_id, userId]);
+    
+                if (!existingItem.length) {
+                    return res.status(404).json({ error_msg: 'Item not found', response: false });
+                }
+            } else if(menu_type === 'beverage'){
+                const [existingItem] = await db.promise().query(`SELECT * FROM beverages_item_linking WHERE master_item_id = ? AND userId = ? AND is_deleted = 0`, [master_item_id, userId]);
+    
+                if (!existingItem.length) {
+                    return res.status(404).json({ error_msg: 'Item not found', response: false });
+                }
+            }
+
             // Get the current image path from the database (to delete if needed)
             const [existingItem] = await db.promise().query(`SELECT master_item_image FROM master_items WHERE master_item_id = ? AND userId = ?`, [master_item_id, userId]);
 

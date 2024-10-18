@@ -5,7 +5,6 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const appRoutes = require('./routes/appRoutes');
-const paymentRoutes = require('./routes/payment'); 
 const db = require('./config');  
 
 
@@ -26,9 +25,6 @@ app.use('/uploads', express.static('uploads'));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-
-// Use payment routes
-app.use('/api/payment', paymentRoutes);
 
 // Route middleware
 app.use('/api/auth', authRoutes);

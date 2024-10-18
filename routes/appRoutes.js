@@ -14,8 +14,8 @@ const {
     createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllCities, resendrestaurantOtp,
     getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
     loginWithOtp, verifyLoginOtp, stepTwoAndSendOtp, insertOrUpdateTimingData, restro_guest_time_duration,
-    insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines,
-    getSelectedRestaurantTypes, getRestroInfo, resendrestaurantOtpAfterLogin,getUserInfoWithCuisinesAndRestaurantTypes,getRestraurantProfileDetails,updateRestraurantProfileDetails
+    insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines,getTimingDatabyResrtoId,
+    getSelectedRestaurantTypes, getRestroInfo, updateTimingData,resendrestaurantOtpAfterLogin,getUserInfoWithCuisinesAndRestaurantTypes,getRestraurantProfileDetails,updateRestraurantProfileDetails
 } = require('../controllers/authController');
 
 const restorantMenuController = require('../controllers/restorant/menuController');
@@ -133,7 +133,7 @@ router.get('/cuisins/:frontend_cuisins_section_id', getCuisionSectionById);
 // router.delete('/cuisins/:frontend_cuisins_section_id', deleteBannerSection);
 
 router.post('/banner_image', verifyToken, uploadsController.insertOrUpdateBannerImage);//done
-router.get('/banner_image', verifyToken, uploadsController.getBannerImages);//done
+router.get('/banner_image',verifyToken, uploadsController.getBannerImages);//done
 router.delete('/banner_image/:banner_image_id', verifyToken, uploadsController.deleteBannerImage);//done
 
 router.post('/banner_video', verifyToken, uploadsVideoController.insertOrUpdateBannerVideo);//done
@@ -152,6 +152,8 @@ router.get('/getAllocatedTables', verifyToken, getAllDiningAreaAndAllocatedTable
 router.post('/insertNewBooking', verifyToken, newBookingInsert);
 router.patch('/updateBookingPayment', verifyToken, updateBookingPayment);
 router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
+router.get('/getTimingDatabyResrtoId',  getTimingDatabyResrtoId);
+router.post('/updateTimingData', verifyToken, updateTimingData);
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done
@@ -183,6 +185,8 @@ router.get('/blogs', blogController.getAllBlogs);
 router.get('/getCourseMenuByRestroID', flutter_controller.getCourseMenuByRestroID);
 router.post('/searchAllRestorantByCityName', flutter_controller.searchAllRestorantByCityName);
 router.post('/getMasterBeverageItemsSelectedByRestro', flutter_controller.getMasterBeverageItemsSelectedByRestro);
+router.post('/getBeveragesAndCourseMenuByRestroID', flutter_controller.getBeveragesAndCourseMenuByRestroID);
+router.get('/getsingleRestaurantbyId/:userId', flutter_controller.getsingleRestaurantbyId);
 
 
 // Razorpay Routes
@@ -200,8 +204,5 @@ router.post('/deleteBlog', verifySuperAdminToken, deleteBlog);
 router.get('/getAllBlogs', verifySuperAdminToken, verifySuperAdminToken, getAllBlogs);
 router.post('/getBlog', verifySuperAdminToken, getBlog);
 router.get('/getDeactivatedRestaurants', verifySuperAdminToken, getDeactivatedRestaurants);
-
-
-
 
 module.exports = router;

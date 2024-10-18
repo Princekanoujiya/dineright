@@ -57,7 +57,6 @@ exports.insertOrUpdateBannerGallery = (req, res) => {
 };
 
 
-// Get banner gallery files (non-deleted files only)
 exports.getBannerGallery = (req, res) => {
   const userId = req.userId;
 
@@ -72,9 +71,23 @@ exports.getBannerGallery = (req, res) => {
       return res.status(200).json({ success_msg: 'No files found', response: true });
     }
 
-    res.status(200).json({ success_msg: 'Files retrieved successfully', data: results, response: true });
+    // Format each file URL
+    const files = results.map(image => ({
+      file_url: `${process.env.BASE_URL}${image.files}`,
+      banner_gallery_id: image.banner_gallery_id,
+      file_type: image.file_type,
+    }));
+
+    // Return all files as an array
+    res.status(200).json({
+      userId: userId,
+      success_msg: 'Files retrieved successfully',
+      files: files,
+      response: true
+    });
   });
 };
+
 
 // Delete banner gallery file (set is_deleted = 1)
 exports.deleteBannerGallery = (req, res) => {

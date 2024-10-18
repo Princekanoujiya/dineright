@@ -349,7 +349,6 @@ const handleFileMove = (file, field, id, oldFile = null) => {
   });
 };
 
-
 exports.stepTwo = (req, res) => {
   const { userId, restaurantName, restaurantAddress } = req.body;
 
@@ -833,20 +832,79 @@ exports.getRestroInfo = (req, res) => {
   });
 };
 
+exports.getTimingDatabyResrtoId = (req, res) => {
+  const { userId } = req.userId;
+
+  // Query to fetch timing data along with the day name from the days_listing table
+  const query = `
+    SELECT st.service_time_id,st.day_id, dl.day_name, st.start_time, st.end_time, st.status 
+    FROM service_time st
+    JOIN days_listing dl ON st.day_id = dl.day_id
+    WHERE st.userId = ?
+  `;
+
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
+    }
+
+    // Send the results with the day name and timing data
+    res.status(200).json({ timingData: results, success_msg: 'Success', response: true });
+  });
+};
+exports.updateTimingData = (req, res) => {
+  const userId = req.body.userId;
+  const { service_time_id, day_id, start_time, end_time, status } = req.body;
+
+  // Check if all required fields are provided
+  if (!userId || !service_time_id || !day_id || !start_time || !end_time || !status) {
+    return res.status(200).json({ error_msg: 'Missing required fields', response: false });
+  }
+
+  // Query to update the timing data based on userId and service_time_id
+  const updateQuery = `
+    UPDATE service_time 
+    SET start_time = ?, end_time = ?, status = ?, day_id = ?
+    WHERE userId = ? AND service_time_id = ?
+  `;
+
+  db.query(updateQuery, [start_time, end_time, status, day_id, userId, service_time_id], (err, results) => {
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
+    }
+
+    // Check if the update affected any rows
+    if (results.affectedRows === 0) {
+      return res.status(200).json({ error_msg: 'No matching record found to update', response: false });
+    }
+
+    // Send success message
+    res.status(200).json({ success_msg: 'Timing data updated successfully', response: true });
+  });
+};
 
 
 exports.getTimingData = (req, res) => {
   const { userId } = req.params;
 
-  // Query to fetch timing data
-  const query = 'SELECT * FROM service_time WHERE userId = ?';
+  // Query to fetch timing data along with the day name from the days_listing table
+  const query = `
+    SELECT ice_time_id,st.day_id, dl.day_name, st.start_time, st.end_time, st.status 
+    FROM service_time st
+    JOIN days_listing dl ON st.day_id = dl.day_id
+    WHERE st.userId = ?
+  `;
+
   db.query(query, [userId], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message ,response:false});
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
 
-    res.status(200).json({ timingData: results,success_msg:'success',response:true });
+    // Send the results with the day name and timing data
+    res.status(200).json({ timingData: results, success_msg: 'Success', response: true });
   });
 };
 

@@ -39,7 +39,7 @@ exports.getMasterBeverageItemsSelectedByRestro = async (req, res) => {
         res.status(200).json(beverageArray);
     } catch (error) {
         // Send an error response with a detailed message
-        res.status(500).json({ error: error.message });
+        res.status(200).json({ error: error.message });
     }
 };
 
@@ -316,3 +316,72 @@ exports.getBeveragesAndCourseMenuByRestroID = async (req, res) => {
         res.status(500).json({ error_msg: err.message, response: false });
     }
 };
+
+
+// Get restaurant by userId
+exports.getsingleRestaurantbyId = async (req, res) => {
+    const { userId } = req.params; // Assuming userId is passed as a route parameter
+  
+    try {
+      // Base SQL query with joins to `selected_restaurant_types`, `selected_cuisines`, and `cities`
+      let selectQuery = `
+        SELECT u.id, u.username, u.email, u.restaurantName, u.restaurantAddress, c.city_name, u.phone
+        FROM users u
+        LEFT JOIN selected_restaurant_types srt ON u.id = srt.userId
+        LEFT JOIN selected_cuisines sc ON u.id = sc.userId
+        LEFT JOIN cities c ON u.city_id = c.city_id
+        WHERE u.is_deleted = 0 
+        AND u.status = 'Activated'
+        AND u.id = ?  -- Filter by userId
+      `;
+  
+      // Execute the main query with userId
+      const [results] = await db.promise().query(selectQuery, [userId]);
+  
+      // Check if results are found
+      if (results.length === 0) {
+        return res.status(404).json({ success_msg: "Restaurant not found", response: false });
+      }
+  
+      // Process each result and fetch related data
+      const result = results[0];
+
+      // Fetch a single related banner image
+      const [bannerImage] = await db.promise().query(`SELECT * FROM banner_images WHERE userId = ? LIMIT 1`, [userId]);
+      result.banner_image = bannerImage.length > 0 ? `${process.env.BASE_URL}${bannerImage[0].banner_image}` : null; // Single banner image
+  
+      // Fetch related data from banner_galleries and banner_videos tables
+      const [bannerGallery] = await db.promise().query(`SELECT * FROM banner_galleries WHERE userId = ?`, [userId]);
+      const [bannerVideos] = await db.promise().query(`SELECT * FROM banner_videos WHERE userId = ?`, [userId]);
+  
+      // Prepend BASE_URL to each gallery file URL using map
+      result.banner_gallery = bannerGallery.map(gallery => ({
+        ...gallery,
+        files: `${process.env.BASE_URL}${gallery.files}`
+      }));
+  
+  
+      // Fetch timing data
+      const [timingData] = await db.promise().query(`
+        SELECT st.day_id, dl.day_name, st.start_time, st.end_time, st.status 
+        FROM service_time st
+        JOIN days_listing dl ON st.day_id = dl.day_id
+        WHERE st.userId = ?
+      `, [userId]);
+  
+      // Add timing data to the result
+      result.timingData = timingData;
+  
+      // Send the response with the restaurant data
+      res.status(200).json({
+        success_msg: "Data fetched successfully",
+        response: true,
+        data: result 
+      });
+  
+    } catch (err) {
+      // Handle any errors that occur during the query execution
+      return res.status(500).json({ error_msg: err.message, response: false });
+    }
+  };
+  

@@ -65,29 +65,41 @@ exports.insertOrUpdateBannerImage = (req, res) => {
   });
 };
 
-// Get banner images for a user
 exports.getBannerImages = (req, res) => {
-  const userId = req.userId;
-  const query = `SELECT * FROM banner_images WHERE userId = ?`;
+  const userId = req.userId; 
+  const query = `SELECT * FROM banner_images WHERE userId = ?`; 
 
   db.query(query, [userId], (err, results) => {
     if (err) {
-      return res.status(200).json({ error_msg:'Database error during retrieval', details: err.message,response:false });
+      return res.status(200).json({ 
+        error_msg: 'Database error during retrieval', 
+        details: err.message,
+        response: false 
+      });
     }
+
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'No banner images found for this user' ,response:false});
+      return res.status(200).json({ 
+        error_msg: 'No banner images found for this user',
+        response: false 
+      });
     }
-    const updatedResults = results.map(image => {
-      image.banner_image = `${process.env.BASE_URL}${image.banner_image}`;
-      return image;
-    });
+
+    // Get the first banner image from the results
+    const image = results[0];
+    const bannerImageUrl = `${process.env.BASE_URL}${image.banner_image}`; 
+
     res.status(200).json({
-      banner_image: updatedResults,
+      banner_image: bannerImageUrl,
+      userId: userId,
+      banner_image_id:image.banner_image_id,
       success_msg: 'Banner image retrieved successfully',
       response: true
     });
   });
 };
+
+
 
 exports.deleteBannerImage = (req, res) => {
   const { banner_image_id } = req.params;

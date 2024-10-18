@@ -345,13 +345,93 @@ exports.getrestrodaydetails = (req, res) => {
 };
 
 // Get all restaurants search by name
+// exports.searchAllRestorantByname = async (req, res) => {
+//   const { name, city_id, type_ids, cuisines_ids, city_name } = req.body; // Get the search term from the query parameters
+
+//   try {
+//     // Base SQL query with joins to `selected_restorant_types`, `selected_cuisines`, and `cities` for city_name search
+//     let selectQuery = `
+//       SELECT u.id, u.username, u.email, u.restaurantName, u.restaurantAddress, c.city_name, u.phone
+//       FROM users u
+//       LEFT JOIN selected_restaurant_types srt ON u.id = srt.userId
+//       LEFT JOIN selected_cuisines sc ON u.id = sc.userId
+//       LEFT JOIN cities c ON u.city_id = c.city_id
+//       WHERE u.is_deleted = 0 
+//       AND u.status = 'Activated'
+//     `;
+
+//     // Array to hold query parameters
+//     let queryParams = [];
+
+//     // Dynamically add conditions based on provided query parameters
+//     if (name) {
+//       selectQuery += ` AND u.restaurantName LIKE ?`;
+//       queryParams.push(`%${name}%`);
+//     }
+
+//     if (city_id) {
+//       selectQuery += ` AND u.city_id = ?`;
+//       queryParams.push(city_id);
+//     }
+
+//     if (city_name) {
+//       selectQuery += ` AND c.city_name LIKE ?`;
+//       queryParams.push(`%${city_name}%`);
+//     }
+
+//     if (type_ids && type_ids.length > 0) {
+//       selectQuery += ` AND srt.restaurant_type_id IN (?)`;
+//       queryParams.push(type_ids);
+//     }
+
+//     if (cuisines_ids && cuisines_ids.length > 0) {
+//       selectQuery += ` AND sc.cuisine_id IN (?)`;
+//       queryParams.push(cuisines_ids);
+//     }
+
+//     // Group results to avoid duplicate rows due to joins
+//     selectQuery += ` GROUP BY u.id`;
+
+//     // Execute the main query
+//     const [results] = await db.promise().query(selectQuery, queryParams);
+
+//     // Process each result and fetch the first banner image
+//     let restorantArray = await Promise.all(results.map(async (result) => {
+//       const userId = result.id; // Use the 'id' from the initial query result
+
+//       // Fetch the first related banner image
+//       const [bannerImages] = await db.promise().query(`SELECT banner_image FROM banner_images WHERE userId = ? LIMIT 1`, [userId]);
+
+//       // If a banner image exists, prepend BASE_URL
+//       if (bannerImages.length > 0) {
+//         result.banner_image = `${process.env.BASE_URL}${bannerImages[0].banner_image}`;
+//       } else {
+//         result.banner_image = null;
+//       }
+//       result.rating = 4;
+//       return result; 
+//     }));
+
+//     // Send the response with the final array of restaurants
+//     res.status(200).json({
+//       success_msg: "Data fetched successfully",
+//       response: true,
+//       data: restorantArray
+//     });
+
+//   } catch (err) {
+//     // Handle any errors that occur during the query execution
+//     return res.status(500).json({ error_msg: err.message, response: false });
+//   }
+// };
+
 exports.searchAllRestorantByname = async (req, res) => {
   const { name, city_id, type_ids, cuisines_ids, city_name } = req.body; // Get the search term from the query parameters
 
   try {
     // Base SQL query with joins to `selected_restorant_types`, `selected_cuisines`, and `cities` for city_name search
     let selectQuery = `
-      SELECT u.id, u.username, u.email, u.restaurantName, u.restaurantAddress, u.restaurant_logo, u.license_image, c.city_name
+      SELECT u.id, u.username, u.email, u.restaurantName, u.restaurantAddress, c.city_name, u.phone
       FROM users u
       LEFT JOIN selected_restaurant_types srt ON u.id = srt.userId
       LEFT JOIN selected_cuisines sc ON u.id = sc.userId
@@ -395,40 +475,38 @@ exports.searchAllRestorantByname = async (req, res) => {
     // Execute the main query
     const [results] = await db.promise().query(selectQuery, queryParams);
 
-    // Process each result and fetch related banner images, galleries, and videos
+    // Process each result, fetch the first banner image and timing data
     let restorantArray = await Promise.all(results.map(async (result) => {
       const userId = result.id; // Use the 'id' from the initial query result
 
-      // Prepend BASE_URL to the license_image field
-      result.license_image = `${process.env.BASE_URL}${result.license_image}`;
+      // Fetch the first related banner image
+      const [bannerImages] = await db.promise().query(`SELECT banner_image FROM banner_images WHERE userId = ? LIMIT 1`, [userId]);
 
-      // Fetch related data from banner_images, banner_galleries, and banner_videos tables
-      const [bannerImages] = await db.promise().query(`SELECT * FROM banner_images WHERE userId = ?`, [userId]);
-      const [bannerGallery] = await db.promise().query(`SELECT * FROM banner_galleries WHERE userId = ?`, [userId]);
-      const [bannerVideos] = await db.promise().query(`SELECT * FROM banner_videos WHERE userId = ?`, [userId]);
+      // If a banner image exists, prepend BASE_URL
+      if (bannerImages.length > 0) {
+        result.banner_image = `${process.env.BASE_URL}${bannerImages[0].banner_image}`;
+      } else {
+        result.banner_image = null;
+      }
 
-      // Prepend BASE_URL to each banner image URL using map
-      result.banner_images = bannerImages.map(image => ({
-        ...image,
-        banner_image: `${process.env.BASE_URL}${image.banner_image}`
-      }));
+      // Set static rating
+      result.rating = 4;
 
-      // Prepend BASE_URL to each gallery file URL using map
-      result.banner_gallery = bannerGallery.map(gallery => ({
-        ...gallery,
-        files: `${process.env.BASE_URL}${gallery.files}`
-      }));
+      // Fetch timing data for this restaurant (userId)
+      const [timingData] = await db.promise().query(`
+        SELECT st.day_id, dl.day_name, st.start_time, st.end_time, st.status 
+        FROM service_time st
+        JOIN days_listing dl ON st.day_id = dl.day_id
+        WHERE st.userId = ?
+      `, [userId]);
 
-      // Prepend BASE_URL to each banner video URL using map
-      result.banner_videos = bannerVideos.map(video => ({
-        ...video,
-        banner_video: `${process.env.BASE_URL}${video.banner_video}`
-      }));
+      // Add timing data to the result
+      result.timingData = timingData;
 
-      return result; // Return the processed result
+      return result;
     }));
 
-    // Send the response with the final array of restaurants
+    // Send the response with the final array of restaurants and timing data
     res.status(200).json({
       success_msg: "Data fetched successfully",
       response: true,
@@ -442,11 +520,14 @@ exports.searchAllRestorantByname = async (req, res) => {
 };
 
 
-exports.getUserProfileDetails = (req, res) => {
-  const customer_id = req.customer_id;
-  const query = 'SELECT customer_name, customer_email, customer_profile_image FROM customers WHERE customer_id = ?';
 
-  db.query(query, [customer_id], (err, results) => {
+exports.getUserProfileDetails = (req, res) => {
+  const customer_id =req.customer_id;
+
+  // Query to fetch user profile details
+  const userProfileQuery = 'SELECT customer_name, customer_email, customer_profile_image FROM customers WHERE customer_id = ?';
+
+  db.query(userProfileQuery, [customer_id], (err, results) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(200).json({ 
@@ -470,15 +551,76 @@ exports.getUserProfileDetails = (req, res) => {
       userProfileDetails.customer_profile_image = process.env.BASE_URL + userProfileDetails.customer_profile_image;
     }
 
-    // Return success response with user details
-    res.status(200).json({ 
-      success_msg: 'Customer details fetched successfully', 
-      customer_id, 
-      userProfileDetails, 
-      response: true 
+    // Query to fetch userId from bookings table
+    const bookingQuery = 'SELECT userId FROM bookings WHERE customer_id = ?';
+    
+    db.query(bookingQuery, [customer_id], (bookingErr, bookingResults) => {
+      if (bookingErr) {
+        console.error('Database error:', bookingErr);
+        return res.status(200).json({ 
+          error_msg: 'Database error while fetching bookings', 
+          details: bookingErr.message, 
+          response: false 
+        });
+      }
+
+      // If no bookings are found, set visitedrestaurant to an empty array
+      let visitedrestaurant = bookingResults.length > 0 ? bookingResults.map(row => row.userId) : [];
+
+      // Count occurrences of each userId
+      let visitedCount = visitedrestaurant.reduce((acc, userId) => {
+        acc[userId] = (acc[userId] || 0) + 1;
+        return acc;
+      }, {});
+
+      let userIds = Object.keys(visitedCount); // Get all unique userIds
+      
+      // If no userIds found, return response
+      if (userIds.length === 0) {
+        return res.status(200).json({
+          success_msg: 'Customer details fetched successfully',
+          customer_id,
+          userProfileDetails,
+          visitedrestaurant: [],
+          response: true
+        });
+      }
+
+      // Query to fetch user details from users table based on the userIds
+      const usersQuery = 'SELECT id, restaurantName, restaurantAddress, resataurantDescription FROM users WHERE id IN (?)';
+
+      db.query(usersQuery, [userIds], (usersErr, usersResults) => {
+        if (usersErr) {
+          console.error('Database error:', usersErr);
+          return res.status(200).json({ 
+            error_msg: 'Database error while fetching users', 
+            details: usersErr.message, 
+            response: false 
+          });
+        }
+
+        // Map usersResults to include the count of visits
+        let visitedrestaurantDetails = usersResults.map(user => ({
+          userId: user.id,
+          restaurantName: user.restaurantName,
+          restaurantAddress: user.restaurantAddress,
+          resataurantDescription: user.resataurantDescription,
+          visitedCount: visitedCount[user.id]
+        }));
+
+        // Return success response with user details and visited restaurant details
+        res.status(200).json({ 
+          success_msg: 'Customer details fetched successfully', 
+          customer_id, 
+          userProfileDetails, 
+          visitedrestaurant: visitedrestaurantDetails, 
+          response: true 
+        });
+      });
     });
   });
 };
+
 
 
 // Configure multer to save the uploaded images in the appropriate directory

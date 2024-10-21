@@ -26,7 +26,7 @@ const { createOrUpdateCourse, getAllCourses, DeleteCourse, getCourseById } = req
 const { createOrUpdateMenu, getMenu, DeleteMenu } = require('../controllers/menusController');
 const { createOrUpdateMenuItem, getMenuItem, deleteMenuItem, softDeleteMenuItem } = require('../controllers/menuItemsController');
 const { getCourseMenu, getCourseMenuGroupByCourseId } = require('../controllers/master_card');
-const { getMasterCard, getMasterBeverage, book_product, getTableAvaibility } = require('../controllers/booking_controller');
+const { getMasterCard, getMasterBeverage, book_product, getTableAvaibility, getBookings, getBookingById } = require('../controllers/booking_controller');
 const { enquiry } = require('../controllers/enquiryController');
 const { getRestaurantType, getCuisines, getUserIdsByFilters } = require('../controllers/filtersController');
 
@@ -173,6 +173,8 @@ router.get('/getDaysListing', verifyCustomerToken, getDaysListing);
 router.get('/getUserProfileDetails', verifyCustomerToken, getUserProfileDetails);
 router.post('/updateUserProfileDetails', verifyCustomerToken, updateUserProfileDetails);
 router.post('/enquiry', enquiry);
+router.get('/getBookings', verifyCustomerToken, getBookings);
+router.get('/getBookingById/:booking_id', verifyCustomerToken, getBookingById);
 //filters
 router.get('/getRestaurantType', getRestaurantType);
 router.get('/getcuisines', getCuisines);

@@ -26,7 +26,7 @@ const { createOrUpdateCourse, getAllCourses, DeleteCourse, getCourseById } = req
 const { createOrUpdateMenu, getMenu, DeleteMenu } = require('../controllers/menusController');
 const { createOrUpdateMenuItem, getMenuItem, deleteMenuItem, softDeleteMenuItem } = require('../controllers/menuItemsController');
 const { getCourseMenu, getCourseMenuGroupByCourseId } = require('../controllers/master_card');
-const { getMasterCard, getMasterBeverage, book_product, getTableAvaibility } = require('../controllers/booking_controller');
+const { getMasterCard, getMasterBeverage, book_product, getTableAvaibility, getBookings, getBookingById } = require('../controllers/booking_controller');
 const { enquiry } = require('../controllers/enquiryController');
 const { getRestaurantType, getCuisines, getUserIdsByFilters } = require('../controllers/filtersController');
 
@@ -152,8 +152,8 @@ router.get('/getAllocatedTables', verifyToken, getAllDiningAreaAndAllocatedTable
 router.post('/insertNewBooking', verifyToken, newBookingInsert);
 router.patch('/updateBookingPayment', verifyToken, updateBookingPayment);
 router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
-router.get('/getTimingDatabyResrtoId',  getTimingDatabyResrtoId);
-router.post('/updateTimingData', verifyToken, updateTimingData);
+router.get('/getTimingDatabyResrtoId', verifyToken, getTimingDatabyResrtoId);
+router.post('/updateTimingData', updateTimingData);
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done
@@ -173,6 +173,8 @@ router.get('/getDaysListing', verifyCustomerToken, getDaysListing);
 router.get('/getUserProfileDetails', verifyCustomerToken, getUserProfileDetails);
 router.post('/updateUserProfileDetails', verifyCustomerToken, updateUserProfileDetails);
 router.post('/enquiry', enquiry);
+router.get('/getBookings', verifyCustomerToken, getBookings);
+router.get('/getBookingById/:booking_id', verifyCustomerToken, getBookingById);
 //filters
 router.get('/getRestaurantType', getRestaurantType);
 router.get('/getcuisines', getCuisines);
@@ -189,6 +191,7 @@ router.post('/searchAllRestorantByCityName', flutter_controller.searchAllRestora
 router.post('/getMasterBeverageItemsSelectedByRestro', flutter_controller.getMasterBeverageItemsSelectedByRestro);
 router.post('/getBeveragesAndCourseMenuByRestroID', flutter_controller.getBeveragesAndCourseMenuByRestroID);
 router.get('/getsingleRestaurantbyId/:userId', flutter_controller.getsingleRestaurantbyId);
+
 
 // Razorpay Routes
 router.get('/razorpay_key', getRazorpayKey);

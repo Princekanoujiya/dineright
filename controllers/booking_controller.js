@@ -604,6 +604,110 @@ exports.getTableAvaibility = async (req, res) => {
   }
 };
 
+exports.getBookings = async (req, res) => {
+  try {
+    const customerId = req.customer_id;
+    
+    // Query to get bookings and associated restaurant info
+    const bookingQuery = `
+      SELECT u.restaurantName, u.restaurantAddress, b.booking_id, b.customer_id, b.booking_name, b.booking_email, 
+             b.booking_no_of_guest, b.booking_date, b.booking_time, b.billing_amount, b.payment_mod, b.payment_status, 
+             b.booking_status
+      FROM bookings b
+      JOIN users u ON u.id = b.userId
+      WHERE b.customer_id = ?`;
+
+    // Query to get booking items and associated product info
+    const bookingItemsQuery = `
+      SELECT bcp.booking_id, mi.master_item_name, mi.master_item_image, mi.master_item_price, mi.master_item_description
+      FROM booking_connected_products bcp
+      JOIN master_items mi ON mi.master_item_id = bcp.master_item_id
+      WHERE bcp.booking_id = ?`;
+
+    // Fetch all bookings for the customer
+    const [bookings] = await db.promise().query(bookingQuery, [customerId]);
+
+    let bookingsArray = [];
+
+    // Loop through each booking to fetch related items
+    for (const booking of bookings) {
+      const [items] = await db.promise().query(bookingItemsQuery, [booking.booking_id]);
+
+      // Add the base URL to each item's image
+      const updatedItems = items.map(item => {
+        item.master_item_image = process.env.BASE_URL + item.master_item_image;
+        return item;
+      });
+
+      // Attach items to the booking
+      booking.booking_items = updatedItems;
+
+      // Push the updated booking to the array
+      bookingsArray.push(booking);
+    }
+
+    // Send the response with all the bookings and their items
+    res.status(200).json({ bookings: bookingsArray });
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occurred while retrieving bookings.' });
+  }
+};
+
+
+exports.getBookingById = async (req, res) => {
+  try {
+    const bookingId = req.params.booking_id; // Get booking_id from request parameters
+
+    // Query to get a single booking and associated restaurant info
+    const bookingQuery = `
+      SELECT u.restaurantName, u.restaurantAddress, b.booking_id, b.customer_id, b.booking_name, b.booking_email, 
+             b.booking_no_of_guest, b.booking_date, b.booking_time, b.billing_amount, b.payment_mod, b.payment_status, 
+             b.booking_status
+      FROM bookings b
+      JOIN users u ON u.id = b.userId
+      WHERE b.booking_id = ?`;
+
+    // Query to get booking items and associated product info for the specific booking_id
+    const bookingItemsQuery = `
+      SELECT bcp.booking_id, mi.master_item_name, mi.master_item_image, mi.master_item_price, mi.master_item_description
+      FROM booking_connected_products bcp
+      JOIN master_items mi ON mi.master_item_id = bcp.master_item_id
+      WHERE bcp.booking_id = ?`;
+
+    // Fetch the single booking for the provided booking_id
+    const [bookings] = await db.promise().query(bookingQuery, [bookingId]);
+
+    // If no booking is found, return a 404 status
+    if (bookings.length === 0) {
+      return res.status(404).json({ message: 'Booking not found.' });
+    }
+
+    // Fetch the booking items for the booking
+    const booking = bookings[0];
+    const [items] = await db.promise().query(bookingItemsQuery, [booking.booking_id]);
+
+    // Add the base URL to each item's image
+    const updatedItems = items.map(item => {
+      item.master_item_image = process.env.BASE_URL + item.master_item_image;
+      return item;
+    });
+
+    // Attach items to the booking
+    booking.booking_items = updatedItems;
+
+    // Send the response with the booking and its items
+    res.status(200).json({ booking });
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occurred while retrieving the booking.' });
+  }
+};
+
+
+
 
 
 

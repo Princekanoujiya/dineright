@@ -198,11 +198,22 @@ exports.updateUserStatusAndCommission = (req, res) => {
     return res.status(200).json({ error_msg: 'ID, status, and commission are required', response: false });
   }
 
-  // Update query
-  const updateQuery = 'UPDATE users SET status = ?, commission = ? WHERE id = ?';
-  
+  // Check if the status is "Deactivated"
+  let updateQuery;
+  let queryParams;
+
+  if (status === 'Deactivated') {
+    // Update query if status is "Deactivated" and set the timestamp
+    updateQuery = 'UPDATE users SET status = ?, commission = ?, timestamp = CURRENT_TIMESTAMP WHERE id = ?';
+    queryParams = [status, commission, id];
+  } else {
+    // Regular update query for other statuses
+    updateQuery = 'UPDATE users SET status = ?, commission = ? WHERE id = ?';
+    queryParams = [status, commission, id];
+  }
+
   // Execute the update query
-  db.query(updateQuery, [status, commission, id], (err, result) => {
+  db.query(updateQuery, queryParams, (err, result) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
@@ -215,6 +226,7 @@ exports.updateUserStatusAndCommission = (req, res) => {
     res.status(200).json({ success_msg: 'User status and commission updated successfully', id, response: true });
   });
 };
+
 
 exports.updateCommissionStatus = (req, res) => {
     const { id } = req.params; // Get user id from the request parameters

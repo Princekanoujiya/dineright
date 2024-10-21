@@ -460,6 +460,136 @@ exports.getBookingDetails = async (req, res) => {
   }
 };
 
+// get Table available or not
+exports.getTableAvailableOrNot = async (req, res) => {
+  const { booking_no_of_guest, booking_date, booking_time, userId } = req.body;
+
+  try {
+    console.log(req.body);
+
+    // Query to get the dining areas for the user
+    const diningAreaQuery = `
+      SELECT da.dining_area_id, da.dining_area_type
+      FROM selected_dining_areas sda
+      JOIN dining_areas da ON da.dining_area_id = sda.dining_area_id
+      WHERE sda.userId = ?
+    `;
+
+    // Query to calculate total capacity of tables in a dining area
+    const capacityQuery = `SELECT SUM(table_no_of_seats) AS total_capacity FROM all_tables WHERE dining_area_id = ? AND userId = ?`;
+
+    // Query to get all allocated tables during the selected time and date
+    const allocatedTablesQuery = `
+      SELECT * FROM allocation_tables 
+      WHERE table_status = 'allocated' 
+      AND userId = ? 
+      AND booking_date = ? 
+      AND (start_time <= ? AND end_time > ?)
+    `;
+
+    // Query to get all available tables for the user
+    const allTablesQuery = `SELECT * FROM all_tables WHERE userId = ? AND is_deleted = 0`;
+
+    // Fetch dining areas associated with the user
+    const [diningAreas] = await db.promise().query(diningAreaQuery, [userId]);
+
+    let sufficientCapacity = false;
+    let availableTables = [];
+
+    for (const diningArea of diningAreas) {
+      const [capacityResult] = await db.promise().query(capacityQuery, [diningArea.dining_area_id, userId]);
+
+      // Get the total capacity for the dining area
+      const totalCapacity = capacityResult[0]?.total_capacity || 0;
+
+      // Check if the dining area has enough capacity
+      if (totalCapacity >= booking_no_of_guest) {
+        sufficientCapacity = true;
+      }
+
+      // Fetch all tables for the user
+      const [allTables] = await db.promise().query(allTablesQuery, [userId]);
+
+      for (const table of allTables) {
+        const [allocatedTables] = await db.promise().query(allocatedTablesQuery, [
+          userId,
+          booking_date,
+          booking_time,
+          booking_time
+        ]);
+
+        // Check if the table is already allocated
+        const isAllocated = allocatedTables.some(t => t.table_id === table.table_id);
+
+        // If not allocated, add to the available list
+        if (!isAllocated) {
+          availableTables.push(table);
+        }
+      }
+    }
+
+    // If no dining areas have sufficient capacity
+    if (!sufficientCapacity) {
+      return res.json({ message: 'Sorry, no tables are available for the selected number of guests.' });
+    }
+
+    // Calculate the total seating capacity of available tables
+    const totalGuestsAvailable = availableTables.reduce((total, table) => total + table.table_no_of_seats, 0);
+
+    if (totalGuestsAvailable < booking_no_of_guest) {
+      return res.json({ message: 'Unfortunately, we do not have enough available tables for your reservation.' });
+    }
+
+    // If sufficient tables are available
+    return res.json({ message: 'Great news! We have enough tables available for your booking.' });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Oops! Something went wrong while checking table availability. Please try again later.', error });
+  }
+};
+
+
+
+
+// Customer spending Time get
+async function getDefaultSpendingTime(db, booking_no_of_guest, userId) {
+  let defaultSpendingTime = 180;
+
+  // Query to get spending time for the specific number of guests and user ID
+  const spendingTimeQuery = `SELECT restro_spending_time FROM restro_guest_time_duration WHERE restro_guest = ? AND userId = ?`;
+
+  // Query to get all spending times for the specific user ID
+  const allSpendingTimeQuery = `SELECT restro_spending_time FROM restro_guest_time_duration WHERE userId = ?`;
+
+  try {
+    // Execute the first query to find spending time for the specified number of guests
+    const [spendingTime] = await db.promise().query(spendingTimeQuery, [booking_no_of_guest, userId]);
+
+    if (spendingTime.length > 0) {
+      // If specific spending time is found, use it
+      defaultSpendingTime = spendingTime[0].restro_spending_time;
+    } else {
+      // If no specific spending time is found, query for all spending times for the user
+      const [allSpendingTime] = await db.promise().query(allSpendingTimeQuery, [userId]);
+
+      if (allSpendingTime.length > 0) {
+        // Extract the restro_spending_time values and find the maximum
+        const allTimes = allSpendingTime.map(row => row.restro_spending_time);
+        defaultSpendingTime = Math.max(...allTimes);
+      }
+      // If no spending times are found, defaultSpendingTime remains 180
+    }
+  } catch (error) {
+    console.error('Error fetching spending time:', error);
+  }
+
+  return defaultSpendingTime;
+}
+
+
+
+
 
 
 

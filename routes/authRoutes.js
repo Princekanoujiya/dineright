@@ -9,7 +9,7 @@ const { insertOrUpdateBannerSection, getAllBannerSections, getBannerSectionById 
 const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionById } = require('../controllers/superadmin/cuisinsController');
 
 //restroadmin
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails } = require('../controllers/restorant/restorantBookingController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot } = require('../controllers/restorant/restorantBookingController');
 const {
     createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllCities, resendrestaurantOtp,
     getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
@@ -26,7 +26,7 @@ const { createOrUpdateCourse, getAllCourses, DeleteCourse, getCourseById } = req
 const { createOrUpdateMenu, getMenu, DeleteMenu } = require('../controllers/menusController');
 const { createOrUpdateMenuItem, getMenuItem, deleteMenuItem, softDeleteMenuItem } = require('../controllers/menuItemsController');
 const { getCourseMenu, getCourseMenuGroupByCourseId } = require('../controllers/master_card');
-const { getMasterCard, getMasterBeverage, book_product } = require('../controllers/booking_controller');
+const { getMasterCard, getMasterBeverage, book_product, getTableAvaibility } = require('../controllers/booking_controller');
 const { enquiry } = require('../controllers/enquiryController');
 const { getRestaurantType, getCuisines, getUserIdsByFilters } = require('../controllers/filtersController');
 
@@ -163,6 +163,8 @@ router.post('/customer_resend_otp', resendOtp); //done
 router.get('/getMasterCard', getMasterCard);
 router.get('/getMasterBeverage', getMasterBeverage);
 router.post('/book_product', verifyCustomerToken, book_product);
+router.post('/getTableAvaibility', verifyCustomerToken, getTableAvaibility);
+router.post('/getTableAvailableOrNot', verifyCustomerToken, getTableAvailableOrNot);
 router.get('/getrestrodaydetails', getrestrodaydetails);
 router.get('/getAllRestaurantWithTime', getAllRestaurantWithTime);
 router.get('/getDaysListing', verifyCustomerToken, getDaysListing);

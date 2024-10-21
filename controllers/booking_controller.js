@@ -1,3 +1,4 @@
+const { response } = require('express');
 const db = require('../config');
 const { razorPayCreateOrder } = require('./razorpayController');
 
@@ -112,7 +113,7 @@ const getSelectedDiningArea = (userId) => {
       }
 
       if (result.length === 0) {
-        return resolve({ message: 'No dining areas found for this user.' });  // Resolve with message if no areas found
+        return resolve({ message: 'No dining areas found for this restorant.' });  // Resolve with message if no areas found
       }
 
       resolve(result);  // Resolve with the result
@@ -492,6 +493,116 @@ exports.deleteConnectedProducts = (req, res) => {
   });
 };
 
+// table avaibility
+exports.getTableAvaibility = async (req, res) => {
+  const { userId, booking_date, booking_time, booking_no_of_guest } = req.body;
+  const customer_id = req.customer_id; // this is coming from auth
+
+  console.log('body', req.body)
+
+  try {
+    // check body data
+    if (!userId || userId === '' || userId === undefined) {
+      return res.status(400).json({ message: 'userId required' })
+    }
+    if (!booking_date || booking_date === '' || booking_date === undefined) {
+      return res.status(400).json({ message: 'booking_date required' })
+    }
+    if (!booking_time || booking_time === '' || booking_time === undefined) {
+      return res.status(400).json({ message: 'booking_time required' })
+    }
+    if (!booking_no_of_guest || booking_no_of_guest === '' || booking_no_of_guest === undefined) {
+      return res.status(400).json({ message: 'booking_no_of_guest required' })
+    }
+
+    let defaultSpendingTime = 180;
+    // Query to get spending time based on the number of guests and user ID
+    const spendingTimeQuery = `SELECT restro_spending_time FROM restro_guest_time_duration WHERE restro_guest = ? AND userId = ?`;
+
+    // Query to get all spending times for a specific user ID
+    const allSpendingTimeQuery = `SELECT restro_spending_time FROM restro_guest_time_duration WHERE userId = ?`;
+
+    // First query to find spending time for the specified number of guests
+    const [spendingTime] = await db.promise().query(spendingTimeQuery, [booking_no_of_guest, userId]);
+
+    if (spendingTime.length > 0) {
+      // If specific spending time is found, use it
+      defaultSpendingTime = spendingTime[0].restro_spending_time;
+    } else {
+      // If no specific spending time is found, query for all spending times
+      const [allSpendingTime] = await db.promise().query(allSpendingTimeQuery, [userId]);
+
+      if (allSpendingTime.length > 0) {
+        // Extract the `restro_spending_time` values and find the maximum
+        const allTimes = allSpendingTime.map(row => row.restro_spending_time);
+        defaultSpendingTime = Math.max(...allTimes);
+      } else {
+        // If no data is found, set default to 180
+        defaultSpendingTime = 180;
+      }
+    }
+
+    const restroSpendingTime = defaultSpendingTime;
+
+    // Calculate the end time
+    const endTime = addMinutesToTime(booking_time, defaultSpendingTime);
+
+    // Get restaurant dining areas
+    const diningAreas = await getSelectedDiningArea(userId);
+    console.log('diningAreas:', diningAreas);
+
+    // Check if diningAreas contains a message indicating no areas found
+    if (diningAreas.message) {
+      return res.status(404).json({ message: diningAreas.message });
+    }
+
+    // Ensure it's an array before iterating
+    if (!Array.isArray(diningAreas)) {
+      return res.status(500).json({ message: 'Error fetching dining areas' });
+    }
+
+    let availableTables = [];
+
+    // Iterate through dining areas and find available tables
+    for (const diningArea of diningAreas) {
+      const tables = await getTables(diningArea.dining_area_id, userId);
+
+      // Check each table's allocation asynchronously
+      const tableDataPromises = tables.map((table) => {
+        return new Promise((resolve, reject) => {
+          const allocatedTablesQuery = `SELECT * FROM allocation_tables WHERE table_status = 'allocated' AND booking_date = ? AND (start_time <= ? AND end_time > ?)`;
+
+          // Query to check for allocated tables
+          db.query(allocatedTablesQuery, [booking_date, booking_time, booking_time], (err, result) => {
+            if (err) {
+              return reject(err); // Handle the error by rejecting the promise
+            }
+
+            // Check if the current table is not allocated by comparing it with the result
+            const isTableAllocated = result.some((allocatedTable) => allocatedTable.table_id === table.table_id);
+            resolve(isTableAllocated ? null : table); // Resolve with table or null
+          });
+        });
+      });
+
+      // Wait for all table queries to finish and filter out null values
+      const availableDiningAreaTables = (await Promise.all(tableDataPromises)).filter((table) => table !== null);
+      availableTables = availableTables.concat(availableDiningAreaTables);
+    }
+
+    // Calculate the total number of seats
+    const totalSeats = availableTables.reduce((total, table) => total + table.table_no_of_seats, 0);
+
+    if (totalSeats < booking_no_of_guest) {
+      return res.status(400).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?', response: false });
+    }
+
+    return res.status(200).json({ message: 'table available', response: true });
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
 
 
 

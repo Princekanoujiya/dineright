@@ -28,3 +28,5 @@ let defaultSpendingTime = 60;
     bannerImages , bannerImages.banner_image = process.env.BASE_URL + bannerImages.banner_image,
     bannerGallery , bannerGallery.files = process.env.BASE_URL + bannerGallery.files,
     bannerVideos, bannerVideos.banner_video = process.env.BASE_URL + bannerVideos.banner_video
+
+    'Activated','Deactivated'

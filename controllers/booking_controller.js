@@ -1,7 +1,8 @@
 const { response } = require('express');
+const nodemailer = require('nodemailer');
 const db = require('../config');
 const { razorPayCreateOrder } = require('./razorpayController');
-
+const { sendBookingEmail } = require('./booking_mail_controller');
 
 exports.getMasterCard = (req, res) => {
   const { userId } = req.body;
@@ -189,6 +190,8 @@ exports.book_product = async (req, res) => {
   const { userId, booking_date, booking_time, booking_no_of_guest, payment_mod, items } = req.body;
   const customer_id = req.customer_id; // this is coming from auth
 
+  let messageObj = {};
+
   try {
     // check body data
     if (!userId || userId === '' || userId === undefined) {
@@ -369,6 +372,9 @@ exports.book_product = async (req, res) => {
         });
       });
 
+      // send mail
+      // await sendBookingEmail(bookingId);
+
       return res.status(200).json({ message: 'Your order has been successfully placed!', bookingItems, allocationData, order: razorpayOrderResult });
 
     } else if (payment_mod === 'cod') {
@@ -398,6 +404,9 @@ exports.book_product = async (req, res) => {
           resolve(result); // This will update all rows where booking_id matches
         });
       });
+
+      // send mail
+      await sendBookingEmail(bookingId);
 
       return res.status(200).json({ message: 'Your order has been successfully placed!', bookingItems, allocationData });
     } else {
@@ -439,9 +448,6 @@ const insertConnectedProducts = (bookingId, items, booking_no_of_guest) => {
     });
   });
 };
-
-
-
 
 // Function to update connected products
 const updateConnectedProducts = (bookingId, items, res) => {
@@ -607,7 +613,7 @@ exports.getTableAvaibility = async (req, res) => {
 exports.getBookings = async (req, res) => {
   try {
     const customerId = req.customer_id;
-    
+
     // Query to get bookings and associated restaurant info
     const bookingQuery = `
       SELECT u.restaurantName, u.restaurantAddress, b.booking_id, b.customer_id, b.booking_name, b.booking_email, 
@@ -648,7 +654,7 @@ exports.getBookings = async (req, res) => {
 
     // Send the response with all the bookings and their items
     res.status(200).json({ bookings: bookingsArray });
-    
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'An error occurred while retrieving bookings.' });
@@ -699,12 +705,49 @@ exports.getBookingById = async (req, res) => {
 
     // Send the response with the booking and its items
     res.status(200).json({ booking });
-    
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'An error occurred while retrieving the booking.' });
   }
 };
+
+
+// Function to send email
+const sendEmail = (email, message, res) => {
+  return new Promise((resolve, reject) => {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_SERVICE,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_SERVICE,
+      to: email,
+      subject: 'New bookin for DineRights', // Subject is dynamic
+      text: message,    // Message is dynamic
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Error sending email:', error);
+        reject(error); // reject on failure
+      } else {
+        console.log('Email sent to:', email);
+        resolve(info); // resolve on success
+      }
+    });
+  });
+};
+
+
+
 
 
 

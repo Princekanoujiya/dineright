@@ -2,6 +2,7 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const config = require('../config/config');
 const db = require('../config');
+const { sendBookingEmail } = require('../controllers/booking_mail_controller');
 
 const razorpayInstance = new Razorpay({
     key_id: config.RAZORPAY_KEY_ID,
@@ -133,6 +134,9 @@ exports.razorpayVerifyPayment = async (req, res, next) => {
         });
 
         console.log('Booking status and table allocation updated successfully.');
+
+        // send mail
+      await sendBookingEmail(bookingId);
       }
 
       // Payment success - redirect to thank-you page

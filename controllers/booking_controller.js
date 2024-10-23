@@ -405,6 +405,11 @@ exports.book_product = async (req, res) => {
         });
       });
 
+      // rewards add
+      const reward = billingAmount /2;
+      const rewardQuery = `INSERT INTO rewards (customer_id, booking_id, reward_points, reward_type) VALUES (?, ?, ?, ?)`;
+      const [rewardResult] = await db.promise().query(rewardQuery, [customer_id, bookingId, reward, 'cod booking']);
+
       // send mail
       await sendBookingEmail(bookingId);
 

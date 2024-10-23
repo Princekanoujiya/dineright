@@ -201,7 +201,7 @@ exports.stepOne = (req, res) => {
   const query = `INSERT INTO users (username, email, phone, pancard, image) VALUES (?, ?, ?, ?, ?)`;
   db.query(query, [username, email, phone, pancard, req.file.filename], (err, result) => {
     if (err) throw err;
-    res.status(200).json({ message: 'Step 1 completed',  userId: result.insertId});
+    res.status(200).json({ message: 'Step 1 completed', userId: result.insertId });
   });
 };
 
@@ -212,7 +212,7 @@ exports.stepTwo = (req, res) => {
   const query = `UPDATE users SET restaurantName=?, restaurantAddress=? WHERE id=?`;
   db.query(query, [restaurantName, restaurantAddress, userId], (err, result) => {
     if (err) throw err;
-    res.status(200).json({ message: 'Step 2 completed',userId });
+    res.status(200).json({ message: 'Step 2 completed', userId });
   });
 };
 
@@ -221,7 +221,7 @@ exports.sendOtp = (req, res) => {
   const { email } = req.body;
 
   // Generate OTP
-  const otp = Math.floor(100000 + Math.random() * 900000); 
+  const otp = Math.floor(100000 + Math.random() * 900000);
 
   console.log('Generated OTP:', otp); // Log OTP for debugging
 
@@ -349,48 +349,55 @@ exports.insertDiningArea = (req, res) => {
 };
 
 //step 8 : Insert Dining Area Table
-exports.insertDiningTable = (req, res) => {
+exports.insertDiningTable = async (req, res) => {
   const { userId, dining_area_id, table_name, table_no_of_seats } = req.body;
 
-  // Insert dining area data into all_tables table
-  const query = 'INSERT INTO all_tables (userId, dining_area_id, table_name, table_no_of_seats) VALUES (?, ?, ?, ?)';
-  
-  db.query(query, [userId, dining_area_id, table_name, table_no_of_seats], (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error while inserting dining area data', details: err.message });
-    }
+  try {
+    // Insert dining area data into all_tables table
+    const query = 'INSERT INTO all_tables (userId, dining_area_id, table_name, table_no_of_seats) VALUES (?, ?, ?, ?)';
+    await db.promise().query(query, [userId, dining_area_id, table_name, table_no_of_seats]);
 
     // Retrieve the user's email
     const userQuery = 'SELECT email FROM users WHERE id = ?';
-    db.query(userQuery, [userId], (err, userResult) => {
-      if (err || userResult.length === 0) {
-        return res.status(500).json({ error: 'Database error while retrieving user email' });
+    const [userResult] = await db.promise().query(userQuery, [userId]);
+
+    if (userResult.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userEmail = userResult[0].email;
+
+    // Retrieve the superadmin email
+    const superadminQuery = 'SELECT superadmin_email FROM superadmin_login';
+    const [superadminResult] = await db.promise().query(superadminQuery);
+
+    const superadminEmail = superadminResult[0].superadmin_email;
+
+    // Recipients (restaurant, and super admin)
+    const recipients = [ userEmail, superadminEmail];
+
+    // Send email to user
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_SERVICE,  // Your email service
+        pass: process.env.EMAIL_PASSWORD  // Your email password
+      },
+      tls: {
+        rejectUnauthorized: false  // Allow self-signed certificates
       }
+    });
 
-      const userEmail = userResult[0].email;
+    const mailOptions = {
+      from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
+      to: recipients,
+      subject: 'Your Restaurant Listing Request Has Been Submitted to DineRights',
+      text: `Dear Restaurant Owner/Manager,
 
-      // Send email to user
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_SERVICE,  // Your email service
-          pass: process.env.EMAIL_PASSWORD  // Your email password
-        },
-        tls: {
-          rejectUnauthorized: false  // Allow self-signed certificates
-        }
-      });
-
-      const mailOptions = {
-        from: process.env.EMAIL_SERVICE,
-        to: userEmail,
-        subject: 'Your Restaurant Listing Request Has Been Submitted to Dine Right',
-        text: `Dear Restaurant Owner/Manager,
-
-Thank you for registering with Dine Right! We are pleased to inform you that your dining area table "${table_name}" with ${table_no_of_seats} seats has been successfully added to our system, and your listing request is now under review.
+Thank you for registering with DineRights! We are pleased to inform you that your dining area table "${table_name}" with ${table_no_of_seats} seats has been successfully added to our system, and your listing request is now under review.
 
 What Happens Next:
-Once approved, your restaurant will be live on the Dine Right website and mobile app, allowing diners to easily find and book a table.
+Once approved, your restaurant will be live on the DineRights website and mobile app, allowing diners to easily find and book a table.
 
 Access Your Dashboard:
 You can log in to your Restaurant Panel Dashboard using the link below:
@@ -402,24 +409,22 @@ Terms and Conditions: Please take a moment to review our terms and conditions he
 
 If you have any questions or need assistance, please feel free to contact our support team at [Support Email] or [Support Phone Number].
 
-Thank you for choosing Dine Right. We look forward to helping you reach more diners and succeed with your restaurant.
+Thank you for choosing DineRights. We look forward to helping you reach more diners and succeed with your restaurant.
 
 Best regards,
-The Dine Right Team
+The DineRights Team
 [Website Link] | [Phone Number]`
-      };
+    };
 
-      transporter.sendMail(mailOptions, (emailError, info) => {
-        if (emailError) {
-          console.error('Error sending email:', emailError);
-          return res.status(500).json({ error: 'Error sending email', details: emailError.message });
-        }
+    await transporter.sendMail(mailOptions);
 
-        res.status(200).json({ message: 'Dining table data inserted successfully and email sent to user.' });
-      });
-    });
-  });
+    res.status(200).json({ message: 'Dining table data inserted successfully and email sent to user.' });
+  } catch (err) {
+    console.error('Error:', err);
+    res.status(500).json({ error: 'An error occurred', details: err.message });
+  }
 };
+
 
 // Step 6: login
 exports.login = (req, res) => {
@@ -524,4 +529,3 @@ exports.getDiningTables = (req, res) => {
 };
 
 
-  

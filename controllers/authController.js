@@ -890,8 +890,9 @@ exports.getTimingData = (req, res) => {
   const { userId } = req.params;
 
   // Query to fetch timing data along with the day name from the days_listing table
+  // ice_time_id
   const query = `
-    SELECT ice_time_id,st.day_id, dl.day_name, st.start_time, st.end_time, st.status 
+    SELECT st.day_id, dl.day_name, st.start_time, st.end_time, st.status 
     FROM service_time st
     JOIN days_listing dl ON st.day_id = dl.day_id
     WHERE st.userId = ?
@@ -1573,7 +1574,7 @@ exports.getAllCities = (req, res) => {
 
 exports.getRestraurantProfileDetails = (req, res) => {
   const userId = req.userId; 
-  const query = 'SELECT username, email, phone, pancard, restaurantName, restaurantAddress ,resataurantDescription, fassai_licence_no,gst_no, restaurant_bank_account_no ,restaurant_ifsc_code,restaurant_bank_name FROM users WHERE id = ?';
+  const query = 'SELECT username, email, phone, pancard, restaurantName, restaurantAddress ,resataurantDescription, fassai_licence_no,gst_no, restaurant_bank_account_no ,restaurant_ifsc_code,restaurant_bank_name, restaurant_branch_name, commission, status FROM users WHERE id = ?';
 
   db.query(query, [userId], (err, results) => {
     if (err) {
@@ -1603,7 +1604,8 @@ exports.updateRestraurantProfileDetails = (req, res) => {
     gst_no,
     restaurant_bank_account_no,
     restaurant_ifsc_code,
-    restaurant_bank_name
+    restaurant_bank_name,
+    restaurant_branch_name
   } = req.body;
 
   // Validate that required fields are provided
@@ -1615,7 +1617,7 @@ exports.updateRestraurantProfileDetails = (req, res) => {
     UPDATE users 
     SET username = ?, email = ?, phone = ?, pancard = ?, restaurantName = ?, restaurantAddress = ?, 
         resataurantDescription = ?, fassai_licence_no = ?, gst_no = ?, 
-        restaurant_bank_account_no = ?, restaurant_ifsc_code = ?, restaurant_bank_name = ? 
+        restaurant_bank_account_no = ?, restaurant_ifsc_code = ?, restaurant_bank_name = ?, restaurant_branch_name = ?
     WHERE id = ?
   `;
 
@@ -1632,7 +1634,8 @@ exports.updateRestraurantProfileDetails = (req, res) => {
     restaurant_bank_account_no,
     restaurant_ifsc_code,
     restaurant_bank_name,
-    userId
+    restaurant_branch_name,
+    userId,
   ];
 
   // Execute the query to update the profile

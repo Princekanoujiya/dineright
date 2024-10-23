@@ -17,6 +17,7 @@ exports.getRestaurantType = (req, res) => {
     res.status(200).json({ success_msg: true, data: results ,response:true});
   });
 };
+
 exports.getCuisines = (req, res) => {
   const query = `
     SELECT * FROM cuisines

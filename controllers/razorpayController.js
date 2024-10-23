@@ -91,16 +91,16 @@ exports.razorpayVerifyPayment = async (req, res, next) => {
       if (razorpay_order_id) {
 
         // Fetch the booking ID associated with the razorpay_order_id
-        const selectBookingIdQuery = `SELECT booking_id FROM bookings WHERE razorpay_order_id = ?`;
+        const selectBookingIdQuery = `SELECT * FROM bookings WHERE razorpay_order_id = ?`;
 
-        const bookingId = await new Promise((resolve, reject) => {
+        const booking = await new Promise((resolve, reject) => {
             db.query(selectBookingIdQuery, [razorpay_order_id], (err, rows) => {
               if (err) {
                 console.error("Error retrieving booking ID:", err);
                 return reject(err);
               }
               if (rows.length > 0) {
-                resolve(rows[0].booking_id); // Assuming rows[0].booking_id contains the booking ID
+                resolve(rows[0]); // Assuming rows[0].booking_id contains the booking ID
               } else {
                 reject(new Error("No booking found for the provided razorpay_order_id"));
               }
@@ -111,7 +111,7 @@ exports.razorpayVerifyPayment = async (req, res, next) => {
         const updateBookingStatusQuery = `UPDATE bookings SET razorpay_payment_id = ?, payment_status = 'paid', razorpay_status = 'success', booking_status = 'confirmed' WHERE booking_id = ?`;
 
         const bookingData = await new Promise((resolve, reject) => {
-          db.query(updateBookingStatusQuery, [razorpay_payment_id, bookingId], (err, result) => {
+          db.query(updateBookingStatusQuery, [razorpay_payment_id, booking.booking_id], (err, result) => {
             if (err) {
               console.error("Error updating booking status:", err);
               return reject(err);
@@ -124,7 +124,7 @@ exports.razorpayVerifyPayment = async (req, res, next) => {
         const updateItemsStatusQuery = `UPDATE allocation_tables SET table_status = 'allocated' WHERE booking_id = ?`;
 
         await new Promise((resolve, reject) => {
-          db.query(updateItemsStatusQuery, [bookingId], (err, result) => {
+          db.query(updateItemsStatusQuery, [booking.booking_id], (err, result) => {
             if (err) {
               console.error("Error updating table allocation:", err);
               return reject(err);
@@ -135,8 +135,12 @@ exports.razorpayVerifyPayment = async (req, res, next) => {
 
         console.log('Booking status and table allocation updated successfully.');
 
+      // rewards add
+      const rewardQuery = `INSERT INTO rewards (customer_id, booking_id, reward_points, reward_type) VALUES (?, ?, ?, ?)`;
+      const [rewardResult] = await db.promise().query(rewardQuery, [booking.customer_id, booking.booking_id, booking.billing_amount, 'online booking']);
+
         // send mail
-      await sendBookingEmail(bookingId);
+      await sendBookingEmail(booking.booking_id);
       }
 
       // Payment success - redirect to thank-you page

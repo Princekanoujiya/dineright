@@ -136,6 +136,11 @@ router.post('/banner_image', verifyToken, uploadsController.insertOrUpdateBanner
 router.get('/banner_image',verifyToken, uploadsController.getBannerImages);//done
 router.delete('/banner_image/:banner_image_id', verifyToken, uploadsController.deleteBannerImage);//done
 
+// use for register- no auth
+router.post('/insertOrUpdateBannerImageByUserId', uploadsController.insertOrUpdateBannerImageByUserId);//done
+router.get('/getBannerImagesByUserId/:userId', uploadsController.getBannerImagesByUserId);//done
+router.delete('/deleteBannerImageByUserId', uploadsController.deleteBannerImageByUserId);//done
+
 router.post('/banner_video', verifyToken, uploadsVideoController.insertOrUpdateBannerVideo);//done
 router.get('/banner_video', verifyToken, uploadsVideoController.getBannerVideos);//done
 router.delete('/banner_video/:banner_video_id', verifyToken, uploadsVideoController.deleteBannerVideo);//done

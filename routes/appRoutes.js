@@ -113,8 +113,8 @@ router.get('/getCourseMenuGroupByCourseId', verifyToken, getCourseMenuGroupByCou
 router.get('/getBeverageAndItems', verifyToken, master_card.getBeverageAndItems);
 
 // restorantMenuController updateMenuAndBeverageItems
-router.post('/insertMenuAndBeverageItems', verifyToken, restorantMenuController.insertMenuAndBeverageItems);
-router.patch('/updateMenuAndBeverageItems', verifyToken, restorantMenuController.updateMenuAndBeverageItems);
+router.post('/insertMenuAndBeverageItems', verifyToken, upload.single('master_item_image'), restorantMenuController.insertMenuAndBeverageItems);
+router.patch('/updateMenuAndBeverageItems', verifyToken, upload.single('master_item_image'), restorantMenuController.updateMenuAndBeverageItems);
 
 router.post('/insertMasterMenuItem', verifyToken, upload.single('master_item_image'), master_card.insertMasterMenuItem);
 router.get('/getMasterMenuItems', verifyToken, master_card.getMasterMenuItems);

@@ -3,135 +3,75 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Multer setup for image upload, storing images in 'uploads/banner_images/userId/'
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const userId = req.userId || req.body.userId || req.params.userId;
-    const dir = `uploads/banner_images/${userId}`;
-    // Create the directory if it does not exist
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ storage: storage }).single('banner_image');
-
 // Insert or Update a banner image
-// exports.insertOrUpdateBannerImage = (req, res) => {
-//   upload(req, res, function (err) {
-//     if (err instanceof multer.MulterError) {
-//       return res.status(200).json({ error_msg: 'Multer error', details: err.message, response: false });
-//     } else if (err) {
-//       return res.status(200).json({ error_msg: 'Error uploading file', details: err.message, response: false });
-//     }
+exports.insertOrUpdateBannerImage = async (req, res) => {
 
-//     const banner_image = req.file ? `/uploads/banner_images/${req.userId}/${req.file.filename}` : null;
-//     const userId = req.userId;
-//     const { banner_image_id } = req.body;
+  const userId = req.userId; // Assuming req.userId is set previously in the middleware
+  const banner_image = req.file ? req.file.filename : null; // Get only the filename
+  const { banner_image_id } = req.body;
 
-//     if (!banner_image) {
-//       return res.status(200).json({ error_msg: 'No banner image uploaded', response: false });
-//     }
+  if (!banner_image) {
+    return res.status(200).json({ error_msg: 'No banner image uploaded', response: false });
+  }
 
-//     if (banner_image_id) {
-//       // Update operation if banner_image_id is provided
-//       const updateQuery = `UPDATE banner_images 
-//                            SET banner_image = ? 
-//                            WHERE banner_image_id = ? AND userId = ?`;
-//       db.query(updateQuery, [banner_image, banner_image_id, userId], (err, result) => {
-//         if (err) {
-//           return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
-//         }
-//         if (result.affectedRows === 0) {
-//           return res.status(200).json({ error_msg: 'Banner image not found or user not authorized', response: false });
-//         }
-//         res.status(200).json({ success_msg: 'Banner image updated successfully', banner_image_id, response: true });
-//       });
-//     } else {
-//       // Insert operation if banner_image_id is not provided
-//       const insertQuery = `INSERT INTO banner_images (userId, banner_image) VALUES (?, ?)`;
-//       db.query(insertQuery, [userId, banner_image], (err, result) => {
-//         if (err) {
-//           return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
-//         }
-//         res.status(200).json({ success_msg: 'Banner image uploaded successfully', banner_image_id: result.insertId, response: true });
-//       });
-//     }
-//   });
-// };
-exports.insertOrUpdateBannerImage = (req, res) => {
-  upload(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      return res.status(200).json({ error_msg: 'Multer error', details: err.message, response: false });
-    } else if (err) {
-      return res.status(200).json({ error_msg: 'Error uploading file', details: err.message, response: false });
-    }
+  // Define the directory path for the user's banner images, convert userId to a string
+  const dirPath = path.join(__dirname, '../uploads', 'banner_images', String(userId));
 
-    const userId = req.userId; // Assuming req.userId is set previously in the middleware
-    const banner_image = req.file ? req.file.filename : null; // Get only the filename
-
-    if (!banner_image) {
-      return res.status(200).json({ error_msg: 'No banner image uploaded', response: false });
-    }
-
-    // Define the directory path for the user's banner images
-    const dirPath = path.join(__dirname, 'uploads', 'banner_images', userId);
-
-    // Check if the directory exists, if not, create it
+  // Check if the directory exists, if not, create it
+  try {
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true }); // Create directory recursively
+      console.log(`Directory created at: ${dirPath}`); // Debugging statement
+    }
+  } catch (err) {
+    return res.status(500).json({ error_msg: 'Failed to create directory', details: err.message, response: false });
+  }
+
+  // Move the uploaded file to the appropriate directory
+  const tempPath = req.file.path; // The temporary path where multer saves the file
+  const destPath = path.join(dirPath, banner_image); // Destination path for the uploaded file
+
+  // Move the file from tempPath to destPath
+  fs.rename(tempPath, destPath, (err) => {
+    if (err) {
+      return res.status(200).json({ error_msg: 'Error moving file', details: err.message, response: false });
     }
 
-    // Move the uploaded file to the appropriate directory
-    const tempPath = req.file.path; // The temporary path where multer saves the file
-    const destPath = path.join(dirPath, banner_image); // Destination path for the uploaded file
+    // Set the complete path for the banner image
+    const fullBannerImagePath = `/uploads/banner_images/${userId}/${banner_image}`;
+    
 
-    // Move the file from tempPath to destPath
-    fs.rename(tempPath, destPath, (err) => {
-      if (err) {
-        return res.status(200).json({ error_msg: 'Error moving file', details: err.message, response: false });
-      }
+    if (banner_image_id) {
+      // 
+      const imageQuery = `SELECT * FROM banner_images WHERE banner_image_id = ? AND userId = ?`;
+      // const [image] = await db.promise().query(imageQuery, [banner_image_id, userId]);
 
-      // Set the complete path for the banner image
-      const fullBannerImagePath = `/uploads/banner_images/${userId}/${banner_image}`;
-
-      const { banner_image_id } = req.body;
-
-      if (banner_image_id) {
-        // Update operation if banner_image_id is provided
-        const updateQuery = `UPDATE banner_images 
-                             SET banner_image = ? 
-                             WHERE banner_image_id = ? AND userId = ?`;
-        db.query(updateQuery, [fullBannerImagePath, banner_image_id, userId], (err, result) => {
-          if (err) {
-            return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
-          }
-          if (result.affectedRows === 0) {
-            return res.status(200).json({ error_msg: 'Banner image not found or user not authorized', response: false });
-          }
-          res.status(200).json({ success_msg: 'Banner image updated successfully', banner_image_id, response: true });
-        });
-      } else {
-        // Insert operation if banner_image_id is not provided
-        const insertQuery = `INSERT INTO banner_images (userId, banner_image) VALUES (?, ?)`;
-        db.query(insertQuery, [userId, fullBannerImagePath], (err, result) => {
-          if (err) {
-            return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
-          }
-          res.status(200).json({ success_msg: 'Banner image uploaded successfully', banner_image_id: result.insertId, response: true });
-        });
-      }
-    });
+      // Update operation if banner_image_id is provided
+      const updateQuery = `UPDATE banner_images SET banner_image = ? WHERE banner_image_id = ? AND userId = ?`;
+      db.query(updateQuery, [fullBannerImagePath, banner_image_id, userId], (err, result) => {
+        if (err) {
+          return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
+        }
+        if (result.affectedRows === 0) {
+          return res.status(200).json({ error_msg: 'Banner image not found or user not authorized', response: false });
+        }
+        res.status(200).json({ success_msg: 'Banner image updated successfully', banner_image_id, response: true });
+      });
+    } else {
+      // Insert operation if banner_image_id is not provided
+      const insertQuery = `INSERT INTO banner_images (userId, banner_image) VALUES (?, ?)`;
+      db.query(insertQuery, [userId, fullBannerImagePath], (err, result) => {
+        if (err) {
+          return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
+        }
+        res.status(200).json({ success_msg: 'Banner image uploaded successfully', banner_image_id: result.insertId, response: true });
+      });
+    }
   });
+
 };
 
-
+// get banner images
 exports.getBannerImages = (req, res) => {
   const userId = req.userId;
   const query = `SELECT * FROM banner_images WHERE userId = ?`;
@@ -166,8 +106,7 @@ exports.getBannerImages = (req, res) => {
   });
 };
 
-
-
+// delete banner image
 exports.deleteBannerImage = (req, res) => {
   const { banner_image_id } = req.params;
   const userId = req.userId;
@@ -204,55 +143,7 @@ exports.deleteBannerImage = (req, res) => {
   });
 };
 
-
 // Insert or Update a banner image by userId
-// exports.insertOrUpdateBannerImageByUserId = (req, res) => {
-//   upload(req, res, function (err) {
-//     if (err instanceof multer.MulterError) {
-//       return res.status(200).json({ error_msg: 'Multer error', details: err.message, response: false });
-//     } else if (err) {
-//       return res.status(200).json({ error_msg: 'Error uploading file', details: err.message, response: false });
-//     }
-//     const { banner_image_id, userId } = req.body;
-
-//     // Check if userId is provided and is a valid string
-//     if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-//       return res.status(400).json({ message: 'Invalid or missing userId' });
-//     }
-
-//     const banner_image = req.file ? `/uploads/banner_images/${userId}/${req.file.filename}` : null;
-
-
-//     if (!banner_image) {
-//       return res.status(200).json({ error_msg: 'No banner image uploaded', response: false });
-//     }
-
-//     if (banner_image_id) {
-//       // Update operation if banner_image_id is provided
-//       const updateQuery = `UPDATE banner_images 
-//                            SET banner_image = ? 
-//                            WHERE banner_image_id = ? AND userId = ?`;
-//       db.query(updateQuery, [banner_image, banner_image_id, userId], (err, result) => {
-//         if (err) {
-//           return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
-//         }
-//         if (result.affectedRows === 0) {
-//           return res.status(200).json({ error_msg: 'Banner image not found or user not authorized', response: false });
-//         }
-//         res.status(200).json({ success_msg: 'Banner image updated successfully', banner_image_id, response: true });
-//       });
-//     } else {
-//       // Insert operation if banner_image_id is not provided
-//       const insertQuery = `INSERT INTO banner_images (userId, banner_image) VALUES (?, ?)`;
-//       db.query(insertQuery, [userId, banner_image], (err, result) => {
-//         if (err) {
-//           return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
-//         }
-//         res.status(200).json({ success_msg: 'Banner image uploaded successfully', banner_image_id: result.insertId, response: true });
-//       });
-//     }
-//   });
-// };
 exports.insertOrUpdateBannerImageByUserId = (req, res) => {
   upload(req, res, function (err) {
     if (err instanceof multer.MulterError) {
@@ -340,8 +231,6 @@ exports.insertOrUpdateBannerImageByUserId = (req, res) => {
     });
   });
 };
-
-
 
 // getBannerImagesByUserId
 exports.getBannerImagesByUserId = (req, res) => {

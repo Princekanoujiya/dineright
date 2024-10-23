@@ -20,7 +20,7 @@ exports.resendrestaurantOtpAfterLogin = (req, res) => {
   }
 
   const idCheckQuery = 'SELECT * FROM users WHERE id = ?';
-  
+
   // Check if user exists
   db.query(idCheckQuery, [userId], (err, result) => {
     if (err) {
@@ -37,7 +37,7 @@ exports.resendrestaurantOtpAfterLogin = (req, res) => {
       return res.status(200).json({ error_msg: 'User is not signed up. OTP cannot be sent.', response: false });
     }
 
-    const otp = Math.floor(1000 + Math.random() * 9000);  
+    const otp = Math.floor(1000 + Math.random() * 9000);
 
     const updateOtpQuery = 'UPDATE users SET otp = ? WHERE id = ?';
 
@@ -92,7 +92,7 @@ exports.resendrestaurantOtp = (req, res) => {
   }
 
   const idCheckQuery = 'SELECT * FROM users WHERE id = ?';
-  
+
   // Check if user exists
   db.query(idCheckQuery, [userId], (err, result) => {
     if (err) {
@@ -199,7 +199,7 @@ exports.createOrUpdateOneStep = async (req, res) => {
 
     const { id, username, email, phone, pancard, gst_no } = req.body;
     const licenseImage = req.files['license_image'] ? req.files['license_image'][0].filename : null;
-    const images = req.files['image'] || []; 
+    const images = req.files['image'] || [];
 
     if (!username) {
       return res.status(200).json({ error_msg: 'Username is required', response: false });
@@ -283,7 +283,7 @@ exports.createOrUpdateOneStep = async (req, res) => {
 
 // Helper function to insert image into restaurant_fassai_images and move file
 const handleImageInsertAndMove = (file, restaurantId) => {
-  const dir = `uploads/registered_restaurants/${restaurantId}`; 
+  const dir = `uploads/registered_restaurants/${restaurantId}`;
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -301,7 +301,7 @@ const handleImageInsertAndMove = (file, restaurantId) => {
     // Insert the image record into the restaurant_fassai_images table
     const insertImageQuery = `
       INSERT INTO restaurant_fassai_images (userId, restaurant_fassai_image_name) 
-      VALUES (?, ?)`; 
+      VALUES (?, ?)`;
     db.query(insertImageQuery, [restaurantId, file.filename], (err) => {
       if (err) {
         console.error('Database error during image insert:', err);
@@ -312,7 +312,7 @@ const handleImageInsertAndMove = (file, restaurantId) => {
 
 // Helper function to move the license_image and update the database
 const handleFileMove = (file, field, id, oldFile = null) => {
-  const dir = `uploads/registered_restaurants/${id}`; 
+  const dir = `uploads/registered_restaurants/${id}`;
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -355,7 +355,7 @@ exports.stepTwo = (req, res) => {
   const query = `UPDATE users SET restaurantName=?, restaurantAddress=? WHERE id=?`;
   db.query(query, [restaurantName, restaurantAddress, userId], (err, result) => {
     if (err) throw err;
-    res.status(200).json({ success_msg: 'Step 2 completed',response:true});
+    res.status(200).json({ success_msg: 'Step 2 completed', response: true });
   });
 };
 // Step 3: Send OTP to email
@@ -363,7 +363,7 @@ exports.sendOtp = (req, res) => {
   const { userId, email } = req.body;
 
   // Generate OTP
-  const otp = Math.floor(1000 + Math.random() * 9000); 
+  const otp = Math.floor(1000 + Math.random() * 9000);
 
   console.log('Generated OTP:', otp); // Log OTP for debugging
 
@@ -389,7 +389,7 @@ exports.sendOtp = (req, res) => {
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
       console.error('Error sending email:', error);  // Log detailed email error
-      return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message,response:false });
+      return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message, response: false });
     }
 
     // Save OTP to DB based on userId
@@ -397,7 +397,7 @@ exports.sendOtp = (req, res) => {
     db.query(query, [otp, userId], (err, result) => {
       if (err) {
         console.error('Database error_msg:', err);  // Log database error
-        return res.status(200).json({ error_msg: 'Database error', details: err.message,response:false });
+        return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
       }
       console.log('OTP sent to email:', email); // Log success
       res.status(200).json({ success_msg: 'OTP sent to email', response: true });
@@ -413,20 +413,20 @@ exports.verifyOtp = (req, res) => {
   const query = `SELECT otp FROM users WHERE id=?`;
   db.query(query, [userId], (err, result) => {
     if (err) {
-      return res.status(200).json({ error_msg: 'Database error' ,response:false});
+      return res.status(200).json({ error_msg: 'Database error', response: false });
     }
 
     if (result.length === 0) {
-      return res.status(200).json({ error_msg: 'User not found',response:false });
+      return res.status(200).json({ error_msg: 'User not found', response: false });
     }
 
     // Check if the OTP matches
     if (result[0].otp !== otp) {
-      return res.status(200).json({ error_msg: 'Invalid OTP',response:false });
+      return res.status(200).json({ error_msg: 'Invalid OTP', response: false });
     }
 
     // OTP verified successfully
-    res.status(200).json({ success_msg: 'OTP verified successfully' , response: true});
+    res.status(200).json({ success_msg: 'OTP verified successfully', response: true });
   });
 };
 
@@ -471,42 +471,42 @@ exports.setPassword = (req, res) => {
 
   // Check if passwords match
   if (password !== confirmPassword) {
-    return res.status(200).json({ error_msg: 'Passwords do not match',response:false });
+    return res.status(200).json({ error_msg: 'Passwords do not match', response: false });
   }
 
   // Hash the password
   bcrypt.hash(password, 10, (err, hashedPassword) => {
     if (err) {
-      return res.status(200).json({ error_msg: 'Error hashing password',response:false });
+      return res.status(200).json({ error_msg: 'Error hashing password', response: false });
     }
 
     // Update user with the hashed password and clear the OTP
     const query = `UPDATE users SET password=?, otp=NULL WHERE id=?`;
     db.query(query, [hashedPassword, userId], (err, result) => {
       if (err) {
-        return res.status(200).json({ error_msg: 'Database error',response:false });
+        return res.status(200).json({ error_msg: 'Database error', response: false });
       }
 
       // Password set successfully
-      res.status(200).json({ success_msg: 'Password set successfully' ,response:true});
+      res.status(200).json({ success_msg: 'Password set successfully', response: true });
     });
   });
 };
 
 exports.insertTimingData = (req, res) => {
-  const { userId, day_id, start_time, end_time ,status} = req.body;
+  const { userId, day_id, start_time, end_time, status } = req.body;
 
   // Insert timing data into service_time table
   const timingQuery = 'INSERT INTO service_time (userId, day_id, start_time, end_time,status) VALUES (?, ?, ?, ?,?)';
-  
-  db.query(timingQuery, [userId, day_id, start_time, end_time,status], (err, result) => {
+
+  db.query(timingQuery, [userId, day_id, start_time, end_time, status], (err, result) => {
     if (err) {
       console.error('Database error_msg:', err); // Log the database error for debugging
-      return res.status(200).json({ error_msg: 'Database error while inserting timing data' ,response:false});
+      return res.status(200).json({ error_msg: 'Database error while inserting timing data', response: false });
     }
 
     // Timing data inserted successfully
-    res.status(200).json({ success_msg: 'Timing data inserted successfully', service_time_id: result.insertId ,response:true});
+    res.status(200).json({ success_msg: 'Timing data inserted successfully', service_time_id: result.insertId, response: true });
   });
 };
 
@@ -564,7 +564,7 @@ exports.insertOrUpdateTimingData = (req, res) => {
   // Wait for all promises to resolve
   Promise.all(promises)
     .then((results) => res.status(200).json({ messages: results, response: true }))
-    .catch((error) => res.status(200).json({ error_msg: 'Error processing timing data', details: error, response:false }));
+    .catch((error) => res.status(200).json({ error_msg: 'Error processing timing data', details: error, response: false }));
 };
 
 exports.insertDiningArea = (req, res) => {
@@ -630,13 +630,13 @@ exports.insertDiningTable = (req, res) => {
 
   // Query to insert multiple dining tables
   const query = 'INSERT INTO all_tables (userId, dining_area_id, table_name, table_no_of_seats) VALUES ?';
-  
+
   db.query(query, [values], (err, result) => {
     if (err) {
-      return res.status(200).json({ 
-        error_msg: 'Database error while inserting dining table data', 
-        details: err.message, 
-        response: false 
+      return res.status(200).json({
+        error_msg: 'Database error while inserting dining table data',
+        details: err.message,
+        response: false
       });
     }
 
@@ -657,11 +657,11 @@ exports.insertDiningTable = (req, res) => {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: process.env.EMAIL_SERVICE,  
-          pass: process.env.EMAIL_PASSWORD  
+          user: process.env.EMAIL_SERVICE,
+          pass: process.env.EMAIL_PASSWORD
         },
         tls: {
-          rejectUnauthorized: false  
+          rejectUnauthorized: false
         }
       });
 
@@ -686,11 +686,11 @@ The Dine Right Team`
       transporter.sendMail(mailOptions, (emailError, info) => {
         if (emailError) {
           console.error('Error sending email:', emailError);
-          return res.status(200).json({ 
-            error_msg: 'Error sending email', 
-            details: emailError.message, 
+          return res.status(200).json({
+            error_msg: 'Error sending email',
+            details: emailError.message,
             table_count: result.affectedRows, // Number of rows inserted
-            response: false 
+            response: false
           });
         }
 
@@ -699,18 +699,18 @@ The Dine Right Team`
         db.query(updateQuery, [userId], (updateErr) => {
           if (updateErr) {
             console.error('Error updating signup status:', updateErr);
-            return res.status(200).json({ 
-              error_msg: 'Error updating signup status', 
-              details: updateErr.message, 
-              table_count: result.affectedRows, 
-              response: false 
+            return res.status(200).json({
+              error_msg: 'Error updating signup status',
+              details: updateErr.message,
+              table_count: result.affectedRows,
+              response: false
             });
           }
 
-          res.status(200).json({ 
-            success_msg: 'Dining table data inserted successfully, email sent to user, and signup status updated.', 
+          res.status(200).json({
+            success_msg: 'Dining table data inserted successfully, email sent to user, and signup status updated.',
             table_count: result.affectedRows, // Number of rows inserted
-            response: true 
+            response: true
           });
         });
       });
@@ -729,30 +729,30 @@ exports.login = (req, res) => {
     if (err) throw err;
 
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'User not found',response:false });
+      return res.status(200).json({ error_msg: 'User not found', response: false });
     }
 
     const user = results[0];
 
     // Ensure password exists before comparing
     if (!user.password) {
-      return res.status(200).json({ error_msg: 'Password not set for this user',response:false });
+      return res.status(200).json({ error_msg: 'Password not set for this user', response: false });
     }
 
     // Compare password
     bcrypt.compare(password, user.password, (err, isMatch) => {
       if (err) {
         console.error('Error comparing passwords:', err);  // Log detailed bcrypt error
-        return res.status(200).json({ error_msg: 'Error during password comparison', details: err.message,response:false });
+        return res.status(200).json({ error_msg: 'Error during password comparison', details: err.message, response: false });
       }
 
       if (!isMatch) {
-        return res.status(200).json({ error_msg: 'Invalid credentials',response:false });
+        return res.status(200).json({ error_msg: 'Invalid credentials', response: false });
       }
 
       // Create JWT token
       const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-      res.status(200).json({ success_msg: 'Login successful', token ,response:true});
+      res.status(200).json({ success_msg: 'Login successful', token, response: true });
     });
   });
 };
@@ -764,14 +764,14 @@ exports.getUserInfo = (req, res) => {
   db.query(query, [userId], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
 
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'User not found',response:false });
+      return res.status(200).json({ error_msg: 'User not found', response: false });
     }
 
-    res.status(200).json({ user: results[0],success_msg:'success',response:true });
+    res.status(200).json({ user: results[0], success_msg: 'success', response: true });
   });
 };
 
@@ -787,10 +787,10 @@ exports.getUsersInfo = (req, res) => {
   db.query(query, [status], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message ,response:false});
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'No users found',response:false });
+      return res.status(200).json({ error_msg: 'No users found', response: false });
     }
 
     const baseURL = process.env.BASE_URL;
@@ -814,21 +814,21 @@ exports.getRestroInfo = (req, res) => {
   db.query(query, (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message ,response:false});
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'No users found',response:false });
+      return res.status(200).json({ error_msg: 'No users found', response: false });
     }
     // custom image url
     let userData = [];
-    for (const user of results){
-    
+    for (const user of results) {
+
       user.image = `${process.env.BASE_URL}/uploads/registered_restaurants/${user.id}/${user.image}`;
       user.license_image = `${process.env.BASE_URL}/uploads/registered_restaurants/${user.id}/${user.license_image}`;
       userData.push(user);
     }
 
-    res.status(200).json({ users: userData ,success_msg:'success',response:true});
+    res.status(200).json({ users: userData, success_msg: 'success', response: true });
   });
 };
 
@@ -920,10 +920,10 @@ exports.getDiningAreas = (req, res) => {
   db.query(query, [userId], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
 
-    res.status(200).json({ diningAreas: results ,success_msg:'success',response:true});
+    res.status(200).json({ diningAreas: results, success_msg: 'success', response: true });
   });
 };
 
@@ -935,10 +935,10 @@ exports.getDiningTables = (req, res) => {
   db.query(query, [userId], (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ error_msg: 'Database error', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
 
-    res.status(200).json({ diningTables: results ,success_msg:'success',response:true});
+    res.status(200).json({ diningTables: results, success_msg: 'success', response: true });
   });
 };
 
@@ -1062,7 +1062,7 @@ exports.loginWithOtp = (req, res) => {
             return res.status(200).json({ error_msg: 'Database error while saving OTP', details: err.message, response: false });
           }
           // Step 6: Send response after successful OTP generation and email
-          res.status(200).json({  userId:user.id, success_msg: 'OTP sent to email successfully. Please verify OTP to complete login.', response: true });
+          res.status(200).json({ userId: user.id, success_msg: 'OTP sent to email successfully. Please verify OTP to complete login.', response: true });
         });
       });
     }
@@ -1076,44 +1076,44 @@ exports.verifyLoginOtp = (req, res) => {
   const query = `SELECT * FROM users WHERE email=? AND otp=?`;
   db.query(query, [email, otp], (err, results) => {
     if (err) {
-      console.error('Database error during OTP check:', err); 
-      return res.status(200).json({ error_msg: 'Database error during OTP verification', details: err.message,response:false });
+      console.error('Database error during OTP check:', err);
+      return res.status(200).json({ error_msg: 'Database error during OTP verification', details: err.message, response: false });
     }
 
     if (results.length === 0) {
-      return res.status(200).json({ error_msg: 'Invalid OTP. Please try again.',response:false });
+      return res.status(200).json({ error_msg: 'Invalid OTP. Please try again.', response: false });
     }
 
     const user = results[0];
 
     // Step 2: OTP is valid, create JWT token
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET,  { expiresIn: 31536000 * 90 });
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: 31536000 * 90 });
 
     // Clear OTP after successful verification
     const clearOtpQuery = `UPDATE users SET otp=NULL WHERE email=?`;
     db.query(clearOtpQuery, [email], (err, result) => {
       if (err) {
         console.error('Database error during OTP clearing:', err); // Log error
-        return res.status(200).json({ error_msg: 'Database error while clearing OTP', details: err.message,response:false });
-      }      
+        return res.status(200).json({ error_msg: 'Database error while clearing OTP', details: err.message, response: false });
+      }
 
       const restorantName = user.restaurantName;
 
       // Step 3: Send success response with token
-      res.status(200).json({ success_msg: 'Login successful', restorantName, token,response:true });
+      res.status(200).json({ success_msg: 'Login successful', restorantName, token, response: true });
     });
   });
 };
 
 exports.stepTwoAndSendOtp = (req, res) => {
-  const { userId, restaurantName, restaurantAddress,restaurant_type_id, cuisine_id,city_id } = req.body;
+  const { userId, restaurantName, restaurantAddress, restaurant_type_id, cuisine_id, city_id } = req.body;
 
   // Step 1: Update user information (restaurantName and restaurantAddress)
   const updateQuery = `UPDATE users SET restaurantName=?,restaurantAddress=?,city_id=? WHERE id=?`;
-  db.query(updateQuery, [restaurantName, restaurantAddress, city_id ,userId], (err, result) => {
+  db.query(updateQuery, [restaurantName, restaurantAddress, city_id, userId], (err, result) => {
     if (err) {
       console.error('Database error during update:', err);
-      return res.status(200).json({ error_msg: 'Error updating user information', details: err.message,response:false });
+      return res.status(200).json({ error_msg: 'Error updating user information', details: err.message, response: false });
     }
 
     // Step 2: Insert multiple restaurant_type_id and userId into the restaurant_types table
@@ -1146,11 +1146,11 @@ exports.stepTwoAndSendOtp = (req, res) => {
         db.query(emailQuery, [userId], (err, result) => {
           if (err) {
             console.error('Database error during email fetch:', err);
-            return res.status(200).json({ error_msg: 'Error fetching email', details: err.message ,response:false});
+            return res.status(200).json({ error_msg: 'Error fetching email', details: err.message, response: false });
           }
 
           if (result.length === 0) {
-            return res.status(200).json({ error_msg: 'User not found',response:false });
+            return res.status(200).json({ error_msg: 'User not found', response: false });
           }
 
           const email = result[0].email;
@@ -1181,7 +1181,7 @@ exports.stepTwoAndSendOtp = (req, res) => {
           transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
               console.error('Error sending email:', error);
-              return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message ,response:false});
+              return res.status(200).json({ error_msg: 'Error sending OTP', details: error.message, response: false });
             }
 
             // Step 7: Save OTP to database
@@ -1189,18 +1189,18 @@ exports.stepTwoAndSendOtp = (req, res) => {
             db.query(otpQuery, [otp, userId], (err, result) => {
               if (err) {
                 console.error('Database error during OTP update:', err);
-                return res.status(200).json({ error_msg: 'Error saving OTP', details: err.message,response:false });
+                return res.status(200).json({ error_msg: 'Error saving OTP', details: err.message, response: false });
               }
 
               console.log('OTP sent to email:', email);
-              res.status(200).json({ success_msg: 'User data updated and OTP sent to email' ,response:true});
+              res.status(200).json({ success_msg: 'User data updated and OTP sent to email', response: true });
             });
           });
         });
       })
       .catch(err => {
         console.error('Error during multiple inserts:', err);
-        res.status(200).json({ error_msg: 'Error inserting restaurant type or cuisine information', details: err.message,response:false });
+        res.status(200).json({ error_msg: 'Error inserting restaurant type or cuisine information', details: err.message, response: false });
       });
   });
 };
@@ -1281,11 +1281,11 @@ exports.getSelectedRestaurantTypes = (req, res) => {
       if (!acc[userId]) {
         acc[userId] = {
           userId: userId,
-          restaurant_types: [], 
+          restaurant_types: [],
         };
       }
-      acc[userId].restaurant_types.push({ 
-        restaurant_type_id, 
+      acc[userId].restaurant_types.push({
+        restaurant_type_id,
         restaurant_type_name,
       });
 
@@ -1381,61 +1381,76 @@ exports.getDaysListing = (req, res) => {
     res.status(200).json({ days: results, success_msg: 'Days retrieved successfully', response: true });
   });
 };
-exports.getAllDiningAreas = (req, res) => {
-  // Query to fetch all dining areas
-  const query = 'SELECT * FROM dining_areas';
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error('Database error_msg:', err);
-      return res.status(200).json({ 
-        error_msg: 'Database error', 
-        details: err.message, 
-        response: false 
-      });
+
+// get all dining area and tables
+exports.getAllDiningAreas = async (req, res) => {
+  const userId = req.userId; // Assuming userId is available in the request
+  console.log(userId);
+  try {
+    const diningAreaQuery = `
+      SELECT da.dining_area_id, da.dining_area_type
+      FROM selected_dining_areas sda
+      JOIN dining_areas da ON da.dining_area_id = sda.dining_area_id
+      WHERE sda.userId = ?`;
+
+    const [diningAreas] = await db.promise().query(diningAreaQuery, [userId]);
+
+    let diningAreaArray = [];
+    for(const diningArea of diningAreas){
+      const tableQuery = `SELECT table_id, dining_area_id, table_name, table_no_of_seats FROM all_tables WHERE dining_area_id = ? AND userId = ? AND is_deleted = 0`;
+      const [tables] = await db.promise().query(tableQuery, [diningArea.dining_area_id, userId]);
+
+      const sumNoOfSeatsQuery = `
+      SELECT dining_area_id, SUM(table_no_of_seats) AS total_seats 
+      FROM all_tables 
+      WHERE dining_area_id = ? 
+        AND userId = ? 
+        AND is_deleted = 0 
+      GROUP BY dining_area_id`;
+    
+    const [noOfSeats] = await db.promise().query(sumNoOfSeatsQuery, [diningArea.dining_area_id, userId]);
+    
+    diningArea.total_capacity = noOfSeats.length > 0 ? noOfSeats[0].total_seats : 0; // Corrected reference here
+    
+
+      diningArea.tables = tables;
+      diningAreaArray.push(diningArea);
     }
 
-    // Check if any dining areas are found
-    if (results.length === 0) {
-      return res.status(200).json({ 
-        error_msg: 'No dining areas found', 
-        response: false 
-      });
-    }
-
-    // Send response with the list of dining areas
-    res.status(200).json({ 
-      diningAreas: results, 
-      success_msg: 'Dining areas retrieved successfully', 
-      response: true 
-    });
-  });
+    res.status(200).json(diningAreaArray);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "An error occurred while fetching dining areas." });
+  }
 };
+
+
 exports.getAllCities = (req, res) => {
   // Query to fetch all dining areas
   const query = 'SELECT * FROM cities';
   db.query(query, (err, results) => {
     if (err) {
       console.error('Database error_msg:', err);
-      return res.status(200).json({ 
-        error_msg: 'Database error', 
-        details: err.message, 
-        response: false 
+      return res.status(200).json({
+        error_msg: 'Database error',
+        details: err.message,
+        response: false
       });
     }
 
     // Check if any dining areas are found
     if (results.length === 0) {
-      return res.status(200).json({ 
-        error_msg: 'No cities found', 
-        response: false 
+      return res.status(200).json({
+        error_msg: 'No cities found',
+        response: false
       });
     }
 
     // Send response with the list of dining areas
-    res.status(200).json({ 
-      diningAreas: results, 
-      success_msg: 'Cities retrieved successfully', 
-      response: true 
+    res.status(200).json({
+      diningAreas: results,
+      success_msg: 'Cities retrieved successfully',
+      response: true
     });
   });
 };
@@ -1447,7 +1462,7 @@ exports.getAllCities = (req, res) => {
 //   console.log(req.body ,"data")
 
 //   res.json(req.body)
-  
+
 //   // Assuming you are using multer for file uploads
 
 //   // Step 1: Update user information (restaurantName, restaurantAddress, city_id)
@@ -1573,7 +1588,7 @@ exports.getAllCities = (req, res) => {
 
 
 exports.getRestraurantProfileDetails = (req, res) => {
-  const userId = req.userId; 
+  const userId = req.userId;
   const query = 'SELECT username, email, phone, pancard, restaurantName, restaurantAddress ,resataurantDescription, fassai_licence_no,gst_no, restaurant_bank_account_no ,restaurant_ifsc_code,restaurant_bank_name, restaurant_branch_name, commission, status FROM users WHERE id = ?';
 
   db.query(query, [userId], (err, results) => {
@@ -1585,13 +1600,13 @@ exports.getRestraurantProfileDetails = (req, res) => {
       return res.status(200).json({ error_msg: 'User not found', response: false });
     }
     const resaturantProfileDetails = results[0];
-  
-    res.status(200).json({ success_msg: 'User details fetched successfully', userId , resaturantProfileDetails, response: true });
+
+    res.status(200).json({ success_msg: 'User details fetched successfully', userId, resaturantProfileDetails, response: true });
   });
 };
 
 exports.updateRestraurantProfileDetails = (req, res) => {
-  const userId = req.userId; 
+  const userId = req.userId;
   const {
     username,
     email,
@@ -1609,7 +1624,7 @@ exports.updateRestraurantProfileDetails = (req, res) => {
   } = req.body;
 
   // Validate that required fields are provided
-  if (!username || !email || !phone || !restaurantName ||!restaurantAddress ||!gst_no) {
+  if (!username || !email || !phone || !restaurantName || !restaurantAddress || !gst_no) {
     return res.status(400).json({ error_msg: 'All required fields must be filled', response: false });
   }
 
@@ -1653,5 +1668,4 @@ exports.updateRestraurantProfileDetails = (req, res) => {
     res.status(200).json({ success_msg: 'Restaurant profile details updated successfully', response: true });
   });
 };
-   
-        
+

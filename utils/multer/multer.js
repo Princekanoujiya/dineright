@@ -9,7 +9,7 @@ const pdfFilter = require('./pdfFilter');
 const videoFilter = require('./videoFilter');
 
 // Set the upload folder path
-const uploadFolder = 'uploads/';
+const uploadFolder = path.join(__dirname, '../../uploads'); // Correctly join the directory path
 
 // Ensure the uploads folder exists
 if (!fs.existsSync(uploadFolder)) {
@@ -27,6 +27,12 @@ const storage = multer.diskStorage({
   }
 });
 
+// All file filter
+const allFilter = (req, file, cb) => {
+  // No filtering, accept all file types
+  return cb(null, true);
+};
+
 // Set up Multer middleware with dynamic filters
 const uploadWithFilter = (filter) => multer({
   storage: storage,
@@ -35,6 +41,7 @@ const uploadWithFilter = (filter) => multer({
 });
 
 module.exports = {
+  upload: uploadWithFilter(allFilter),
   uploadImage: uploadWithFilter(imageFilter),
   uploadDoc: uploadWithFilter(docFilter),
   uploadPDF: uploadWithFilter(pdfFilter),

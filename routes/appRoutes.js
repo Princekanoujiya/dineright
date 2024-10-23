@@ -1,4 +1,5 @@
 const express = require('express');
+const {upload, uploadImage, uploadVideo, uploadPDF } = require('../utils/multer/multer');
 
 // validations
 const { validateBookingPayment } = require('../validations');
@@ -70,7 +71,7 @@ router.post('/resendrestaurantOtp', resendrestaurantOtp);
 router.post('/resendrestaurantOtpAfterRegister', resendrestaurantOtpAfterLogin);
 router.get('/getSelectedCuisines', getSelectedCuisines);
 router.get('/getDaysListing', getDaysListing);
-router.get('/getAllDiningAreas', getAllDiningAreas);
+router.get('/getAllDiningAreas', verifyToken, getAllDiningAreas);
 router.get('/getAllCities', getAllCities);
 router.get('/getRestraurantProfileDetails',verifyToken, getRestraurantProfileDetails);
 router.post('/updateRestraurantProfileDetails', verifyToken, updateRestraurantProfileDetails);
@@ -132,12 +133,12 @@ router.get('/cuisins', getAllCuisinsSections);
 router.get('/cuisins/:frontend_cuisins_section_id', getCuisionSectionById);
 // router.delete('/cuisins/:frontend_cuisins_section_id', deleteBannerSection);
 
-router.post('/banner_image', verifyToken, uploadsController.insertOrUpdateBannerImage);//done
+router.post('/banner_image', verifyToken, upload.single('banner_image'), uploadsController.insertOrUpdateBannerImage);//done
 router.get('/banner_image',verifyToken, uploadsController.getBannerImages);//done
 router.delete('/banner_image/:banner_image_id', verifyToken, uploadsController.deleteBannerImage);//done
 
 // use for register- no auth
-router.post('/insertOrUpdateBannerImageByUserId', uploadsController.insertOrUpdateBannerImageByUserId);//done
+router.post('/insertOrUpdateBannerImageByUserId', upload.single('banner_image'), uploadsController.insertOrUpdateBannerImageByUserId);//done
 router.get('/getBannerImagesByUserId/:userId', uploadsController.getBannerImagesByUserId);//done
 router.delete('/deleteBannerImageByUserId', uploadsController.deleteBannerImageByUserId);//done
 

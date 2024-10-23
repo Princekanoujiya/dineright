@@ -54,7 +54,7 @@ exports.getOneBooking = (req, res) => {
 // Get all dining areas and their allocated tables
 exports.getAllDiningAreaAndAllocatedTables = (req, res) => {
   const userId = req.userId;
-  const bookingDate = req.body.booking_date;
+  const bookingDate = req.query.booking_date;
 
   if (!bookingDate) {
     return res.status(400).json({ message: 'booking_date is required' })

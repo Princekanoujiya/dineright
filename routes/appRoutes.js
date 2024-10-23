@@ -1,6 +1,12 @@
 const express = require('express');
 const {upload, uploadImage, uploadVideo, uploadPDF } = require('../utils/multer/multer');
 
+// Handle single and multiple uploads with .fields()
+const fileUploadMiddleware = upload.fields([
+    { name: 'license_image', maxCount: 1 },  // Single file upload for 'image'
+    { name: 'image', maxCount: 12 }  // Multiple files upload for 'images'
+  ]);
+
 // validations
 const { validateBookingPayment } = require('../validations');
 //superadmin
@@ -52,7 +58,7 @@ const { verifyToken } = require('../middlewares/authMiddleware');
 const router = express.Router();
 
 //restaurant (RestroAdmin)
-router.post('/createOrUpdate', createOrUpdateOneStep);
+router.post('/createOrUpdate', fileUploadMiddleware, createOrUpdateOneStep);
 router.post('/step-two', stepTwo);
 router.post('/send-otp', sendOtp);
 router.post('/stepTwoAndSendOtp', stepTwoAndSendOtp);
@@ -177,7 +183,7 @@ router.get('/getrestrodaydetails', getrestrodaydetails);
 router.get('/getAllRestaurantWithTime', getAllRestaurantWithTime);
 router.get('/getDaysListing', verifyCustomerToken, getDaysListing);
 router.get('/getUserProfileDetails', verifyCustomerToken, getUserProfileDetails);
-router.post('/updateUserProfileDetails', verifyCustomerToken, updateUserProfileDetails);
+router.post('/updateUserProfileDetails', verifyCustomerToken, upload.single('customer_profile_image'), updateUserProfileDetails);
 router.post('/enquiry', enquiry);
 router.get('/getBookings', verifyCustomerToken, getBookings);
 router.get('/getBookingById/:booking_id', verifyCustomerToken, getBookingById);

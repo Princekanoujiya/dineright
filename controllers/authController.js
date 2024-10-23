@@ -7,6 +7,7 @@ const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
 const { response } = require('express');
+const { uploadFile, updateFile } = require('../utils/multer/attachments');
 
 exports.resendrestaurantOtpAfterLogin = (req, res) => {
   const { userId } = req.body;
@@ -165,157 +166,123 @@ const checkEmailExists = (email, id = null) => {
 
 // Insert or Update a user (restaurant)
 exports.createOrUpdateOneStep = async (req, res) => {
-  console.log('Request Body:', req.body);
-  console.log('Uploaded Files:', req.files);
 
-    const { id, username, email, phone, pancard, gst_no } = req.body;
-    const licenseImage = req.files['license_image'] ? req.files['license_image'][0].filename : null;
-    const images = req.files['image'] || [];
+  const { id, username, email, phone, pancard, gst_no } = req.body;
+  const licenseImage = req.files['license_image'] ? req.files['license_image'][0].filename : null;
+  const images = req.files['image'] || [];
 
-    if (!username) {
-      return res.status(200).json({ error_msg: 'Username is required', response: false });
+  if (!username) {
+    return res.status(200).json({ error_msg: 'Username is required', response: false });
+  }
+
+  try {
+    // Check if the email is already in use
+    const emailExists = await checkEmailExists(email, id);
+    if (emailExists) {
+      return res.status(200).json({ error_msg: 'Email is already in use', response: false });
     }
 
-    try {
-      // Check if the email is already in use
-      const emailExists = await checkEmailExists(email, id);
-      if (emailExists) {
-        return res.status(200).json({ error_msg: 'Email is already in use', response: false });
-      }
+    if (id) {
+      // Update user if id is provided
+      const getUserQuery = 'SELECT license_image FROM users WHERE id = ?';
+      db.query(getUserQuery, [id], (err, result) => {
+        if (err) {
+          return res.status(200).json({ error_msg: 'Database error during user retrieval', details: err.message, response: false });
+        }
+        if (result.length === 0) {
+          return res.status(200).json({ error_msg: 'User (restaurant) not found', response: false });
+        }
 
-      if (id) {
-        // Update user if id is provided
-        const getUserQuery = 'SELECT license_image FROM users WHERE id = ?';
-        db.query(getUserQuery, [id], (err, result) => {
-          if (err) {
-            return res.status(200).json({ error_msg: 'Database error during user retrieval', details: err.message, response: false });
-          }
-          if (result.length === 0) {
-            return res.status(200).json({ error_msg: 'User (restaurant) not found', response: false });
-          }
-
-          const oldLicenseImage = result[0].license_image;
-          const updateQuery = `
+        const oldLicenseImage = result[0].license_image;
+        const updateQuery = `
             UPDATE users 
             SET username = ?, email = ?, phone = ?, pancard = ?, license_image = ?, gst_no = ? 
             WHERE id = ?`;
-          db.query(updateQuery, [username, email, phone, pancard, licenseImage || oldLicenseImage, gst_no, id], (err) => {
-            if (err) {
-              return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
-            }
-
-            // Move the files if new license_image is uploaded
-            if (req.files['license_image']) {
-              handleFileMove(req.files['license_image'][0], 'license_image', id, oldLicenseImage);
-            }
-
-            // Insert multiple images into restaurant_fassai_images table
-            if (images.length > 0) {
-              images.forEach((imageFile) => {
-                handleImageInsertAndMove(imageFile, id);
-              });
-            }
-
-            res.status(200).json({ success_msg: 'User (restaurant) updated successfully', id, response: true });
-          });
-        });
-      } else {
-        // Insert new user if id is not provided
-        const insertQuery = `
-          INSERT INTO users (username, email, phone, pancard, gst_no) 
-          VALUES (?, ?, ?, ?, ?)`;
-        db.query(insertQuery, [username, email, phone, pancard, gst_no], (err, result) => {
+        db.query(updateQuery, [username, email, phone, pancard, licenseImage || oldLicenseImage, gst_no, id], (err) => {
           if (err) {
-            return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
+            return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
           }
 
-          const newId = result.insertId;
-
-          // Move and insert the uploaded files for new user
+          // Move the files if new license_image is uploaded
           if (req.files['license_image']) {
-            handleFileMove(req.files['license_image'][0], 'license_image', newId);
+            handleFileMove(req.files['license_image'][0], 'license_image', id, oldLicenseImage);
           }
 
           // Insert multiple images into restaurant_fassai_images table
           if (images.length > 0) {
             images.forEach((imageFile) => {
-              handleImageInsertAndMove(imageFile, newId);
+              handleImageInsertAndMove(imageFile, id);
             });
           }
 
-          res.status(200).json({ success_msg: 'User (restaurant) created successfully', userId: newId, response: true });
+          res.status(200).json({ success_msg: 'User (restaurant) updated successfully', id, response: true });
         });
-      }
-    } catch (error) {
-      res.status(200).json({ error_msg: 'Unexpected error', details: error.message, response: false });
+      });
+    } else {
+      // Insert new user if id is not provided
+      const insertQuery = `
+          INSERT INTO users (username, email, phone, pancard, gst_no) 
+          VALUES (?, ?, ?, ?, ?)`;
+      db.query(insertQuery, [username, email, phone, pancard, gst_no], (err, result) => {
+        if (err) {
+          return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
+        }
+
+        const newId = result.insertId;
+
+        // Move and insert the uploaded files for new user
+        if (req.files['license_image']) {
+          handleFileMove(req.files['license_image'][0], 'license_image', newId);
+        }
+
+        // Insert multiple images into restaurant_fassai_images table
+        if (images.length > 0) {
+          images.forEach((imageFile) => {
+            handleImageInsertAndMove(imageFile, newId);
+          });
+        }
+
+        res.status(200).json({ success_msg: 'User (restaurant) created successfully', userId: newId, response: true });
+      });
     }
+  } catch (error) {
+    res.status(200).json({ error_msg: 'Unexpected error', details: error.message, response: false });
+  }
 };
 
 // Helper function to insert image into restaurant_fassai_images and move file
-const handleImageInsertAndMove = (file, restaurantId) => {
-  const dir = `uploads/registered_restaurants/${restaurantId}`;
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+const handleImageInsertAndMove = async (file, restaurantId) => {
+  const uploadedFile = await uploadFile(file, `registered_restaurants/${restaurantId}`);
 
-  const tempPath = file.path;  // Path where multer saves the file initially
-  const newPath = path.join(dir, file.filename);
+  console.log('uplodedFile', uploadedFile)
 
-  // Move the file to its final location
-  fs.rename(tempPath, newPath, (err) => {
+  // Insert the image record into the restaurant_fassai_images table
+  const insertImageQuery = `
+  INSERT INTO restaurant_fassai_images (userId, restaurant_fassai_image_name) 
+  VALUES (?, ?)`;
+  db.query(insertImageQuery, [restaurantId, uploadedFile.newFileName], (err) => {
     if (err) {
-      console.error('Error moving image:', err);
-      return;
+      console.error('Database error during image insert:', err);
     }
-
-    // Insert the image record into the restaurant_fassai_images table
-    const insertImageQuery = `
-      INSERT INTO restaurant_fassai_images (userId, restaurant_fassai_image_name) 
-      VALUES (?, ?)`;
-    db.query(insertImageQuery, [restaurantId, file.filename], (err) => {
-      if (err) {
-        console.error('Database error during image insert:', err);
-      }
-    });
   });
 };
 
 // Helper function to move the license_image and update the database
-const handleFileMove = (file, field, id, oldFile = null) => {
-  const dir = `uploads/registered_restaurants/${id}`;
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+const handleFileMove = async (file, field, id, oldFile = null) => {
 
-  const tempPath = file.path;
-  const newPath = path.join(dir, file.filename);
+  const uploadedFile = await updateFile(file, `registered_restaurants/${id}`, oldFile);
 
-  fs.rename(tempPath, newPath, (err) => {
+  console.log('uplodedFile', uploadedFile)
+
+  // Update the user record with the new file name
+  const updateFileQuery = `
+   UPDATE users 
+   SET ${field} = ? 
+   WHERE id = ?`;
+  db.query(updateFileQuery, [uploadedFile.newFileName, id], (err) => {
     if (err) {
-      console.error(`Error moving ${field}:`, err);
-      return;
+      console.error(`Database error during ${field} update:`, err);
     }
-
-    // Remove old file if it exists and is different
-    if (oldFile && oldFile !== file.filename) {
-      const oldFilePath = path.join(dir, oldFile);
-      fs.unlink(oldFilePath, (err) => {
-        if (err) {
-          console.warn(`Warning: Failed to delete old ${field}`, err.message);
-        }
-      });
-    }
-
-    // Update the user record with the new file name
-    const updateFileQuery = `
-      UPDATE users 
-      SET ${field} = ? 
-      WHERE id = ?`;
-    db.query(updateFileQuery, [file.filename, id], (err) => {
-      if (err) {
-        console.error(`Database error during ${field} update:`, err);
-      }
-    });
   });
 };
 
@@ -1369,7 +1336,7 @@ exports.getAllDiningAreas = async (req, res) => {
     const [diningAreas] = await db.promise().query(diningAreaQuery, [userId]);
 
     let diningAreaArray = [];
-    for(const diningArea of diningAreas){
+    for (const diningArea of diningAreas) {
       const tableQuery = `SELECT table_id, dining_area_id, table_name, table_no_of_seats FROM all_tables WHERE dining_area_id = ? AND userId = ? AND is_deleted = 0`;
       const [tables] = await db.promise().query(tableQuery, [diningArea.dining_area_id, userId]);
 
@@ -1380,11 +1347,11 @@ exports.getAllDiningAreas = async (req, res) => {
         AND userId = ? 
         AND is_deleted = 0 
       GROUP BY dining_area_id`;
-    
-    const [noOfSeats] = await db.promise().query(sumNoOfSeatsQuery, [diningArea.dining_area_id, userId]);
-    
-    diningArea.total_capacity = noOfSeats.length > 0 ? noOfSeats[0].total_seats : 0; // Corrected reference here
-    
+
+      const [noOfSeats] = await db.promise().query(sumNoOfSeatsQuery, [diningArea.dining_area_id, userId]);
+
+      diningArea.total_capacity = noOfSeats.length > 0 ? noOfSeats[0].total_seats : 0; // Corrected reference here
+
 
       diningArea.tables = tables;
       diningAreaArray.push(diningArea);

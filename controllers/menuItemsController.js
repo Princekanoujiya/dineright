@@ -2,6 +2,7 @@ const db = require('../config');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { uploadFile } = require('../utils/multer/attachments');
 
 // Multer setup for image upload, storing images in 'uploads/menu_items/menu_id/'
 const storage = multer.diskStorage({
@@ -21,41 +22,100 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage }).single('menu_item_image');
 
-// Insert or Update a menu item
-exports.createOrUpdateMenuItem = (req, res) => {
-  upload(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      return res.status(200).json({ error_msg: 'Multer error', details: err.message ,response:false});
-    } else if (err) {
-      return res.status(200).json({ error_msg: 'Error uploading file', details: err.message ,response:false});
-    }
+// // Insert or Update a menu item
+// exports.createOrUpdateMenuItem = (req, res) => {
+//     const { menu_item_id, menu_id, menu_item_name, menu_item_price, menu_item_description } = req.body;
+//     const menu_item_image = req.file ? req.file.filename : null;
 
-    const { menu_item_id, menu_id, menu_item_name, menu_item_price, menu_item_description } = req.body;
-    const menu_item_image = req.file ? req.file.filename : null;
+//     if (menu_item_id) {
+//       // Update menu item if menu_item_id is provided
+//       const updateQuery = `UPDATE menu_items 
+//                            SET menu_item_name = ?, menu_item_price = ?, menu_item_description = ?, menu_item_image = ? 
+//                            WHERE menu_item_id = ?`;
+//       db.query(updateQuery, [menu_item_name, menu_item_price, menu_item_description, menu_item_image, menu_item_id], (err, result) => {
+//         if (err) return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
+//         if (result.affectedRows === 0) {
+//           return res.status(200).json({ error_msg: "Menu item not found", response: false });
+//         }
+//         res.status(200).json({ success_msg: 'Menu item updated successfully', menu_item_id, response: true });
+//       });
+//     } else {
+//       // Insert new menu item if menu_item_id is not provided
+//       const insertQuery = `INSERT INTO menu_items (menu_id, menu_item_name, menu_item_price, menu_item_description, menu_item_image) 
+//                            VALUES (?, ?, ?, ?, ?)`;
+//       db.query(insertQuery, [menu_id, menu_item_name, menu_item_price, menu_item_description, menu_item_image], (err, result) => {
+//         if (err) return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
+//         res.status(201).json({ success_msg: 'Menu item created successfully', menu_item_id: result.insertId, response: true });
+//       });
+//     }
+// };
+// Insert or Update a menu item
+exports.createOrUpdateMenuItem = async (req, res) => {
+  const { menu_item_id, menu_id, menu_item_name, menu_item_price, menu_item_description } = req.body;
+  // const menu_item_image = req.file ? req.file.filename : null;
+
+  try {
+    let menuItemImage = null;
+    // Fetch the existing image if a new file is uploaded
+    if (req.file) {
+      const getImageQuery = 'SELECT menu_item_image FROM menu_items WHERE menu_item_id = ?';
+      const [existingImageResult] = await db.promise().query(getImageQuery, [menu_item_id]);
+
+      const oldImage = existingImageResult.length > 0 ? existingImageResult[0].menu_item_image : null;
+      const uploadedFile = await updateFile(req.file, `menu_items/${menu_id}`, oldImage);
+      menuItemImage = uploadedFile.newFileName;
+    }
 
     if (menu_item_id) {
       // Update menu item if menu_item_id is provided
-      const updateQuery = `UPDATE menu_items 
-                           SET menu_item_name = ?, menu_item_price = ?, menu_item_description = ?, menu_item_image = ? 
-                           WHERE menu_item_id = ?`;
-      db.query(updateQuery, [menu_item_name, menu_item_price, menu_item_description, menu_item_image, menu_item_id], (err, result) => {
-        if (err) return res.status(200).json({ error_msg: 'Database error during update', details: err.message ,response:false});
-        if (result.affectedRows === 0) {
-          return res.status(200).json({ error_msg: "Menu item not found",response:false });
-        }
-        res.status(200).json({ success_msg: 'Menu item updated successfully', menu_item_id ,response:true});
-      });
+      const updateQuery = `
+        UPDATE menu_items 
+        SET menu_item_name = ?, menu_item_price = ?, menu_item_description = ?, 
+            menu_item_image = COALESCE(?, menu_item_image) 
+        WHERE menu_item_id = ?`;
+
+      const [result] = await db.promise().query(updateQuery, [
+        menu_item_name,
+        menu_item_price,
+        menu_item_description,
+        menuItemImage,
+        menu_item_id
+      ]);
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error_msg: 'Menu item not found', response: false });
+      }
+
+      return res.status(200).json({ success_msg: 'Menu item updated successfully', menu_item_id, response: true });
     } else {
       // Insert new menu item if menu_item_id is not provided
-      const insertQuery = `INSERT INTO menu_items (menu_id, menu_item_name, menu_item_price, menu_item_description, menu_item_image) 
-                           VALUES (?, ?, ?, ?, ?)`;
-      db.query(insertQuery, [menu_id, menu_item_name, menu_item_price, menu_item_description, menu_item_image], (err, result) => {
-        if (err) return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message ,response:false});
-        res.status(201).json({ success_msg: 'Menu item created successfully', menu_item_id: result.insertId ,response:true});
+      const insertQuery = `
+        INSERT INTO menu_items (menu_id, menu_item_name, menu_item_price, menu_item_description, menu_item_image) 
+        VALUES (?, ?, ?, ?, ?)`;
+
+      const uploadedFile = await uploadFile(req.file, `menu_items/${menu_id}`);
+      menuItemImage = uploadedFile.newFileName;
+
+      const [result] = await db.promise().query(insertQuery, [
+        menu_id,
+        menu_item_name,
+        menu_item_price,
+        menu_item_description,
+        menuItemImage
+      ]);
+
+      return res.status(201).json({
+        success_msg: 'Menu item created successfully',
+        menu_item_id: result.insertId,
+        response: true
       });
     }
-  });
+  } catch (err) {
+    console.error('Database error:', err);
+    return res.status(500).json({ error_msg: 'Database error occurred', details: err.message, response: false });
+  }
 };
+
 
 // Get menu item(s)
 exports.getMenuItem = (req, res) => {
@@ -65,16 +125,16 @@ exports.getMenuItem = (req, res) => {
     // If no menu_id is provided, return all menus
     const query = 'SELECT * FROM menu_items ';
     db.query(query, (err, results) => {
-      if (err) return res.status(200).json({ error_msg: err.message ,response:false});
+      if (err) return res.status(200).json({ error_msg: err.message, response: false });
       res.json(results);
     });
   } else {
     // If menu_id is provided, return specific menu
     const query = 'SELECT * FROM menu_items WHERE menu_item_id = ? ';
     db.query(query, [menu_item_id], (err, result) => {
-      if (err) return res.status(200).json({ error_msg: err.message ,response:false});
+      if (err) return res.status(200).json({ error_msg: err.message, response: false });
       if (result.length === 0) {
-        return res.status(200).json({ error_msg: "Menu not found",response:false });
+        return res.status(200).json({ error_msg: "Menu not found", response: false });
       }
       res.json(result[0]);
     });
@@ -85,16 +145,16 @@ exports.deleteMenuItem = (req, res) => {
   const { menu_item_id } = req.params;
 
   if (!menu_item_id) {
-    return res.status(200).json({ error_msg: "Menu item ID is required",response:false });
+    return res.status(200).json({ error_msg: "Menu item ID is required", response: false });
   }
 
   // First, fetch the menu item to check if it exists and get the image path
   const selectQuery = 'SELECT menu_item_image FROM menu_items WHERE menu_item_id = ?';
   db.query(selectQuery, [menu_item_id], (err, result) => {
-    if (err) return res.status(200).json({ error_msg: 'Database error during selection', details: err.message ,response:false});
+    if (err) return res.status(200).json({ error_msg: 'Database error during selection', details: err.message, response: false });
 
     if (result.length === 0) {
-      return res.status(200).json({ error_msg: "Menu item not found",response:false });
+      return res.status(200).json({ error_msg: "Menu item not found", response: false });
     }
 
     const imagePath = `uploads/menu_items/${menu_item_id}/${result[0].menu_item_image}`;
@@ -102,11 +162,11 @@ exports.deleteMenuItem = (req, res) => {
     // Delete the menu item from the database
     const deleteQuery = 'DELETE FROM menu_items WHERE menu_item_id = ?';
     db.query(deleteQuery, [menu_item_id], (err, result) => {
-      if (err) return res.status(200).json({ error_msg: 'Database error during deletion', details: err.message ,response:false});
+      if (err) return res.status(200).json({ error_msg: 'Database error during deletion', details: err.message, response: false });
 
       // Check if any rows were affected (i.e., the item was deleted)
       if (result.affectedRows === 0) {
-        return res.status(200).json({ error_msg: "Menu item not found" ,response:false});
+        return res.status(200).json({ error_msg: "Menu item not found", response: false });
       }
 
       // Optionally, delete the image file from the server if it exists
@@ -116,7 +176,7 @@ exports.deleteMenuItem = (req, res) => {
           console.error(`Failed to delete image file: ${imagePath}`, err);
         }
       });
-      res.json({ success_msg: "Menu item deleted successfully" ,response:true});
+      res.json({ success_msg: "Menu item deleted successfully", response: true });
     });
   });
 };
@@ -125,24 +185,24 @@ exports.softDeleteMenuItem = (req, res) => {
   const { menu_item_id } = req.params;
 
   if (!menu_item_id) {
-    return res.status(200).json({ error_msg: "Menu item ID is required",response:false });
+    return res.status(200).json({ error_msg: "Menu item ID is required", response: false });
   }
 
   // Check if the menu item exists
   const selectQuery = 'SELECT * FROM menu_items WHERE menu_item_id = ? AND is_deleted = 0';
   db.query(selectQuery, [menu_item_id], (err, result) => {
-    if (err) return res.status(200).json({ error_msg: 'Database error during selection', details: err.message ,response:false});
+    if (err) return res.status(200).json({ error_msg: 'Database error during selection', details: err.message, response: false });
 
     if (result.length === 0) {
-      return res.status(200).json({ error_msg: "Menu item not found or already deleted" ,response:false});
+      return res.status(200).json({ error_msg: "Menu item not found or already deleted", response: false });
     }
 
     // Soft delete: update the 'is_deleted' field to 1
     const updateQuery = 'UPDATE menu_items SET is_deleted = 1 WHERE menu_item_id = ?';
     db.query(updateQuery, [menu_item_id], (err, result) => {
-      if (err) return res.status(200).json({ error_msg: 'Database error during update', details: err.message,response:false });
+      if (err) return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
 
-      res.json({ success_msg: "Menu item soft deleted successfully",response:true });
+      res.json({ success_msg: "Menu item soft deleted successfully", response: true });
     });
   });
 };

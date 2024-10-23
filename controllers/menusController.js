@@ -31,6 +31,7 @@ exports.createOrUpdateMenu = (req, res) => {
     });
   }
 };
+
 exports.getMenu = (req, res) => {
   const { menu_id } = req.params;
 
@@ -53,6 +54,7 @@ exports.getMenu = (req, res) => {
     });
   }
 };
+
 exports.DeleteMenu = (req, res) => {
     const { menu_id } = req.params;
   

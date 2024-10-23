@@ -3,89 +3,73 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { response } = require('express');
-
-// Multer setup for image upload, storing images in 'uploads/menu_items/userId/'
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = `uploads/menu_items_with_token/${req.userId}`;
-    // Create the directory if it does not exist
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ storage: storage }).single('menu_item_image');
+const { uploadFile, updateFile } = require('../utils/multer/attachments');
 
 // Insert or Update a menu item
-exports.insertOrUpdateMenuItem = (req, res) => {
-  upload(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      return res.status(200).json({ error_msg: 'Multer error', details: err.message, response: false });
-    } else if (err) {
-      return res.status(200).json({ error_msg: 'Error uploading file', details: err.message, response: false });
-    }
+exports.insertOrUpdateMenuItem = async (req, res) => {
+  const { menu_item_id, course_menu_linking_id, menu_item_name, menu_item_price, menu_item_description } = req.body;
+  const userId = req.userId;
 
-    const { menu_item_id, course_menu_linking_id, menu_item_name, menu_item_price, menu_item_description } = req.body;
-    const menu_item_image = req.file ? req.file.filename : null;
-    const userId = req.userId;
-
+  try {
     if (menu_item_id) {
       // Update operation
+      let menuItemImage = null;
+
+      // Fetch the existing image if a new file is uploaded
+      if (req.file) {
+        const getImageQuery = 'SELECT menu_item_image FROM menu_items WHERE menu_item_id = ?';
+        const [existingImageResult] = await db.promise().query(getImageQuery, [menu_item_id]);
+
+        const oldImage = existingImageResult.length > 0 ? existingImageResult[0].menu_item_image : null;
+        const uploadedFile = await updateFile(req.file, `menu_items_with_token/${userId}`, oldImage);
+        menuItemImage = uploadedFile.newFileName;
+      }
+
+      // SQL query to update the item details
       const updateQuery = `
         UPDATE menu_items 
-        SET course_menu_linking_id = ?, menu_item_name = ?, menu_item_price = ?, menu_item_description = ?, menu_item_image = ?
+        SET course_menu_linking_id = ?, menu_item_name = ?, menu_item_price = ?, menu_item_description = ?, 
+        menu_item_image = COALESCE(?, menu_item_image)
         WHERE menu_item_id = ? AND userId = ?`;
 
-      // Fetch the existing image before updating (to delete if necessary)
-      const getImageQuery = 'SELECT menu_item_image FROM menu_items WHERE menu_item_id = ?';
-      db.query(getImageQuery, [menu_item_id], (err, result) => {
-        if (err) {
-          return res.status(200).json({ error_msg: 'Database error fetching existing image', details: err.message, response: false });
-        }
+      await db.promise().query(updateQuery, [
+        course_menu_linking_id,
+        menu_item_name,
+        menu_item_price,
+        menu_item_description,
+        menuItemImage,
+        menu_item_id,
+        userId
+      ]);
 
-        const oldImage = result[0]?.menu_item_image;
-
-        db.query(updateQuery, [course_menu_linking_id, menu_item_name, menu_item_price, menu_item_description, menu_item_image || oldImage, menu_item_id, userId], (err) => {
-          if (err) {
-            return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
-          }
-
-          // If a new image is uploaded, delete the old image
-          if (req.file && oldImage && oldImage !== menu_item_image) {
-            const oldImagePath = `uploads/menu_items_with_token/${userId}/${oldImage}`;
-            fs.unlink(oldImagePath, (err) => {
-              if (err) {
-                console.warn('Warning: Failed to delete old image', err.message);
-              }
-            });
-          }
-
-          res.status(200).json({ success_msg: 'Menu item updated successfully', menu_item_id, response: true });
-        });
-      });
-
+      return res.status(200).json({ success_msg: 'Menu item updated successfully', menu_item_id, response: true });
     } else {
       // Insert operation
+      let uploadedFile = null;
+      if (req.file) {
+        uploadedFile = await uploadFile(req.file, `menu_items_with_token/${userId}`);
+      }
+
       const insertQuery = `
         INSERT INTO menu_items (userId, course_menu_linking_id, menu_item_name, menu_item_price, menu_item_description, menu_item_image) 
         VALUES (?, ?, ?, ?, ?, ?)`;
 
-      db.query(insertQuery, [userId, course_menu_linking_id, menu_item_name, menu_item_price, menu_item_description, menu_item_image], (err, result) => {
-        if (err) {
-          return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
-        }
+      const [insertResult] = await db.promise().query(insertQuery, [
+        userId,
+        course_menu_linking_id,
+        menu_item_name,
+        menu_item_price,
+        menu_item_description,
+        uploadedFile ? uploadedFile.newFileName : null
+      ]);
 
-        const newMenuItemId = result.insertId;
-        res.status(201).json({ success_msg: 'Menu item created successfully', menu_item_id: newMenuItemId, response: true });
-      });
+      const newMenuItemId = insertResult.insertId;
+      return res.status(201).json({ success_msg: 'Menu item created successfully', menu_item_id: newMenuItemId, response: true });
     }
-  });
+  } catch (err) {
+    console.error('Database error:', err);
+    return res.status(500).json({ error_msg: 'Database error occurred', details: err.message, response: false });
+  }
 };
 
 exports.getMenuItems = (req, res) => {
@@ -133,7 +117,7 @@ exports.getMenuItemsbyId = async (req, res) => {
     const menuItemQuery = `SELECT mi.* FROM menu_item_linking mil
       JOIN master_items mi ON mil.master_item_id = mi.master_item_id AND mil.userId = mi.userId
       WHERE mil.menu_id = ? AND mil.userId = ? AND mil.is_deleted = 0`;
-      
+
     const [menuItems] = await db.promise().query(menuItemQuery, [menuId, userId]);
 
     // Update master_item_image for each menu item
@@ -151,8 +135,6 @@ exports.getMenuItemsbyId = async (req, res) => {
     res.status(500).json({ error: error.message }); // Send the error message for better debugging
   }
 };
-
-
 
 exports.deleteMenuItem = (req, res) => {
   const { menu_item_id } = req.params;

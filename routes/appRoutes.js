@@ -96,12 +96,12 @@ router.post('/menus', createOrUpdateMenu); //done
 router.get('/menus/:menu_id?', getMenu); //done
 router.patch('/menus/:menu_id', DeleteMenu);//done
 
-router.post('/menu_item', createOrUpdateMenuItem);//done
+router.post('/menu_item', upload.single('menu_item_image'), createOrUpdateMenuItem);//done
 router.get('/menu_item/:menu_item_id?', getMenuItem);//done
 router.delete('/menu_item/:menu_item_id?', deleteMenuItem);//-----------------
 router.delete('/menu_item/:menu_item_id?', softDeleteMenuItem);//---------------
 
-router.post('/menu_item_token', verifyToken, menuItemsController.insertOrUpdateMenuItem);//done
+router.post('/menu_item_token', verifyToken, upload.single('menu_item_image'), menuItemsController.insertOrUpdateMenuItem);//done
 router.get('/getMenuItemsbyId/:menuId', menuItemsController.getMenuItemsbyId);
 router.get('/menu_item_token/active', verifyToken, menuItemsController.getActiveMenuItems);
 router.get('/menu_item_token', verifyToken, menuItemsController.getMenuItems);
@@ -116,7 +116,7 @@ router.get('/getBeverageAndItems', verifyToken, master_card.getBeverageAndItems)
 router.post('/insertMenuAndBeverageItems', verifyToken, restorantMenuController.insertMenuAndBeverageItems);
 router.patch('/updateMenuAndBeverageItems', verifyToken, restorantMenuController.updateMenuAndBeverageItems);
 
-router.post('/insertMasterMenuItem', verifyToken, master_card.insertMasterMenuItem);
+router.post('/insertMasterMenuItem', verifyToken, upload.single('master_item_image'), master_card.insertMasterMenuItem);
 router.get('/getMasterMenuItems', verifyToken, master_card.getMasterMenuItems);
 router.delete('/deleteMasterMenuItem/:master_item_id', verifyToken, master_card.deleteMasterMenuItem);
 
@@ -125,7 +125,7 @@ router.get('/getMasterBeverageItemsDetails/:master_item_id', verifyToken, master
 
 router.get('/getAllBeverages', verifyToken, beverage_itemController.getAllBeverages);
 router.get('/getBeverageItemsbyId/:beverageId', beverage_itemController.getBeverageItemsbyId);
-router.post('/insertMasterBeverageItem', verifyToken, beverage_itemController.insertMasterBeverageItem);
+router.post('/insertMasterBeverageItem', verifyToken, upload.single('master_item_image'), beverage_itemController.insertMasterBeverageItem);
 router.get('/getMasterBeverageItems', verifyToken, beverage_itemController.getMasterBeverageItems);
 router.delete('/deleteMasterBeverageItem/:master_item_id', verifyToken, beverage_itemController.deleteMasterBeverageItem);
 
@@ -148,10 +148,23 @@ router.post('/insertOrUpdateBannerImageByUserId', upload.single('banner_image'),
 router.get('/getBannerImagesByUserId/:userId', uploadsController.getBannerImagesByUserId);//done
 router.delete('/deleteBannerImageByUserId', uploadsController.deleteBannerImageByUserId);//done
 
-router.post('/banner_video', verifyToken, uploadsVideoController.insertOrUpdateBannerVideo);//done
+router.post('/banner_video', verifyToken, (req, res, next) => {
+  uploadVideo.single('banner_video')(req, res, (err) => {
+    if (err) {
+      // Handle Multer error
+      return res.status(400).json({
+        error_msg: err.message || 'Video upload failed',
+        response: false,
+      });
+    }
+    // If no error, call your controller function
+    uploadsVideoController.insertOrUpdateBannerVideo(req, res);
+  });
+});
+
 router.get('/banner_video', verifyToken, uploadsVideoController.getBannerVideos);//done
 router.delete('/banner_video/:banner_video_id', verifyToken, uploadsVideoController.deleteBannerVideo);//done
-router.post('/gallery', verifyToken, uploadGalleryController.insertOrUpdateBannerGallery);//done
+router.post('/gallery', verifyToken, upload.array('files', 12), uploadGalleryController.insertOrUpdateBannerGallery);//done
 
 router.get('/getBannerGallery', uploadGalleryController.getBannerGallery);//done
 router.post('/deleteBannerGallery', uploadGalleryController.deleteBannerGallery);//done

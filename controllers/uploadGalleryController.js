@@ -1,46 +1,54 @@
 const db = require('../config');
-const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { uploadFile, updateFile } = require('../utils/multer/attachments');
 
-// Multer setup for multiple image and video uploads, storing in 'uploads/banner_gallery/userId/'
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // const dir = `uploads/banner_gallery/${req.userId}`;
-    const dir = `uploads/banner_gallery/${req.userId}`;
-    // Create the directory if it does not exist
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// // Insert multiple images or videos
+// exports.insertOrUpdateBannerGallery = async (req, res) => {
+//     if (!req.files || req.files.length === 0) {
+//       return res.status(200).json({ error_msg: 'No files uploaded', response: false });
+//     }
 
+//     const userId = req.userId;
+//     const fileDetails = await Promise.all(
+//       req.files.map(async (file) => {
+//         const uploadedFile = await uploadFile(file, `banner_gallery/${req.userId}`);
+//         return {
+//           filePath: uploadedFile.newFileName,
+//           mimeType: file.mimetype
+//         };
+//       })
+//     );    
 
-const upload = multer({ storage: storage }).array('files'); 
+//     // Prepare insert query for multiple files
+//     const insertQuery = `INSERT INTO banner_galleries (userId, files, file_type) VALUES ?`;
+//     const values = fileDetails.map(file => [userId, file.filePath, file.mimeType]);
 
+//     // Insert files into database
+//     db.query(insertQuery, [values], (err, result) => {
+//       if (err) {
+//         return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
+//       }
+//       res.status(200).json({ success_msg: 'Files uploaded successfully', insertedCount: result.affectedRows, response: true });
+//     });
+// };
 // Insert multiple images or videos
-exports.insertOrUpdateBannerGallery = (req, res) => {
-  upload(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      return res.status(200).json({ error_msg: 'Multer error', details: err.message, response: false });
-    } else if (err) {
-      return res.status(200).json({ error_msg: 'Error uploading files', details: err.message, response: false });
-    }
-
+exports.insertOrUpdateBannerGallery = async (req, res) => {
+  try {
     if (!req.files || req.files.length === 0) {
       return res.status(200).json({ error_msg: 'No files uploaded', response: false });
     }
 
     const userId = req.userId;
-    const fileDetails = req.files.map(file => ({
-      filePath: `/uploads/banner_gallery/${req.userId}/${file.filename}`,
-      mimeType: file.mimetype
-    }));
+    const fileDetails = await Promise.all(
+      req.files.map(async (file) => {
+        const uploadedFile = await uploadFile(file, `banner_gallery/${userId}`);
+        return {
+          filePath: uploadedFile.newFileName,
+          mimeType: file.mimetype
+        };
+      })
+    );
 
     // Prepare insert query for multiple files
     const insertQuery = `INSERT INTO banner_galleries (userId, files, file_type) VALUES ?`;
@@ -49,11 +57,14 @@ exports.insertOrUpdateBannerGallery = (req, res) => {
     // Insert files into database
     db.query(insertQuery, [values], (err, result) => {
       if (err) {
-        return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
+        return res.status(500).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
       }
       res.status(200).json({ success_msg: 'Files uploaded successfully', insertedCount: result.affectedRows, response: true });
     });
-  });
+  } catch (error) {
+    console.error('Error uploading files:', error);
+    res.status(500).json({ error_msg: 'File upload failed', details: error.message, response: false });
+  }
 };
 
 

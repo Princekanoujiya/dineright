@@ -1,100 +1,80 @@
 const db = require('../config');
-const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = `uploads/menu_items_with_token/${req.userId}`;
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ storage: storage }).single('master_item_image');
+const { uploadFile, updateFile } = require('../utils/multer/attachments');
 
 // insert and update Baverage items
-exports.insertMasterBeverageItem = (req, res) => {
-  upload(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      return res.status(400).json({ error_msg: 'Multer error', details: err.message, response: false });
-    } else if (err) {
-      return res.status(400).json({ error_msg: 'Error uploading file', details: err.message, response: false });
-    }
+exports.insertMasterBeverageItem = async (req, res) => {
+  const { master_item_id, master_item_name, master_item_price, master_item_description, beverage_id } = req.body;
+  const userId = req.userId;
 
-    const { master_item_id, master_item_name, master_item_price, master_item_description, beverage_id } = req.body;
-    const master_item_image = req.file ? `/uploads/menu_items_with_token/${req.userId}/${req.file.filename}` : null;
-    const userId = req.userId;
-
+  try {
     if (master_item_id) {
       // Update existing master item
+      let masterItemImage = null;
+
+      // Fetch existing image path if a new file is uploaded
+      if (req.file) {
+        const getImageQuery = 'SELECT master_item_image FROM master_items WHERE master_item_id = ?';
+        const [existingImageResult] = await db.promise().query(getImageQuery, [master_item_id]);
+
+        const oldImage = existingImageResult.length > 0 ? existingImageResult[0].master_item_image : null;
+        const uploadedFile = await updateFile(req.file, `menu_items_with_token/${userId}`, oldImage);
+        masterItemImage = uploadedFile.newFileName;
+      }
+
+      // SQL query to update the item details
       const updateQuery = `
         UPDATE master_items 
-        SET master_item_name = ?, master_item_price = ?, master_item_description = ?, master_item_image = ?
+        SET master_item_name = ?, master_item_price = ?, master_item_description = ?, master_item_image = COALESCE(?, master_item_image)
         WHERE master_item_id = ? AND userId = ?`;
 
-      const getImageQuery = 'SELECT master_item_image FROM master_items WHERE master_item_id = ?';
-      db.query(getImageQuery, [master_item_id], (err, result) => {
-        if (err) {
-          return res.status(500).json({ error_msg: 'Database error fetching existing image', details: err.message });
-        }
+      await db.promise().query(updateQuery, [
+        master_item_name, 
+        master_item_price, 
+        master_item_description, 
+        masterItemImage, 
+        master_item_id, 
+        userId
+      ]);
 
-        const oldImage = result[0]?.master_item_image;
-
-        db.query(updateQuery, [master_item_name, master_item_price, master_item_description, master_item_image || oldImage, master_item_id, userId], (err) => {
-          if (err) {
-            return res.status(500).json({ error_msg: 'Database error during update', details: err.message, response: false });
-          }
-
-          // If a new image is uploaded, delete the old one
-          if (req.file && oldImage && oldImage !== master_item_image) {
-            const oldImagePath = `./uploads/menu_items_with_token/${userId}/${oldImage}`;
-            fs.unlink(oldImagePath, (err) => {
-              if (err) {
-                console.warn('Warning: Failed to delete old image', err.message);
-              }
-            });
-          }
-
-          res.status(200).json({ success_msg: 'Beverage item updated successfully', master_item_id, response: true });
-        });
-      });
-
+      return res.status(200).json({ success_msg: 'Beverage item updated successfully', master_item_id, response: true });
     } else {
       // Insert a new master item
+      let uploadedFile = null;
+      if (req.file) {
+        uploadedFile = await uploadFile(req.file, `menu_items_with_token/${userId}`);
+      }
+
       const insertQuery = `
         INSERT INTO master_items (userId, master_item_name, master_item_price, master_item_description, master_item_image) 
         VALUES (?, ?, ?, ?, ?)`;
 
-      db.query(insertQuery, [userId, master_item_name, master_item_price, master_item_description, master_item_image], (err, result) => {
-        if (err) {
-          return res.status(500).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
-        }
+      const [insertResult] = await db.promise().query(insertQuery, [
+        userId, 
+        master_item_name, 
+        master_item_price, 
+        master_item_description, 
+        uploadedFile ? uploadedFile.newFileName : null
+      ]);
 
-        const newMasterItemId = result.insertId;
+      const newMasterItemId = insertResult.insertId;
 
-        // Insert into beverages_item_linking table with beverage_id
-        const linkQuery = `
-          INSERT INTO beverages_item_linking (userId, master_item_id, beverage_id) 
-          VALUES (?, ?, ?)`;
+      // Insert into beverages_item_linking table with beverage_id
+      const linkQuery = `
+        INSERT INTO beverages_item_linking (userId, master_item_id, beverage_id) 
+        VALUES (?, ?, ?)`;
 
-        db.query(linkQuery, [userId, newMasterItemId, beverage_id], (err) => {
-          if (err) {
-            return res.status(500).json({ error_msg: 'Database error linking beverage item', details: err.message, response: false });
-          }
+      await db.promise().query(linkQuery, [userId, newMasterItemId, beverage_id]);
 
-          res.status(201).json({ success_msg: 'Beverage item created successfully', master_item_id: newMasterItemId, response: true });
-        });
-      });
+      return res.status(201).json({ success_msg: 'Beverage item created successfully', master_item_id: newMasterItemId, response: true });
     }
-  });
+  } catch (err) {
+    console.error('Database error:', err);
+    return res.status(500).json({ error_msg: 'Database error occurred', details: err.message, response: false });
+  }
 };
+
 
 
 // get all Beverages

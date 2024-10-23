@@ -1,7 +1,6 @@
 const db = require('../config');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
@@ -512,7 +511,7 @@ exports.getUserProfileDetails = async (req, res) => {
         success_msg: 'Customer details fetched successfully',
         customer_id,
         userProfileDetails,
-        rewards: rewards[0].total_points,
+        rewards: rewards.length > 0 ? rewards[0].total_points : 0,
         visitedrestaurant: [],
         response: true,
       });
@@ -538,63 +537,117 @@ exports.getUserProfileDetails = async (req, res) => {
   }
 };
 
+// Update user profile details
+// exports.updateUserProfileDetails = (req, res) => {
+//   const customer_id = req.customer_id;
 
-// Configure multer to save the uploaded images in the appropriate directory
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const customer_id = req.customer_id;
-    const dir = `./uploads/user_profiles/${customer_id}`;
+//     // If no file is uploaded, return an error
+//     if (!req.file) {
+//       return res.status(200).json({ error_msg: 'No file uploaded', response: false });
+//     }
 
-    // Check if the directory exists, if not, create it
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+//     const { customer_name, customer_email } = req.body;
+//     const customer_profile_image = `/uploads/user_profiles/${customer_id}/${req.file.filename}`;
 
-    cb(null, dir); // Save the file in the directory
-  },
-  filename: (req, file, cb) => {
-    cb(null, `customer_profile_image${path.extname(file.originalname)}`);
-  }
-});
+//     // Validate that required fields are provided
+//     if (!customer_name || !customer_email) {
+//       return res.status(200).json({ error_msg: 'All required fields must be filled', response: false });
+//     }
 
-const upload = multer({ storage: storage }).single('customer_profile_image');
+//     const updateQuery = `
+//       UPDATE customers 
+//       SET customer_name = ?, customer_email = ?, customer_profile_image = ?
+//       WHERE customer_id = ?
+//     `;
+
+//     const values = [
+//       customer_name,
+//       customer_email,
+//       customer_profile_image,
+//       customer_id
+//     ];
+
+//     // Execute the query to update the profile
+//     db.query(updateQuery, values, (err, result) => {
+//       if (err) {
+//         console.error('Database error:', err);
+//         return res.status(500).json({ error_msg: 'Database error while updating profile details', details: err.message, response: false });
+//       }
+
+//       // If no rows were updated, return an error
+//       if (result.affectedRows === 0) {
+//         return res.status(404).json({ error_msg: 'User not found or no changes made', response: false });
+//       }
+
+//       res.status(200).json({ success_msg: 'User profile details updated successfully', response: true });
+//     });
+// };
+
+// Update user profile details
 
 // Update user profile details
 exports.updateUserProfileDetails = (req, res) => {
   const customer_id = req.customer_id;
 
-  // Handle file upload using multer
-  upload(req, res, (err) => {
+  // If no file is uploaded, return an error
+  if (!req.file) {
+    return res.status(200).json({ error_msg: 'No file uploaded', response: false });
+  }
+
+  const { customer_name, customer_email } = req.body;
+
+  // Validate that required fields are provided
+  if (!customer_name || !customer_email) {
+    return res.status(200).json({ error_msg: 'All required fields must be filled', response: false });
+  }
+
+  // Define the folder path for profile images
+  const profileImageFolder = path.join(__dirname, '..', 'uploads', 'user_profiles', customer_id.toString());
+
+  // Check if the folder exists, if not, create it
+  try {
+    if (!fs.existsSync(profileImageFolder)) {
+      fs.mkdirSync(profileImageFolder, { recursive: true });
+      console.log(`Directory created at: ${profileImageFolder}`);
+    }
+  } catch (err) {
+    return res.status(500).json({ error_msg: 'Failed to create directory', details: err.message, response: false });
+  }
+
+  // SQL query to fetch the old profile image path from the database
+  const selectQuery = `SELECT customer_profile_image FROM customers WHERE customer_id = ?`;
+
+  db.query(selectQuery, [customer_id], (err, rows) => {
     if (err) {
-      console.error('Error during file upload:', err);
-      return res.status(200).json({ error_msg: 'Error uploading file', details: err.message, response: false });
+      console.error('Database error while fetching old image:', err);
+      return res.status(500).json({ error_msg: 'Database error while fetching old image', details: err.message, response: false });
     }
 
-    // If no file is uploaded, return an error
-    if (!req.file) {
-      return res.status(200).json({ error_msg: 'No file uploaded', response: false });
+    const oldImagePath = rows.length > 0 ? rows[0].customer_profile_image : null;
+
+    // Move the uploaded file to the appropriate directory
+    const tempPath = req.file.path;
+    const finalImageName = `${Date.now()}-${req.file.originalname}`;
+    const destPath = path.join(profileImageFolder, finalImageName);
+
+    try {
+      fs.renameSync(tempPath, destPath); // Synchronously move the file
+      console.log(`File moved to: ${destPath}`);
+    } catch (err) {
+      return res.status(500).json({ error_msg: 'Error moving file', details: err.message, response: false });
     }
 
-    const { customer_name, customer_email } = req.body;
-    const customer_profile_image = `/uploads/user_profiles/${customer_id}/${req.file.filename}`;
+    // Define the complete path for the new profile image
+    const customer_profile_image = `/uploads/user_profiles/${customer_id}/${finalImageName}`;
 
-    // Validate that required fields are provided
-    if (!customer_name || !customer_email) {
-      return res.status(200).json({ error_msg: 'All required fields must be filled', response: false });
-    }
-
+    // SQL query to update the customer record
     const updateQuery = `
       UPDATE customers 
       SET customer_name = ?, customer_email = ?, customer_profile_image = ?
       WHERE customer_id = ?
     `;
 
-    const values = [
-      customer_name,
-      customer_email,
-      customer_profile_image,
-      customer_id
-    ];
+    const values = [customer_name, customer_email, customer_profile_image, customer_id];
 
     // Execute the query to update the profile
     db.query(updateQuery, values, (err, result) => {
@@ -606,6 +659,18 @@ exports.updateUserProfileDetails = (req, res) => {
       // If no rows were updated, return an error
       if (result.affectedRows === 0) {
         return res.status(404).json({ error_msg: 'User not found or no changes made', response: false });
+      }
+
+      // If an old image exists, delete it
+      if (oldImagePath) {
+        const oldImageFullPath = path.join(__dirname, '..', oldImagePath);
+        fs.unlink(oldImageFullPath, (unlinkErr) => {
+          if (unlinkErr) {
+            console.error('Error deleting old image:', unlinkErr);
+          } else {
+            console.log('Old profile image deleted:', oldImageFullPath);
+          }
+        });
       }
 
       res.status(200).json({ success_msg: 'User profile details updated successfully', response: true });

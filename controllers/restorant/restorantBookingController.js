@@ -52,77 +52,81 @@ exports.getOneBooking = (req, res) => {
 // ----------------------------------------------------------------------------------------------------------------------
 
 // Get all dining areas and their allocated tables
-exports.getAllDiningAreaAndAllocatedTables = (req, res) => {
+exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
   const userId = req.userId;
   const bookingDate = req.query.booking_date;
 
   if (!bookingDate) {
-    return res.status(400).json({ message: 'booking_date is required' })
+    return res.status(400).json({ message: 'booking_date is required' });
   }
 
-  // Query to fetch all dining areas for the specific user
-  const diningAreaQuery = `
-    SELECT * FROM selected_dining_areas sda 
-    LEFT JOIN dining_areas da ON sda.dining_area_id = da.dining_area_id  
-    WHERE sda.userId = ?
-  ;`
+  try {
+    // Fetch all bookings for the user, sorted by booking date or ID
+    const bookingQuery = `SELECT * FROM bookings WHERE userId = ? ORDER BY booking_date ASC`;
+    const [bookings] = await db.promise().query(bookingQuery, [userId]);
 
-  db.query(diningAreaQuery, [userId], (err, diningAreas) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error fetching dining areas', details: err.message });
+    let diningAreaArray = [];
+    
+    for (const booking of bookings) {
+      // Fetch allocated tables for each booking, sorted by table name or ID
+      const allocatedTablesQuery = `
+      SELECT 
+        at.table_id, 
+        at.dining_area_id, 
+        at.table_name, 
+        alct.no_of_guest, 
+        alct.customer_id, 
+        alct.start_time, 
+        alct.slot_time
+      FROM allocation_tables alct
+      JOIN all_tables at ON at.table_id = alct.table_id
+      WHERE alct.booking_id = ? 
+        AND alct.booking_date = ? 
+        AND alct.table_status = 'allocated' 
+        AND at.userId = ? 
+        AND at.is_deleted = 0
+      ORDER BY at.table_name ASC`;
+
+      const [allocatedTables] = await db.promise().query(allocatedTablesQuery, [booking.booking_id, bookingDate, userId]);
+
+      // Fetch connected products for each booking, sorted by item name
+      const bookingItemsQuery = `
+      SELECT 
+        mi.master_item_id, 
+        mi.master_item_name, 
+        CONCAT(?, mi.master_item_image) AS master_item_image, 
+        mi.master_item_price, 
+        mi.master_item_description 
+      FROM booking_connected_products bcp
+      JOIN master_items mi ON mi.master_item_id = bcp.master_item_id
+      WHERE bcp.booking_id = ?
+      ORDER BY mi.master_item_name ASC`;
+
+      const [bookingItems] = await db.promise().query(bookingItemsQuery, [process.env.BASE_URL, booking.booking_id]);
+
+      // Append booking and item details to each table
+      for (const table of allocatedTables) {
+        table.booking_status = booking.booking_status;
+        table.details = {
+          booking_name: booking.booking_name,
+          booking_email: booking.booking_email,
+          menu: bookingItems,
+          billing_amount: booking.billing_amount,
+          payment_status: booking.payment_status
+        };
+        diningAreaArray.push(table);
+      }
     }
 
-    if (diningAreas.length === 0) {
-      return res.status(200).json({ data: [] }); // Return empty array if no dining areas found
-    }
-
-    // Result container for dining areas with their allocated tables and capacities
-    const resultData = [];
-
-    // Counter to track async operations
-    let areasProcessed = 0;
-
-    // Loop through each dining area to fetch its allocated tables and capacity
-    diningAreas.forEach((diningArea) => {
-      const allocatedTablesQuery = `SELECT * FROM allocation_tables WHERE dining_area_id = ? AND booking_date = ?`;
-      const capacityQuery = `SELECT SUM(table_no_of_seats) AS total_capacity FROM all_tables WHERE dining_area_id = ? AND userId = ?`;
-
-      // Fetch allocated tables
-      db.query(allocatedTablesQuery, [diningArea.dining_area_id, bookingDate], (err, allocatedTables) => {
-        if (err) {
-          return res.status(500).json({ error: 'Database error fetching allocated tables', details: err.message });
-        }
-
-        // Fetch dining area capacity
-        db.query(capacityQuery, [diningArea.dining_area_id, userId], (err, capacityResult) => {
-          if (err) {
-            return res.status(500).json({ error: 'Database error fetching dining area capacity', details: err.message });
-          }
-
-          // Get total capacity from the result
-          const totalCapacity = capacityResult[0]?.total_capacity || 0;
-
-          // Add dining area with allocated tables and capacity to the result
-          resultData.push({
-            dining_area: {
-              dining_area_id: diningArea.dining_area_id,
-              dining_area_name: diningArea.dining_area_type,  // Assuming you have a name for dining area
-              total_capacity: totalCapacity, // Total capacity of the dining area
-              allocated_tables: allocatedTables || []  // Allocated tables or empty array if none
-            }
-          });
-
-          // Check if all areas have been processed
-          areasProcessed++;
-          if (areasProcessed === diningAreas.length) {
-            // All dining areas processed, return the result
-            res.status(200).json({ data: resultData });
-          }
-        });
-      });
-    });
-  });
+    res.json(diningAreaArray);
+  } catch (error) {
+    console.error('Error fetching dining areas and tables:', error);
+    res.status(500).json({ message: 'Error fetching dining areas and tables', error });
+  }
 };
+
+
+
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Endpoint for inserting a new booking

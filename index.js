@@ -1,5 +1,6 @@
 // server.js
 const express = require('express');
+const bodyParser = require('body-parser');
 const path = require('path');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -13,6 +14,12 @@ dotenv.config();
 
 // Initialize the app
 const app = express();
+
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }))
+
+// parse application/json
+app.use(bodyParser.json())
 
 // cors
 app.use(cors());

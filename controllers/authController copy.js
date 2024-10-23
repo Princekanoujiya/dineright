@@ -4,9 +4,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const nodemailer = require('nodemailer');
+const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { response } = require('express');
+
+
 
 exports.resendrestaurantOtpAfterLogin = (req, res) => {
   const { userId } = req.body;
@@ -80,7 +83,6 @@ exports.resendrestaurantOtpAfterLogin = (req, res) => {
     });
   });
 };
-
 exports.resendrestaurantOtp = (req, res) => {
   const { userId } = req.body;
 
@@ -163,10 +165,37 @@ const checkEmailExists = (email, id = null) => {
   });
 };
 
+// Set up multer storage to store all files in the same directory
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Set destination to the same folder for all uploads
+    cb(null, 'uploads/registered_restaurants/');
+  },
+  filename: function (req, file, cb) {
+    // Create a unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// Allow multiple files for 'image' without a max limit and single 'license_image'
+const upload = multer({ storage: storage }).fields([
+  { name: 'image', maxCount: Infinity }, // Set maxCount to Infinity
+  { name: 'license_image', maxCount: 1 }
+]);
+
 // Insert or Update a user (restaurant)
 exports.createOrUpdateOneStep = async (req, res) => {
   console.log('Request Body:', req.body);
   console.log('Uploaded Files:', req.files);
+
+  // Handle file uploads first
+  upload(req, res, async function (err) {
+    if (err instanceof multer.MulterError) {
+      return res.status(200).json({ error_msg: 'Multer error', details: err.message, response: false });
+    } else if (err) {
+      return res.status(200).json({ error_msg: 'Error uploading files', details: err.message, response: false });
+    }
 
     const { id, username, email, phone, pancard, gst_no } = req.body;
     const licenseImage = req.files['license_image'] ? req.files['license_image'][0].filename : null;
@@ -249,6 +278,7 @@ exports.createOrUpdateOneStep = async (req, res) => {
     } catch (error) {
       res.status(200).json({ error_msg: 'Unexpected error', details: error.message, response: false });
     }
+  });
 };
 
 // Helper function to insert image into restaurant_fassai_images and move file
@@ -726,7 +756,6 @@ exports.login = (req, res) => {
     });
   });
 };
-
 exports.getUserInfo = (req, res) => {
   const { userId } = req.params;
 
@@ -780,7 +809,6 @@ exports.getUsersInfo = (req, res) => {
     res.status(200).json({ users: updatedResults, success_msg: 'success', response: true });
   });
 };
-
 exports.getRestroInfo = (req, res) => {
   const query = 'SELECT * FROM users';
   db.query(query, (err, results) => {
@@ -825,7 +853,6 @@ exports.getTimingDatabyResrtoId = (req, res) => {
     res.status(200).json({ timingData: results, success_msg: 'Success', response: true });
   });
 };
-
 exports.updateTimingData = (req, res) => {
   const userId = req.body.userId;
   const { service_time_id, day_id, start_time, end_time, status } = req.body;

@@ -16,7 +16,7 @@ const { insertOrUpdateBannerSection, getAllBannerSections, getBannerSectionById 
 const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionById } = require('../controllers/superadmin/cuisinsController');
 
 //restroadmin
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot } = require('../controllers/restorant/restorantBookingController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility } = require('../controllers/restorant/restorantBookingController');
 const {
     createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllDiningAreasWithTables, getAllCities, resendrestaurantOtp,
     getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
@@ -167,9 +167,9 @@ router.get('/banner_video', verifyToken, uploadsVideoController.getBannerVideos)
 router.delete('/banner_video/:banner_video_id', verifyToken, uploadsVideoController.deleteBannerVideo);//done
 router.post('/gallery', verifyToken, upload.array('files', 12), uploadGalleryController.insertOrUpdateBannerGallery);//done
 
-router.get('/getBannerGallery', uploadGalleryController.getBannerGallery);//done
-router.post('/deleteBannerGallery', uploadGalleryController.deleteBannerGallery);//done
-router.get('/getAllBannerGalleries', uploadGalleryController.getAllBannerGalleries);//done
+router.get('/getBannerGallery', verifyToken, uploadGalleryController.getBannerGallery);//done
+router.post('/deleteBannerGallery', verifyToken, uploadGalleryController.deleteBannerGallery);//done
+router.get('/getAllBannerGalleries', verifyToken, uploadGalleryController.getAllBannerGalleries);//done
 
 // restorant routes
 router.get('/getAllbookings', verifyToken, getAllBookings);
@@ -193,6 +193,7 @@ router.get('/getMasterBeverage', getMasterBeverage);
 router.post('/book_product', verifyCustomerToken, book_product);
 router.post('/getTableAvaibility', verifyCustomerToken, getTableAvaibility);
 router.post('/getTableAvailableOrNot', verifyCustomerToken, getTableAvailableOrNot);
+router.post('/getRestorauntServiceTimeAvaibility', verifyCustomerToken, getRestorauntServiceTimeAvaibility);
 router.get('/getrestrodaydetails', getrestrodaydetails);
 router.get('/getAllRestaurantWithTime', getAllRestaurantWithTime);
 router.get('/getDaysListing', verifyCustomerToken, getDaysListing);

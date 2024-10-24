@@ -185,6 +185,8 @@ async function calculateTotalItemCost(items) {
   }
 }
 
+
+
 // book product
 exports.book_product = async (req, res) => {
   const { userId, booking_date, booking_time, booking_no_of_guest, payment_mod, items } = req.body;
@@ -193,6 +195,7 @@ exports.book_product = async (req, res) => {
   let messageObj = {};
 
   try {
+
     // check body data
     if (!userId || userId === '' || userId === undefined) {
       return res.status(400).json({ message: 'userId required' })
@@ -211,6 +214,12 @@ exports.book_product = async (req, res) => {
     }
     if (!Array.isArray(items)) {
       return res.status(400).json({ message: 'items required' })
+    }
+
+    const serviceTimeAvaibility = await checkServiceAvailability(booking_date, booking_time, userId, db);
+
+    if(serviceTimeAvaibility.isAvailable === false){
+      return res.status(400).json({message: 'Restaurant no booking this time and no available this time'})
     }
 
     let defaultSpendingTime = 180;
@@ -379,7 +388,7 @@ exports.book_product = async (req, res) => {
 
     } else if (payment_mod === 'cod') {
       // Update the booking status to 'confirmed'
-      const updateBookingStatusQuery = `UPDATE bookings SET booking_status = 'confirmed' WHERE booking_id = ?`;
+      const updateBookingStatusQuery = `UPDATE bookings SET booking_status = 'upcomming' WHERE booking_id = ?`;
 
       await new Promise((resolve, reject) => {
         db.query(updateBookingStatusQuery, [bookingId], (err, result) => {
@@ -751,6 +760,71 @@ const sendEmail = (email, message, res) => {
   });
 };
 
+
+// ---------------------------------------------------------------------------
+// Helper function to convert incoming Indian time to UTC
+const convertToUTC = (date, time) => {
+  // Create a JavaScript Date object in IST (Indian Standard Time)
+  const istDateTime = new Date(`${date}T${time}:00+00:00`); // Indian time (UTC+5:30)
+
+  // Convert the IST Date object to UTC using toISOString()
+  const utcDateTime = new Date(istDateTime.toISOString());
+
+  // Extract the UTC time in HH:MM:SS format
+  const utcTime = utcDateTime.toISOString().slice(11, 19);
+
+  // Get the day of the week in UTC (0 for Sunday, 1 for Monday, etc.)
+  const dayOfWeek = utcDateTime.getUTCDay();
+
+  // Return the converted UTC time and day index (adjusted to custom ID)
+  return {
+    utcTime,
+    customDayId: dayOfWeek === 0 ? 7 : dayOfWeek // Convert 0 (Sunday) to 7 in custom ID
+  };
+};
+
+// Helper function to fetch service times from the database
+const getServiceTimes = async (userId, customDayId, utcTime, db) => {
+  const servicetimeQuery = `
+    SELECT * 
+    FROM service_time 
+    WHERE userId = ? 
+      AND status = 'open' 
+      AND day_id = ? 
+      AND (
+        (start_time <= ? AND end_time > ?) OR            
+        (start_time = ? AND end_time > ?) OR                
+        (start_time <= ? AND end_time < start_time) OR     
+        (? < end_time AND end_time < start_time)            
+      )
+  `;
+
+  const [serviTimes] = await db.promise().query(servicetimeQuery, [
+    userId,
+    customDayId,
+    utcTime, utcTime, // Case 1
+    utcTime, utcTime, // Case 2
+    utcTime,          // Case 3
+    utcTime           // Case 4
+  ]);
+
+  return serviTimes;
+};
+
+// Main function to check restaurant service time availability
+const checkServiceAvailability = async (date, time, userId, db) => {
+  // Convert incoming Indian time to UTC
+  const { utcTime, customDayId } = convertToUTC(date, time);
+
+  // Fetch service times from the database
+  const serviTimes = await getServiceTimes(userId, customDayId, utcTime, db);
+
+  // Determine if service is available based on the fetched results
+  const isAvailable = serviTimes.length > 0;
+
+  // Return result and the matched service times
+  return { isAvailable, serviTimes };
+};
 
 
 

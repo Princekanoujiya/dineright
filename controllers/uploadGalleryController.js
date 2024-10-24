@@ -67,6 +67,41 @@ exports.insertOrUpdateBannerGallery = async (req, res) => {
   }
 };
 
+// Insert multiple images or videos
+exports.insertOrUpdateBannerGalleryByUserId = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(200).json({ error_msg: 'No files uploaded', response: false });
+    }
+
+    const { userId } = req.body;
+    const fileDetails = await Promise.all(
+      req.files.map(async (file) => {
+        const uploadedFile = await uploadFile(file, `banner_gallery/${userId}`);
+        return {
+          filePath: uploadedFile.newFileName,
+          mimeType: file.mimetype
+        };
+      })
+    );
+
+    // Prepare insert query for multiple files
+    const insertQuery = `INSERT INTO banner_galleries (userId, files, file_type) VALUES ?`;
+    const values = fileDetails.map(file => [userId, file.filePath, file.mimeType]);
+
+    // Insert files into database
+    db.query(insertQuery, [values], (err, result) => {
+      if (err) {
+        return res.status(500).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
+      }
+      res.status(200).json({ success_msg: 'Files uploaded successfully', insertedCount: result.affectedRows, response: true });
+    });
+  } catch (error) {
+    console.error('Error uploading files:', error);
+    res.status(500).json({ error_msg: 'File upload failed', details: error.message, response: false });
+  }
+};
+
 
 exports.getBannerGallery = (req, res) => {
   const userId = req.userId;
@@ -99,6 +134,36 @@ exports.getBannerGallery = (req, res) => {
   });
 };
 
+exports.getBannerGalleryByUserId = (req, res) => {
+  const { userId } = req.params
+
+  // Query to fetch non-deleted files
+  const getQuery = `SELECT * FROM banner_galleries WHERE userId = ? AND is_deleted = 0`;
+  db.query(getQuery, [userId], (err, results) => {
+    if (err) {
+      return res.status(200).json({ error_msg: 'Database error during retrieval', details: err.message, response: false });
+    }
+
+    if (results.length === 0) {
+      return res.status(200).json({ success_msg: 'No files found', response: true });
+    }
+
+    // Format each file URL
+    const files = results.map(image => ({
+      file_url: `${process.env.BASE_URL}${image.files}`,
+      banner_gallery_id: image.banner_gallery_id,
+      file_type: image.file_type,
+    }));
+
+    // Return all files as an array
+    res.status(200).json({
+      userId: userId,
+      success_msg: 'Files retrieved successfully',
+      files: files,
+      response: true
+    });
+  });
+};
 
 // Delete banner gallery file (set is_deleted = 1)
 exports.deleteBannerGallery = (req, res) => {
@@ -147,7 +212,7 @@ exports.getAllBannerGalleries = (req, res) => {
 
       acc[item.userId].galleries.push({
         banner_gallery_id: item.banner_gallery_id,
-        file: process.env.BASE_URL + item.files,  
+        file: process.env.BASE_URL + item.files,
         file_type: item.file_type
       });
 

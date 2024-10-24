@@ -66,7 +66,7 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
     const [bookings] = await db.promise().query(bookingQuery, [userId]);
 
     let diningAreaArray = [];
-    
+
     for (const booking of bookings) {
       // Fetch allocated tables for each booking, sorted by table name or ID
       const allocatedTablesQuery = `
@@ -152,7 +152,7 @@ exports.newBookingInsert = async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-  const booking_status = 'confirmed';
+  const booking_status = 'upcomming';
 
   try {
     // check no of guest
@@ -590,6 +590,73 @@ async function getDefaultSpendingTime(db, booking_no_of_guest, userId) {
 
   return defaultSpendingTime;
 }
+
+// get restaurant time avaibility
+exports.getRestorauntServiceTimeAvaibility = async (req, res) => {
+  try {
+    const customer_id = req.customer_id;
+    const { date, time, userId } = req.body;
+
+    console.log(req.body);
+
+    // Combine date and time into a JavaScript Date object in the UTC time zone
+    const combinedDateTimeUTC = new Date(`${date}T${time}:00.000Z`);
+
+    // Convert the combined UTC date and time into a time string formatted for comparison in SQL (HH:MM:SS)
+    const utcTime = combinedDateTimeUTC.toISOString().slice(11, 19); // Extracts 'HH:MM:SS'
+
+    // Get the day of the week as an index (0 for Sunday, 1 for Monday, etc.) in UTC
+    const dayOfWeek = combinedDateTimeUTC.getUTCDay();
+
+    // Convert JavaScript's getUTCDay() result (0-6) to your custom day_id (1-7)
+    const customDayId = dayOfWeek === 0 ? 7 : dayOfWeek; // 0 for Sunday should map to 7 in your custom IDs
+
+    // SQL query to fetch service times based on userId, status, and day_id
+    const servicetimeQuery = `
+      SELECT * 
+      FROM service_time 
+      WHERE userId = ? 
+        AND status = 'open' 
+        AND day_id = ? 
+        AND (
+          (start_time <= ? AND end_time > ?) OR            
+          (start_time = ? AND end_time > ?) OR                
+          (start_time <= ? AND end_time < start_time) OR     
+          (? < end_time AND end_time < start_time)            
+        )
+    `;
+    
+    const [serviTimes] = await db.promise().query(servicetimeQuery, [
+      userId, 
+      customDayId, 
+      utcTime, utcTime, // Case 1
+      utcTime, utcTime, // Case 2
+      utcTime,          // Case 3
+      utcTime           // Case 4
+    ]);
+
+    // If no service times are found, return an appropriate message
+    if (serviTimes.length === 0) {
+      return res.status(200).json({ message: "Service not available during the selected time" });
+    }
+
+    // Respond with the fetched service times if available
+    return res.status(200).json({ message: "Service available", serviTimes });
+
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+
+
+
+
+
+
+
 
 
 

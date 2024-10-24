@@ -4,9 +4,6 @@ resto_amount
 resto_commition
 billing_amount
 
-
-
-
 // user rewards after payment ---done
 // banner image on signup time ---done
 // city only mumbai other delete---done
@@ -17,8 +14,11 @@ billing_amount
 // all upload file path set and error solve --- done
 
 // commition resto and superadmin --- pending
-// booking time check time schedule --- pending
+// booking time check time schedule --- done
 
 // change integration - api replace
 // getAllDiningAreas --- static dining area list
 // getAllDiningAreasWithTables --- restaurant dining area with table list
+
+// booking_status --- done
+'pending','confirmed', 'upcomming', 'inprogress','completed','cancelled'

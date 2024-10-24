@@ -568,7 +568,7 @@ exports.insertDiningTable = (req, res) => {
   // Query to insert multiple dining tables
   const query = 'INSERT INTO all_tables (userId, dining_area_id, table_name, table_no_of_seats) VALUES ?';
 
-  db.query(query, [values], (err, result) => {
+  db.query(query, [values], async (err, result) => {
     if (err) {
       return res.status(200).json({
         error_msg: 'Database error while inserting dining table data',
@@ -577,36 +577,36 @@ exports.insertDiningTable = (req, res) => {
       });
     }
 
-    // After successful insertion, retrieve the user's email
+    // Retrieve the Restaurant email
     const userQuery = 'SELECT email FROM users WHERE id = ?';
-    db.query(userQuery, [userId], (err, userResult) => {
-      if (err || userResult.length === 0) {
-        return res.status(200).json({
-          error_msg: 'Database error while retrieving user email',
-          table_count: result.affectedRows, // Number of rows inserted
-          response: false
-        });
+    const [userResult] = await db.promise().query(userQuery, [userId]);
+    const userEmail = userResult[0].email;
+
+    // Retrieve the superadmin email
+    const superadminQuery = 'SELECT superadmin_email FROM superadmin_login';
+    const [superadminResult] = await db.promise().query(superadminQuery);
+    const superadminEmail = superadminResult[0].superadmin_email;
+
+    // Recipients (restaurant, and super admin)
+    const recipients = [userEmail, superadminEmail];
+
+    // Set up email transport
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_SERVICE,
+        pass: process.env.EMAIL_PASSWORD
+      },
+      tls: {
+        rejectUnauthorized: false
       }
+    });
 
-      const userEmail = userResult[0].email;
-
-      // Set up email transport
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_SERVICE,
-          pass: process.env.EMAIL_PASSWORD
-        },
-        tls: {
-          rejectUnauthorized: false
-        }
-      });
-
-      const mailOptions = {
-        from: process.env.EMAIL_SERVICE,
-        to: userEmail,
-        subject: 'Your Restaurant Tables Have Been Added to Dine Right',
-        text: `Dear Restaurant Owner/Manager,
+    const mailOptions = {
+      from: process.env.EMAIL_SERVICE,
+      to: recipients,
+      subject: 'Your Restaurant Tables Have Been Added to Dine Right',
+      text: `Dear Restaurant Owner/Manager,
 
 Thank you for registering your restaurant tables with Dine Right! We are pleased to inform you that multiple dining tables have been successfully added to our system.
 
@@ -617,44 +617,42 @@ Thank you for choosing Dine Right. We look forward to helping you succeed.
 
 Best regards,
 The Dine Right Team`
-      };
+    };
 
-      // Send email notification
-      transporter.sendMail(mailOptions, (emailError, info) => {
-        if (emailError) {
-          console.error('Error sending email:', emailError);
+    // Send email notification
+    transporter.sendMail(mailOptions, (emailError, info) => {
+      if (emailError) {
+        console.error('Error sending email:', emailError);
+        return res.status(200).json({
+          error_msg: 'Error sending email',
+          details: emailError.message,
+          table_count: result.affectedRows, // Number of rows inserted
+          response: false
+        });
+      }
+
+      // Update signup_status in the users table
+      const updateQuery = 'UPDATE users SET signup_status = 1 WHERE id = ?';
+      db.query(updateQuery, [userId], (updateErr) => {
+        if (updateErr) {
+          console.error('Error updating signup status:', updateErr);
           return res.status(200).json({
-            error_msg: 'Error sending email',
-            details: emailError.message,
-            table_count: result.affectedRows, // Number of rows inserted
+            error_msg: 'Error updating signup status',
+            details: updateErr.message,
+            table_count: result.affectedRows,
             response: false
           });
         }
 
-        // Update signup_status in the users table
-        const updateQuery = 'UPDATE users SET signup_status = 1 WHERE id = ?';
-        db.query(updateQuery, [userId], (updateErr) => {
-          if (updateErr) {
-            console.error('Error updating signup status:', updateErr);
-            return res.status(200).json({
-              error_msg: 'Error updating signup status',
-              details: updateErr.message,
-              table_count: result.affectedRows,
-              response: false
-            });
-          }
-
-          res.status(200).json({
-            success_msg: 'Dining table data inserted successfully, email sent to user, and signup status updated.',
-            table_count: result.affectedRows, // Number of rows inserted
-            response: true
-          });
+        res.status(200).json({
+          success_msg: 'Dining table data inserted successfully, email sent to user, and signup status updated.',
+          table_count: result.affectedRows, // Number of rows inserted
+          response: true
         });
       });
     });
   });
 };
-
 
 // Step 6: login
 exports.login = (req, res) => {
@@ -1323,7 +1321,38 @@ exports.getDaysListing = (req, res) => {
 };
 
 // get all dining area and tables
-exports.getAllDiningAreas = async (req, res) => {
+exports.getAllDiningAreas = (req, res) => {
+  // Query to fetch all dining areas
+  const query = 'SELECT * FROM dining_areas';
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ 
+        error_msg: 'Database error', 
+        details: err.message, 
+        response: false 
+      });
+    }
+
+    // Check if any dining areas are found
+    if (results.length === 0) {
+      return res.status(200).json({ 
+        error_msg: 'No dining areas found', 
+        response: false 
+      });
+    }
+
+    // Send response with the list of dining areas
+    res.status(200).json({ 
+      diningAreas: results, 
+      success_msg: 'Dining areas retrieved successfully', 
+      response: true 
+    });
+  });
+};
+
+// get all dining area and tables
+exports.getAllDiningAreasWithTables = async (req, res) => {
   const userId = req.userId; // Assuming userId is available in the request
   console.log(userId);
   try {

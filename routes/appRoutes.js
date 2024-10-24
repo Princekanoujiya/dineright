@@ -18,7 +18,7 @@ const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionBy
 //restroadmin
 const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot } = require('../controllers/restorant/restorantBookingController');
 const {
-    createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllCities, resendrestaurantOtp,
+    createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllDiningAreasWithTables, getAllCities, resendrestaurantOtp,
     getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
     loginWithOtp, verifyLoginOtp, stepTwoAndSendOtp, insertOrUpdateTimingData, restro_guest_time_duration,
     insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines,getTimingDatabyResrtoId,
@@ -77,7 +77,8 @@ router.post('/resendrestaurantOtp', resendrestaurantOtp);
 router.post('/resendrestaurantOtpAfterRegister', resendrestaurantOtpAfterLogin);
 router.get('/getSelectedCuisines', getSelectedCuisines);
 router.get('/getDaysListing', getDaysListing);
-router.get('/getAllDiningAreas', verifyToken, getAllDiningAreas);
+router.get('/getAllDiningAreas', getAllDiningAreas);
+router.get('/getAllDiningAreasWithTables', verifyToken, getAllDiningAreasWithTables);
 router.get('/getAllCities', getAllCities);
 router.get('/getRestraurantProfileDetails',verifyToken, getRestraurantProfileDetails);
 router.post('/updateRestraurantProfileDetails', verifyToken, updateRestraurantProfileDetails);

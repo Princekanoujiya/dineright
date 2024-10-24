@@ -12,8 +12,13 @@ billing_amount
 // city only mumbai other delete---done
 // get booking ---done
 // booking main- superadmin, resto, customer--- done
+//restoraunt registration time bannerimage not uploaded ---done
+// new signup mail send superadmin and resto ---done
+// all upload file path set and error solve --- done
 
-//restoraunt registration time bannerimage not uploaded
-// new signup mail send superadmin and resto ---done - rework
-// commition resto and superadmin
-// booking time check time schedule
+// commition resto and superadmin --- pending
+// booking time check time schedule --- pending
+
+// change integration - api replace
+// getAllDiningAreas --- static dining area list
+// getAllDiningAreasWithTables --- restaurant dining area with table list

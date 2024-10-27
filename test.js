@@ -17,8 +17,10 @@ billing_amount
 // booking time check time schedule --- done
 
 // change integration - api replace
-// getAllDiningAreas --- static dining area list
-// getAllDiningAreasWithTables --- restaurant dining area with table list
+// getAllDiningAreasWithTables --- restaurant dining area with table list --- done
 
 // booking_status --- done
 'pending','confirmed', 'upcomming', 'inprogress','completed','cancelled'
+
+
+// mail name - DineRights

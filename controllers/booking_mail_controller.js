@@ -5,18 +5,18 @@ const db = require('../config');
 
 // Function to create booking message
 function createSimpleBookingMessage(data) {
-  const { 
-    booking_id, 
-    booking_date, 
-    booking_time, 
-    booking_no_of_guest, 
-    payment_mod, 
-    customer_name, 
-    restaurantName, 
-    restaurantAddress, 
-    email, 
-    billing_amount, 
-    items, 
+  const {
+    booking_id,
+    booking_date,
+    booking_time,
+    booking_no_of_guest,
+    payment_mod,
+    customer_name,
+    restaurantName,
+    restaurantAddress,
+    email,
+    billing_amount,
+    items,
     booking_status,
     seatingDetails
   } = data;
@@ -173,13 +173,13 @@ function createSimpleBookingMessage(data) {
 
 // Helper function to format currency
 function formatCurrency(amount) {
-    return `₹${parseFloat(amount).toFixed(2)}`;
+  return `₹${parseFloat(amount).toFixed(2)}`;
 }
 
 // Helper function to format date
 function formatDate(dateString) {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return new Date(dateString).toLocaleDateString(undefined, options);
 }
 
 
@@ -228,16 +228,16 @@ exports.sendBookingEmail = async (bookingId) => {
     }
 
     const booking = rows[0];
-    const { 
-      booking_id, 
-      userId, 
-      customer_id, 
-      booking_date, 
-      booking_time, 
-      booking_no_of_guest, 
-      payment_mod, 
-      billing_amount, 
-      booking_status 
+    const {
+      booking_id,
+      userId,
+      customer_id,
+      booking_date,
+      booking_time,
+      booking_no_of_guest,
+      payment_mod,
+      billing_amount,
+      booking_status
     } = booking;
 
     // booking_connected_products
@@ -261,7 +261,14 @@ exports.sendBookingEmail = async (bookingId) => {
     }
 
     const resto = users[0];
-    const { email, restaurantName, restaurantAddress } = resto;
+    const { email, restaurantName, restaurantAddress, commission } = resto;
+
+    const commition_amount = billing_amount * (commission / 100);
+    const payout_balance = payment_mod === 'online' ? commition_amount : -commition_amount;
+
+    // commition
+    const transactionData = { userId, booking_id, payment_mod, billing_amount, commition_amount, payout_balance, description: '', status: 'completed' };
+    await insertCommitionTransaction(transactionData);
 
     // customer query
     const customerQuery = `SELECT * FROM customers WHERE customer_id = ?`;
@@ -300,21 +307,21 @@ exports.sendBookingEmail = async (bookingId) => {
     }));
 
     // Data sanitization
-    const data = { 
-      booking_id, 
-      booking_date, 
-      booking_time, 
-      booking_no_of_guest, 
-      payment_mod, 
-      restaurantName, 
-      restaurantAddress, 
-      customer_name, 
-      customer_email, 
-      email, 
-      billing_amount, 
+    const data = {
+      booking_id,
+      booking_date,
+      booking_time,
+      booking_no_of_guest,
+      payment_mod,
+      restaurantName,
+      restaurantAddress,
+      customer_name,
+      customer_email,
+      email,
+      billing_amount,
       booking_status,
-      items: bookingItems, 
-      seatingDetails 
+      items: bookingItems,
+      seatingDetails
     };
 
     const sanitizeData = (dataObj) => {
@@ -336,3 +343,25 @@ exports.sendBookingEmail = async (bookingId) => {
     console.error('Error sending booking email:', error);
   }
 };
+
+
+
+
+
+// commition function
+async function insertCommitionTransaction(transactionData) {
+  const { userId, booking_id, payment_mod, billing_amount, commition_amount, payout_balance, description, status } = transactionData;
+
+  const query = `
+    INSERT INTO commition_transactions 
+    (userId, booking_id, payment_mod, billing_amount, commition_amount, payout_balance, description, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`;
+
+  try {
+    const [result] = await db.promise().query(query, [userId, booking_id, payment_mod, billing_amount, commition_amount, payout_balance, description, status]);
+    return { message: `Insert successful, ID:, ${result.insertId}` }
+  } catch (err) {
+    console.error('Insert failed:', err.message);
+  }
+}

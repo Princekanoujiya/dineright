@@ -218,8 +218,8 @@ exports.book_product = async (req, res) => {
 
     const serviceTimeAvaibility = await checkServiceAvailability(booking_date, booking_time, userId, db);
 
-    if(serviceTimeAvaibility.isAvailable === false){
-      return res.status(400).json({message: 'Restaurant no booking this time and no available this time'})
+    if (serviceTimeAvaibility.isAvailable === false) {
+      return res.status(400).json({ message: 'Restaurant no booking this time and no available this time' })
     }
 
     let defaultSpendingTime = 180;
@@ -415,7 +415,7 @@ exports.book_product = async (req, res) => {
       });
 
       // rewards add
-      const reward = billingAmount /2;
+      const reward = billingAmount / 2;
       const rewardQuery = `INSERT INTO rewards (customer_id, booking_id, reward_points, reward_type) VALUES (?, ?, ?, ?)`;
       const [rewardResult] = await db.promise().query(rewardQuery, [customer_id, bookingId, reward, 'cod booking']);
 
@@ -742,7 +742,7 @@ const sendEmail = (email, message, res) => {
     });
 
     const mailOptions = {
-      from: process.env.EMAIL_SERVICE,
+      from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
       to: email,
       subject: 'New bookin for DineRights', // Subject is dynamic
       text: message,    // Message is dynamic

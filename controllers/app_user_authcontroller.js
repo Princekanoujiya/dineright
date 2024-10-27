@@ -35,7 +35,7 @@ exports.createOrUpdateCustomer = (req, res) => {
       });
 
       const mailOptions = {
-        from: process.env.EMAIL_SERVICE,
+        from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
         to: email,
         subject: 'OTP Verification',
         text: `Your OTP is ${otp}`,
@@ -205,7 +205,7 @@ exports.loginWithEmail = (req, res) => {
         });
 
         const mailOptions = {
-          from: process.env.EMAIL_SERVICE,
+          from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
           to: email,
           subject: 'OTP Login Verification',
           text: `Your OTP for login is ${otp}`,
@@ -260,7 +260,7 @@ exports.resendOtp = (req, res) => {
         });
 
         const mailOptions = {
-          from: process.env.EMAIL_SERVICE,
+          from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
           to: customer.customer_email,
           subject: 'Resend OTP Verification',
           text: `Your new OTP is ${otp}`,

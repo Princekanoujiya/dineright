@@ -59,7 +59,7 @@ exports.resendrestaurantOtpAfterLogin = (req, res) => {
         });
 
         const mailOptions = {
-          from: process.env.EMAIL_SERVICE,
+          from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
           to: email,  // Send to user's email
           subject: 'Resend OTP Verification',
           text: `Your new OTP is ${otp}. Please use this to verify your account.`,
@@ -126,7 +126,7 @@ exports.resendrestaurantOtp = (req, res) => {
         });
 
         const mailOptions = {
-          from: process.env.EMAIL_SERVICE,
+          from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
           to: email,  // Send to user's email
           subject: 'Resend OTP Verification',
           text: `Your new OTP is ${otp}. Please use this to verify your account.`,
@@ -317,7 +317,7 @@ exports.sendOtp = (req, res) => {
   });
 
   const mailOptions = {
-    from: process.env.EMAIL_SERVICE,
+    from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
     to: email,
     subject: 'OTP Verification',
     text: `Your OTP is ${otp}`,
@@ -603,7 +603,7 @@ exports.insertDiningTable = (req, res) => {
     });
 
     const mailOptions = {
-      from: process.env.EMAIL_SERVICE,
+      from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
       to: recipients,
       subject: 'Your Restaurant Tables Have Been Added to Dine Right',
       text: `Dear Restaurant Owner/Manager,
@@ -914,7 +914,7 @@ exports.getDiningTables = (req, res) => {
 //     });
 
 //     const mailOptions = {
-//       from: process.env.EMAIL_SERVICE,
+//       from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
 //       to: email,
 //       subject: 'Your OTP for Login',
 //       text: `Your OTP is ${otp}`,
@@ -980,7 +980,7 @@ exports.loginWithOtp = (req, res) => {
       });
 
       const mailOptions = {
-        from: process.env.EMAIL_SERVICE,
+        from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
         to: email,
         subject: 'Your OTP for Login',
         text: `Your OTP is ${otp}`,

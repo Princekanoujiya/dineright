@@ -5,15 +5,12 @@ exports.getCourseMenuAndMenuItems = async (req, res) => {
     const userId = req.params.userId;
 
     const query = `SELECT course_id, course_name FROM courses`;
-
     const [courses] = await db.promise().query(query); // Use promise-based query
-
 
     let courseArray = [];
     for (const course of courses) {
-
       const menuQuery = `
-        SELECT  m.menu_id, m.menu_name
+        SELECT  m.menu_id, m.menu_type, m.menu_name
         FROM course_menu_static_linking cml
         JOIN menus m ON cml.menu_id = m.menu_id
         WHERE cml.course_id = ?
@@ -43,14 +40,19 @@ exports.getCourseMenuAndMenuItems = async (req, res) => {
           };
         });
 
+
         // Assign the updated items to menu.menu_items
         menu.menu_items = updatedItems;
 
         menuItemArray.push(menu);
       }
 
-      course.menus = menus;
+      // beverage
+      const beverages = await getBeveragesWithItems(userId);
+      
+      menuItemArray.push(beverages);
 
+      course.menus = menuItemArray;
       courseArray.push(course);
 
     }
@@ -62,5 +64,51 @@ exports.getCourseMenuAndMenuItems = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error_msg: err.message, response: false });
+  }
+};
+
+// get beverages
+const getBeveragesWithItems = async (userId) => {
+  try {
+    // Fetch the beverage menu
+    const menuQuery = `SELECT menu_id, menu_type, menu_name FROM menus WHERE menu_type = 'beverage' AND is_deleted = 0`;
+    const [menu] = await db.promise().query(menuQuery);
+
+    // Fetch all beverages
+    const beverageQuery = `SELECT * FROM beverages`;
+    const [beverages] = await db.promise().query(beverageQuery);
+
+    let beverageArray = [];
+
+    // Loop through each beverage and fetch its linked items
+    for (const beverage of beverages) {
+      const beverageItemsQuery = `
+        SELECT mi.*
+        FROM beverages_item_linking bil
+        JOIN master_items mi ON mi.master_item_id = bil.master_item_id
+        WHERE bil.beverage_id = ? AND bil.userId = ? AND bil.is_deleted = 0
+      `;
+
+      const [beverageItems] = await db.promise().query(beverageItemsQuery, [beverage.beverage_id, userId]);
+
+      // Update image URL paths and assign items to the beverage
+      const updatedBeverageItems = beverageItems.map(item => ({
+        ...item,
+        master_item_image: process.env.BASE_URL + item.master_item_image,
+      }));
+
+      // Assign the updated items to the beverage
+      beverage.beverage_items = updatedBeverageItems;
+      beverageArray.push(beverage);
+    }
+
+    // Prepare the final menu data
+    let menuData = menu.length > 0 ? menu[0] : {};
+    menuData.beverages = beverageArray;
+
+    return menuData;
+  } catch (error) {
+    console.error('Error fetching beverages:', error);
+    throw error;
   }
 };

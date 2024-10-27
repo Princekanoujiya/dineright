@@ -43,7 +43,7 @@ exports.insertOrUpdateCuisineSection = (req, res) => {
   });
 };
 exports.getAllCuisinsSections = (req, res) => {
-    const getAllQuery = 'SELECT * FROM frontend_cuisine_section WHERE is_deleted=0';
+    const getAllQuery = 'SELECT cuisine_id, cuisine_name, cuisines_image FROM cuisines WHERE is_deleted=0';
     db.query(getAllQuery, (err, results) => {
       if (err) {
         return res.status(200).json({error_msg: "Failed to fetch frontend sections", details: err.message });
@@ -51,11 +51,12 @@ exports.getAllCuisinsSections = (req, res) => {
       return res.json(results);
     });
 };
+
 exports.getCuisionSectionById = (req, res) => {
-    const { frontend_cuisins_section_id } = req.params;
+    const { cuisine_id } = req.params;
   
-    const getQuery = 'SELECT * FROM frontend_cuisins_section WHERE frontend_cuisins_section_id = ?';
-    db.query(getQuery, [frontend_cuisins_section_id], (err, result) => {
+    const getQuery = 'SELECT cuisine_id, cuisine_name, cuisines_image FROM cuisines WHERE cuisine_id = ? AND is_deleted = 0';
+    db.query(getQuery, [cuisine_id], (err, result) => {
       if (err) {
         return res.status(200).json({ error_msg: "Failed to fetch frontend section", details: err.message ,response:false});
       }
@@ -65,18 +66,4 @@ exports.getCuisionSectionById = (req, res) => {
       return res.json(result[0]);
     });
 };
-// exports.softDeleteCuisinsSection = (req, res) => {
-//     const { frontend_cuisins_section_id } = req.params;
-  
-//     const softDeleteQuery = 'UPDATE frontend_cuisine_section SET is_deleted = 1 WHERE frontend_cuisine_section_id = ?';
-//     db.query(softDeleteQuery, [frontend_cuisins_section_id], (err, result) => {
-//       if (err) {
-//         return res.status(200).json({ error: "Failed to delete frontend section", details: err.message });
-//       }
-//       if (result.affectedRows === 0) {
-//         return res.status(200).json({ error_msg: "Frontend section not found" });
-//       }
-//       return res.json({ success_msg: "Frontend section marked as deleted successfully" });
-//     });
-// };
   

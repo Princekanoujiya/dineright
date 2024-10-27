@@ -1,11 +1,11 @@
 const express = require('express');
-const {upload, uploadImage, uploadVideo, uploadPDF } = require('../utils/multer/multer');
+const { upload, uploadImage, uploadVideo, uploadPDF } = require('../utils/multer/multer');
 
 // Handle single and multiple uploads with .fields()
 const fileUploadMiddleware = upload.fields([
-    { name: 'license_image', maxCount: 1 },  // Single file upload for 'image'
-    { name: 'image', maxCount: 12 }  // Multiple files upload for 'images'
-  ]);
+  { name: 'license_image', maxCount: 1 },  // Single file upload for 'image'
+  { name: 'image', maxCount: 12 }  // Multiple files upload for 'images'
+]);
 
 // validations
 const { validateBookingPayment } = require('../validations');
@@ -18,11 +18,11 @@ const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionBy
 //restroadmin
 const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility } = require('../controllers/restorant/restorantBookingController');
 const {
-    createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllDiningAreasWithTables, getAllCities, resendrestaurantOtp,
-    getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
-    loginWithOtp, verifyLoginOtp, stepTwoAndSendOtp, insertOrUpdateTimingData, restro_guest_time_duration,
-    insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines,getTimingDatabyResrtoId,
-    getSelectedRestaurantTypes, getRestroInfo, updateTimingData,resendrestaurantOtpAfterLogin,getUserInfoWithCuisinesAndRestaurantTypes,getRestraurantProfileDetails,updateRestraurantProfileDetails
+  createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllDiningAreasWithTables, getAllCities, resendrestaurantOtp,
+  getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
+  loginWithOtp, verifyLoginOtp, stepTwoAndSendOtp, insertOrUpdateTimingData, restro_guest_time_duration,
+  insertDiningTable, getUserInfo, getTimingData, getDiningAreas, getDiningTables, getUsersInfo, getSelectedCuisines, getTimingDatabyResrtoId,
+  getSelectedRestaurantTypes, getRestroInfo, updateTimingData, resendrestaurantOtpAfterLogin, getUserInfoWithCuisinesAndRestaurantTypes, getRestraurantProfileDetails, updateRestraurantProfileDetails
 } = require('../controllers/authController');
 
 const restorantMenuController = require('../controllers/restorant/menuController');
@@ -44,11 +44,12 @@ const uploadsVideoController = require('../controllers/uploadVideosController');
 const uploadGalleryController = require('../controllers/uploadGalleryController');
 const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
-const { getRazorpayKey, razorpayVerifyPayment } = require('../controllers/razorpayController');
+const { getRazorpayKey, razorpayVerifyPayment, getAllRazorpayPayments, getRazorpayPaymentByOrderId, getRazorpayPaymentById } = require('../controllers/razorpayController');
 
 //user
-const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails ,getUserProfileDetails,updateUserProfileDetails, searchAllRestorantByname} = require('../controllers/app_user_authcontroller');
+const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, getUserProfileDetails, updateUserProfileDetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
 const { getCourseMenuAndMenuItems } = require('../controllers/customer/restorantConroller');
+const { getMyBookings } = require('../controllers/customer/bookingController');
 
 // verify Token middleware
 const { verifySuperAdminToken } = require('../middlewares/superAdminMiddleware');
@@ -80,7 +81,7 @@ router.get('/getDaysListing', getDaysListing);
 router.get('/getAllDiningAreas', getAllDiningAreas);
 router.get('/getAllDiningAreasWithTables', verifyToken, getAllDiningAreasWithTables);
 router.get('/getAllCities', getAllCities);
-router.get('/getRestraurantProfileDetails',verifyToken, getRestraurantProfileDetails);
+router.get('/getRestraurantProfileDetails', verifyToken, getRestraurantProfileDetails);
 router.post('/updateRestraurantProfileDetails', verifyToken, updateRestraurantProfileDetails);
 
 router.get('/user/:userId', getUserInfo);//done
@@ -141,7 +142,7 @@ router.get('/cuisins/:frontend_cuisins_section_id', getCuisionSectionById);
 // router.delete('/cuisins/:frontend_cuisins_section_id', deleteBannerSection);
 
 router.post('/banner_image', verifyToken, upload.single('banner_image'), uploadsController.insertOrUpdateBannerImage);//done
-router.get('/banner_image',verifyToken, uploadsController.getBannerImages);//done
+router.get('/banner_image', verifyToken, uploadsController.getBannerImages);//done
 router.delete('/banner_image/:banner_image_id', verifyToken, uploadsController.deleteBannerImage);//done
 
 // use for register- no auth
@@ -202,6 +203,7 @@ router.post('/updateUserProfileDetails', verifyCustomerToken, upload.single('cus
 router.post('/enquiry', enquiry);
 router.get('/getBookings', verifyCustomerToken, getBookings);
 router.get('/getBookingById/:booking_id', verifyCustomerToken, getBookingById);
+router.get('/getMyBookings', verifyCustomerToken, getMyBookings);
 //filters
 router.get('/getRestaurantType', getRestaurantType);
 router.get('/getcuisines', getCuisines);
@@ -223,11 +225,14 @@ router.get('/getsingleRestaurantbyId/:userId', flutter_controller.getsingleResta
 // Razorpay Routes
 router.get('/razorpay_key', getRazorpayKey);
 router.post('/verify_payment', razorpayVerifyPayment);
+// router.get('/razorpay/payments', getAllRazorpayPayments);
+// router.get('/razorpay/payments/:orderId', getRazorpayPaymentByOrderId);
+router.get('/razorpay/payments/details/:paymentId', getRazorpayPaymentById);
 
 //superadmin
 router.post('/superadminlogin', loginSuperadmin);
 router.get('/getGuests', verifySuperAdminToken, getGuests);
-router.get('/getGuestsbyID/:id',verifySuperAdminToken, getGuestsbyID);
+router.get('/getGuestsbyID/:id', verifySuperAdminToken, getGuestsbyID);
 router.post('/updateUserStatusAndCommission', verifySuperAdminToken, updateUserStatusAndCommission);
 router.put('/updateCommissionStatus/:id', verifySuperAdminToken, updateCommissionStatus);
 router.post('/insertOrUpdateBlog', verifySuperAdminToken, insertOrUpdateBlog);

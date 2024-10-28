@@ -225,9 +225,7 @@ router.get('/getsingleRestaurantbyId/:userId', flutter_controller.getsingleResta
 // Razorpay Routes
 router.get('/razorpay_key', getRazorpayKey);
 router.post('/verify_payment', razorpayVerifyPayment);
-// router.get('/razorpay/payments', getAllRazorpayPayments);
-// router.get('/razorpay/payments/:orderId', getRazorpayPaymentByOrderId);
-router.get('/razorpay/payments/details/:paymentId', getRazorpayPaymentById);
+// router.get('/razorpay/payments/details/:paymentId', getRazorpayPaymentById);
 
 //superadmin
 router.post('/superadminlogin', loginSuperadmin);

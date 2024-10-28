@@ -165,101 +165,6 @@ exports.razorpayVerifyPayment = async (req, res, next) => {
 };
 
 
-// all payments
-// Fetch all Razorpay Payments
-exports.getAllRazorpayPayments = async (req, res) => {
-  try {
-      // Fetch all payments from Razorpay
-      const payments = await razorpayInstance.payments.all({
-          from: req.query.from || '', // Optional: Starting date for payment records
-          to: req.query.to || '',     // Optional: Ending date for payment records
-          count: req.query.count || 10 // Optional: Limit on the number of payments
-      });
-
-      return res.status(200).json({ success: true, data: payments });
-  } catch (error) {
-      console.error("Error fetching Razorpay payments:", error.message);
-      return res.status(500).json({ success: false, message: 'Error fetching payments', error: error.message });
-  }
-};
-// GET /api/razorpay/payments?from=2023-10-01&to=2023-10-31&count=50
-
-
-// Get Razorpay Payment Details by Order ID
-exports.getRazorpayPaymentByOrderId = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-
-    // Fetch order details from Razorpay using orderId
-    const orderDetails = await razorpayInstance.orders.fetch(orderId);
-
-    if (!orderDetails) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
-
-    // Fetch payments associated with the order ID
-    const paymentsResponse = await razorpayInstance.payments.all({ order_id: orderId });
-
-    if (!paymentsResponse || !paymentsResponse.items.length) {
-      return res.status(404).json({ success: false, message: 'No payments found for this order' });
-    }
-
-    // Determine the success status of each payment
-    const payments = paymentsResponse.items.map(payment => {
-      let statusMessage;
-      switch (payment.status) {
-        case 'captured':
-          statusMessage = 'Payment successful';
-          break;
-        case 'failed':
-          statusMessage = 'Payment failed';
-          break;
-        case 'authorized':
-          statusMessage = 'Payment authorized but not captured';
-          break;
-        case 'refunded':
-          statusMessage = 'Payment refunded';
-          break;
-        default:
-          statusMessage = 'Payment status unknown';
-      }
-
-      return {
-        id: payment.id,
-        amount: payment.amount / 100, // Convert to INR
-        currency: payment.currency,
-        status: payment.status,
-        statusMessage,
-        method: payment.method,
-        created_at: new Date(payment.created_at * 1000).toLocaleString(), // Convert timestamp to readable format
-        captured: payment.captured,
-        card_id: payment.card_id,
-        bank: payment.bank,
-        wallet: payment.wallet,
-        vpa: payment.vpa,
-        email: payment.email,
-        contact: payment.contact,
-        error_code: payment.error_code || null,
-        error_description: payment.error_description || null,
-      };
-    });
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        orderDetails,
-        payments,
-      }
-    });
-  } catch (error) {
-    console.error("Error fetching payment details:", error.message);
-    return res.status(500).json({ success: false, message: 'Error fetching payment details', error: error.message });
-  }
-};
-
-// GET /api/razorpay/payments/order_LqzNXk8Z0wS5xl
-
-
 // Get Razorpay Payment Details by Payment ID with Order ID and Success/Failed Response
 exports.getRazorpayPaymentById = async (req, res) => {
   try {
@@ -319,6 +224,3 @@ exports.getRazorpayPaymentById = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Error fetching payment details', error: error.message });
   }
 };
-
-
-// router.get('/payments/details/:paymentId', razorpayController.getRazorpayPaymentById);

@@ -224,3 +224,147 @@ exports.getRazorpayPaymentById = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Error fetching payment details', error: error.message });
   }
 };
+
+
+// Create Order - unpaid commission
+exports.razorPayCreateOrderUnpaidCommission = async (data) => {
+  try {
+      const { amount, name, email, phone } = data;
+      const options = {
+          amount: Number(amount * 100),
+          currency: 'INR',
+          receipt: email,
+      };
+
+      // Wrap Razorpay API call in a Promise
+      const order = await new Promise((resolve, reject) => {
+          razorpayInstance.orders.create(options, (err, order) => {
+              if (err) {
+                  reject(err);
+              } else {
+                  resolve(order);
+              }
+          });
+      });
+
+      const return_data = {
+          msg: 'Order Created',
+          key: config.RAZORPAY_KEY_ID,
+          amount: order.amount,
+          currency: "INR",
+          customer_id: "",
+          business_name: "Dineright",
+          business_logo: `${process.env.BASE_URL}/images/logo 001-03.png`,
+          callback_url: `${process.env.BASE_URL}/api/auth/verify_payment/commission`,
+          product_description: "Product Description or productId:",
+          customer_detail: {
+              name: name,
+              email: email,
+              contact: phone,
+          },
+          razorpayModalTheme: "#ffc042",
+          //background: linear-gradient(90deg, #141E30 0%, #243B55 100%);
+          notes: {
+              "address": "Razorpay Corporate Office"
+          },
+      };
+
+      return { ...return_data, ...order }
+
+  } catch (error) {
+      console.log(error.message);
+      return { success: false, message: 'Something went wrong!' }
+  }
+};
+
+
+// Payment verification - unpaid commission
+exports.razorpayVerifyPaymentUnpaidCommission = async (req, res, next) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    // Create the expected signature using HMAC and secret key
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", config.RAZORPAY_KEY_SECRET)
+      .update(body.toString())
+      .digest("hex");
+
+    const isAuthentic = expectedSignature === razorpay_signature;
+
+    if (isAuthentic && razorpay_order_id) {
+      // Get the userId from commission_deposit based on the order ID
+      const userIdQuery = `SELECT userId FROM commission_deposit WHERE razorpay_order_id = ?`;
+      const userIdResult = await new Promise((resolve, reject) => {
+        db.query(userIdQuery, [razorpay_order_id], (err, result) => {
+          if (err) {
+            console.error("Error fetching userId from commission_deposit:", err);
+            return reject(err);
+          }
+          resolve(result);
+        });
+      });
+
+      // Ensure userId is fetched correctly
+      if (!userIdResult || userIdResult.length === 0) {
+        return res.status(404).json({ success: false, message: "User not found for the given order ID" });
+      }
+      const userId = userIdResult[0].userId;
+
+      // Update the commission_deposit status to success
+      const updateCommissionDepositQuery = `UPDATE commission_deposit SET razorpay_payment_id = ?, razorpay_status = 'success' WHERE razorpay_order_id = ?`;
+      await new Promise((resolve, reject) => {
+        db.query(updateCommissionDepositQuery, [razorpay_payment_id, razorpay_order_id], (err, result) => {
+          if (err) {
+            console.error("Error updating commission_deposit status:", err);
+            return reject(err);
+          }
+          resolve(result);
+        });
+      });
+
+      // Update the commission_transactions to mark as paid (is_payout = 1)
+      const updateCommissionTransactionsQuery = `UPDATE commission_transactions SET is_payout = 1 WHERE userId = ? AND payment_mod = 'cod'`;
+      await new Promise((resolve, reject) => {
+        db.query(updateCommissionTransactionsQuery, [userId], (err, result) => {
+          if (err) {
+            console.error("Error updating commission_transactions status:", err);
+            return reject(err);
+          }
+          resolve(result);
+        });
+      });
+
+      // Payment success - redirect to thank-you page
+      return res.redirect(
+        `${process.env.WEBSITE_BASE_URL}/thank-you/?reference=${razorpay_payment_id}&payment_success=true`
+      );
+    } else {
+      // If signature verification fails, update commission_deposit to 'failed'
+      if (razorpay_order_id) {
+        const updateCommissionDepositQuery = `UPDATE commission_deposit SET razorpay_status = 'failed' WHERE razorpay_order_id = ?`;
+        await new Promise((resolve, reject) => {
+          db.query(updateCommissionDepositQuery, [razorpay_order_id], (err, result) => {
+            if (err) {
+              console.error("Error updating commission_deposit status to 'failed':", err);
+              return reject(err);
+            }
+            resolve(result);
+          });
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment signature. Verification failed."
+      });
+    }
+  } catch (error) {
+    console.error("Error during payment verification:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred during payment verification. Please try again later.",
+      details: error.message
+    });
+  }
+};

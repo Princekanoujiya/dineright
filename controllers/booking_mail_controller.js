@@ -264,7 +264,7 @@ exports.sendBookingEmail = async (bookingId) => {
     const { email, restaurantName, restaurantAddress, commission } = resto;
 
     const commition_amount = billing_amount * (commission / 100);
-    const payout_balance = payment_mod === 'online' ? commition_amount : -commition_amount;
+    const payout_balance = payment_mod === 'online' ? (billing_amount - commition_amount) : -commition_amount;
 
     // commition
     const transactionData = { userId, booking_id, payment_mod, billing_amount, commition_amount, payout_balance, description: '', status: 'completed' };
@@ -353,7 +353,7 @@ async function insertCommitionTransaction(transactionData) {
   const { userId, booking_id, payment_mod, billing_amount, commition_amount, payout_balance, description, status } = transactionData;
 
   const query = `
-    INSERT INTO commition_transactions 
+    INSERT INTO commission_transactions 
     (userId, booking_id, payment_mod, billing_amount, commition_amount, payout_balance, description, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `;

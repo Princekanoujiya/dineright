@@ -12,6 +12,8 @@ const { validateBookingPayment } = require('../validations');
 //superadmin
 const { loginSuperadmin, getGuests, getGuestsbyID, insertOrUpdateBlog, deleteBlog, getAllBlogs, getBlog, updateUserStatusAndCommission, updateCommissionStatus, getDeactivatedRestaurants } = require('../controllers/superadmin/superadmin_authcontroller');
 
+const { getAllPayments, getPaymentsByUserId, getAllWithdrawalRequests } = require('../controllers/superadmin/commissionController');
+
 const { insertOrUpdateBannerSection, getAllBannerSections, getBannerSectionById } = require('../controllers/superadmin/uploadController');
 const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionById } = require('../controllers/superadmin/cuisinsController');
 
@@ -26,6 +28,10 @@ const {
 } = require('../controllers/authController');
 
 const restorantMenuController = require('../controllers/restorant/menuController');
+
+const { getBookingUsers } = require('../controllers/restorant/bookingUsersController');
+
+const { getMyPayments, withdrawalPayment, getAllWithdrawals, getMyUnpaidCommission, PayMyUnpaidCommission } = require('../controllers/restorant/commissionController');
 
 const blogController = require('../controllers/customer/blogController');
 
@@ -44,12 +50,12 @@ const uploadsVideoController = require('../controllers/uploadVideosController');
 const uploadGalleryController = require('../controllers/uploadGalleryController');
 const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
-const { getRazorpayKey, razorpayVerifyPayment, getAllRazorpayPayments, getRazorpayPaymentByOrderId, getRazorpayPaymentById } = require('../controllers/razorpayController');
+const { getRazorpayKey, razorpayVerifyPayment, razorpayVerifyPaymentUnpaidCommission, getAllRazorpayPayments, getRazorpayPaymentByOrderId, getRazorpayPaymentById } = require('../controllers/razorpayController');
 
 //user
 const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, getUserProfileDetails, updateUserProfileDetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
 const { getCourseMenuAndMenuItems } = require('../controllers/customer/restorantConroller');
-const { getMyBookings } = require('../controllers/customer/bookingController');
+const { getMyBookings, getServiceAvailableOrNot } = require('../controllers/customer/bookingController');
 
 // verify Token middleware
 const { verifySuperAdminToken } = require('../middlewares/superAdminMiddleware');
@@ -83,6 +89,12 @@ router.get('/getAllDiningAreasWithTables', verifyToken, getAllDiningAreasWithTab
 router.get('/getAllCities', getAllCities);
 router.get('/getRestraurantProfileDetails', verifyToken, getRestraurantProfileDetails);
 router.post('/updateRestraurantProfileDetails', verifyToken, updateRestraurantProfileDetails);
+router.get('/getBookingUsers', verifyToken, getBookingUsers);
+router.get('/getMyPayments', verifyToken, getMyPayments);
+router.post('/withdrawalPayment', verifyToken, withdrawalPayment);
+router.get('/getAllWithdrawals', verifyToken, getAllWithdrawals);
+router.get('/getMyUnpaidCommission', verifyToken, getMyUnpaidCommission);
+router.post('/PayMyUnpaidCommission', verifyToken, PayMyUnpaidCommission);
 
 router.get('/user/:userId', getUserInfo);//done
 router.get('/timing/:userId', getTimingData);//done
@@ -204,6 +216,8 @@ router.post('/enquiry', enquiry);
 router.get('/getBookings', verifyCustomerToken, getBookings);
 router.get('/getBookingById/:booking_id', verifyCustomerToken, getBookingById);
 router.get('/getMyBookings', verifyCustomerToken, getMyBookings);
+// getServiceAvailableOrNot
+router.post('/getServiceAvailableOrNot', verifyCustomerToken, getServiceAvailableOrNot);
 //filters
 router.get('/getRestaurantType', getRestaurantType);
 router.get('/getcuisines', getCuisines);
@@ -225,6 +239,7 @@ router.get('/getsingleRestaurantbyId/:userId', flutter_controller.getsingleResta
 // Razorpay Routes
 router.get('/razorpay_key', getRazorpayKey);
 router.post('/verify_payment', razorpayVerifyPayment);
+router.post('/verify_payment/commission', razorpayVerifyPaymentUnpaidCommission);
 // router.get('/razorpay/payments/details/:paymentId', getRazorpayPaymentById);
 
 //superadmin
@@ -238,5 +253,7 @@ router.post('/deleteBlog', verifySuperAdminToken, deleteBlog);
 router.get('/getAllBlogs', verifySuperAdminToken, verifySuperAdminToken, getAllBlogs);
 router.post('/getBlog', verifySuperAdminToken, getBlog);
 router.get('/getDeactivatedRestaurants', verifySuperAdminToken, getDeactivatedRestaurants);
+router.get('/getAllPayments', verifySuperAdminToken, getAllPayments);
+router.get('/getAllWithdrawalRequests', verifySuperAdminToken, getAllWithdrawalRequests);
 
 module.exports = router;

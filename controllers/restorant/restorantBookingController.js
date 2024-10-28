@@ -125,9 +125,6 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
   }
 };
 
-
-
-
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Endpoint for inserting a new booking
 exports.newBookingInsert = async (req, res) => {
@@ -552,8 +549,6 @@ exports.getTableAvailableOrNot = async (req, res) => {
     res.status(500).json({ message: 'Oops! Something went wrong while checking table availability. Please try again later.', error });
   }
 };
-
-
 
 
 // Customer spending Time get

@@ -6,8 +6,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const appRoutes = require('./routes/appRoutes');
-const db = require('./config');  
-
+require('./config'); 
 
 // Load environment variables
 dotenv.config();
@@ -38,9 +37,8 @@ app.use('/api/auth', authRoutes);
 
 //Route Flutter App
 app.use('/api/app', appRoutes);
+
 // Default route
-
-
 app.get('/', (req, res) => {
   res.send('API is running...');
 });
@@ -56,8 +54,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-
-// Other middlewares and configurations
-
-

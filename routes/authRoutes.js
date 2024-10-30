@@ -12,7 +12,7 @@ const { validateBookingPayment } = require('../validations');
 //superadmin
 const { loginSuperadmin, getGuests, getGuestsbyID, insertOrUpdateBlog, deleteBlog, getAllBlogs, getBlog, updateUserStatusAndCommission, updateCommissionStatus, getDeactivatedRestaurants } = require('../controllers/superadmin/superadmin_authcontroller');
 
-const { getAllPayments, getPaymentsByUserId, getAllWithdrawalRequests } = require('../controllers/superadmin/commissionController');
+const { getAllPayments, getPaymentsByUserId, getAllWithdrawalRequests, getWithdrawalRequestsByuserId, getOneWithdrawalRequest, updateWithdrawalRequest } = require('../controllers/superadmin/commissionController');
 
 const { insertOrUpdateBannerSection, getAllBannerSections, getBannerSectionById } = require('../controllers/superadmin/uploadController');
 const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionById } = require('../controllers/superadmin/cuisinsController');
@@ -55,7 +55,7 @@ const { getRazorpayKey, razorpayVerifyPayment, razorpayVerifyPaymentUnpaidCommis
 //user
 const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, getUserProfileDetails, updateUserProfileDetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
 const { getCourseMenuAndMenuItems } = require('../controllers/customer/restorantConroller');
-const { getMyBookings, getServiceAvailableOrNot } = require('../controllers/customer/bookingController');
+const { getMyBookings, getMyBookingsByRestaurantId, getServiceAvailableOrNot } = require('../controllers/customer/bookingController');
 
 // verify Token middleware
 const { verifySuperAdminToken } = require('../middlewares/superAdminMiddleware');
@@ -216,7 +216,7 @@ router.post('/enquiry', enquiry);
 router.get('/getBookings', verifyCustomerToken, getBookings);
 router.get('/getBookingById/:booking_id', verifyCustomerToken, getBookingById);
 router.get('/getMyBookings', verifyCustomerToken, getMyBookings);
-// getServiceAvailableOrNot
+router.get('/getMyBookingsByRestaurantId/:userId', verifyCustomerToken, getMyBookingsByRestaurantId);
 router.post('/getServiceAvailableOrNot', verifyCustomerToken, getServiceAvailableOrNot);
 //filters
 router.get('/getRestaurantType', getRestaurantType);
@@ -254,6 +254,10 @@ router.get('/getAllBlogs', verifySuperAdminToken, verifySuperAdminToken, getAllB
 router.post('/getBlog', verifySuperAdminToken, getBlog);
 router.get('/getDeactivatedRestaurants', verifySuperAdminToken, getDeactivatedRestaurants);
 router.get('/getAllPayments', verifySuperAdminToken, getAllPayments);
+router.get('/getPaymentsByUserId/:userId', verifySuperAdminToken, getPaymentsByUserId);
 router.get('/getAllWithdrawalRequests', verifySuperAdminToken, getAllWithdrawalRequests);
+router.get('/getWithdrawalRequestsByuserId/:userId', verifySuperAdminToken, getWithdrawalRequestsByuserId);
+router.get('/getOneWithdrawalRequest/:id', verifySuperAdminToken, getOneWithdrawalRequest);
+router.patch('/updateWithdrawalRequest', verifySuperAdminToken, updateWithdrawalRequest);
 
 module.exports = router;

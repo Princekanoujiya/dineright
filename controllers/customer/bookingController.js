@@ -1,5 +1,6 @@
 const db = require('../../config');
 
+// get my bookings
 exports.getMyBookings = async (req, res) => {
   try {
     const customer_id = req.customer_id;
@@ -33,22 +34,12 @@ exports.getMyBookings = async (req, res) => {
       bookingArray.push(booking);
     }
 
-    // booking_id, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, billing_amount, payment_mod, payment_status, booking_status, created_at, updated_at
-
-    // master_item_id, product_quantity, master_item_name, master_item_image, master_item_price, master_item_description
-
-    // id, email, restaurantName, restaurantAddress, resataurantDescription
-
-
-
     return res.status(200).json(bookingArray);
 
   } catch (err) {
     res.status(500).json({ error_msg: err.message, response: false });
   }
 };
-
-
 
 // ---------------------------------------------------------------------------
 // Helper function to convert incoming Indian time to UTC
@@ -119,12 +110,54 @@ const checkServiceAvailability = async (date, time, userId, db) => {
 exports.getServiceAvailableOrNot = async (req, res) => {
   try {
     const { date, time, userId } = req.body;
-    
+
     // Assuming `db` is an imported or initialized database connection
     const check = await checkServiceAvailability(date, time, userId, db);
 
     res.status(200).json(check);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// get bookings by restaurant id
+exports.getMyBookingsByRestaurantId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const customer_id = req.customer_id;
+
+    const bookingQuery = `SELECT booking_id, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, billing_amount, payment_mod, payment_status, booking_status, userId, created_at, updated_at FROM bookings WHERE customer_id = ? AND userId = ?`;
+    const [bookings] = await db.promise().query(bookingQuery, [customer_id, userId]);
+
+    let bookingArray = [];
+    for (const booking of bookings) {
+
+      const restaurantQuery = `SELECT id, email, restaurantName, restaurantAddress, resataurantDescription FROM users WHERE id = ?`;
+      const [restaurants] = await db.promise().query(restaurantQuery, [booking.userId]);
+
+      booking.restaurant = restaurants.length > 0 ? restaurants[0] : null;
+
+      const bookingItemQuery = `SELECT mi.master_item_id, bcp.product_quantity, mi.master_item_name, mi.master_item_image, mi.master_item_price, mi.master_item_description 
+        FROM booking_connected_products bcp
+        JOIN master_items mi ON mi.master_item_id = bcp.master_item_id
+        WHERE bcp.booking_id = ?`;
+      const [bookingItems] = await db.promise().query(bookingItemQuery, [booking.booking_id]);
+
+      // Create a new array with updated master_item_image
+      const updatedItems = bookingItems.map(item => {
+        return {
+          ...item, // Spread the existing properties of the item
+          master_item_image: process.env.BASE_URL + item.master_item_image // Update the master_item_image field
+        };
+      });
+
+      booking.booking_items = updatedItems;
+      bookingArray.push(booking);
+    }
+
+    return res.status(200).json(bookingArray);
+
+  } catch (err) {
+    res.status(500).json({ error_msg: err.message, response: false });
   }
 };

@@ -135,3 +135,128 @@ exports.getAllWithdrawalRequests = async (req, res) => {
     }
 };
 
+// Get Withdrawals by userId
+exports.getWithdrawalRequestsByuserId = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Validate that 'id' is a number
+        if (!userId || isNaN(Number(userId))) {
+            return res.status(400).json({ message: 'Invalid or missing "id" parameter. "id" must be a number.' });
+        }
+
+        const query = `
+        SELECT 
+            w.*, 
+            u.username,
+            u.restaurantName
+        FROM 
+            withdrawal w
+        JOIN 
+            users u ON w.userId = u.id
+        WHERE w.userId = ?
+        ORDER BY 
+            w.created_at DESC
+    `;
+
+        const [withdrawals] = await db.promise().query(query, [userId]);
+
+        // If no withdrawals are found, return an empty array
+        if (withdrawals.length === 0) {
+            return res.status(200).json({ message: 'No withdrawals found', data: [] });
+        }
+
+        // Return the withdrawals
+        res.status(200).json({
+            message: 'Withdrawals fetched successfully',
+            data: withdrawals
+        });
+    } catch (error) {
+        console.error('Error fetching withdrawals:', error);
+        res.status(500).json({ error: 'Database error', details: error.message });
+    }
+};
+
+// Get Withdrawals by id
+exports.getOneWithdrawalRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Validate that 'id' is a number
+        if (!id || isNaN(Number(id))) {
+            return res.status(400).json({ message: 'Invalid or missing "id" parameter. "id" must be a number.' });
+        }
+
+        const query = `
+        SELECT 
+            w.*, 
+            u.username,
+            u.restaurantName
+        FROM 
+            withdrawal w
+        JOIN 
+            users u ON w.userId = u.id
+        WHERE w.id = ?
+        ORDER BY 
+            w.created_at DESC
+    `;
+
+        const [withdrawals] = await db.promise().query(query, [id]);
+
+        // If no withdrawals are found, return an empty array
+        if (withdrawals.length === 0) {
+            return res.status(200).json({ message: 'No withdrawals found', data: [] });
+        }
+
+        // Return the withdrawals
+        res.status(200).json({
+            message: 'Withdrawals fetched successfully',
+            data: withdrawals[0]
+        });
+    } catch (error) {
+        console.error('Error fetching withdrawals:', error);
+        res.status(500).json({ error: 'Database error', details: error.message });
+    }
+};
+
+// Update Withdrawal Request
+exports.updateWithdrawalRequest = async (req, res) => {
+    try {
+        const { id, transaction_id, status, description } = req.body;
+
+        // Validate that all fields are present
+        if (!id || !transaction_id || !status || !description) {
+            return res.status(400).json({ message: 'Missing required fields: id, transaction_id, status, and description are all required.' });
+        }
+
+        // Validate the 'status' field
+        if (!['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status. Status must be either "approved" or "rejected".' });
+        }
+
+        // Prepare the query
+        const query = `UPDATE withdrawal SET transaction_id = ?, status = ?, description = ? WHERE id = ?;`;
+
+        // Execute the query and update the withdrawal
+        const [result] = await db.promise().query(query, [transaction_id, status, description, id]);
+
+        // Check if any rows were updated
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'No withdrawals found with the provided id' });
+        }
+
+        // Return success response
+        res.status(200).json({
+            message: 'Withdrawal updated successfully',
+            data: {
+                id,
+                transaction_id,
+                status,
+                description
+            }
+        });
+    } catch (error) {
+        console.error('Error updating withdrawal:', error);
+        res.status(500).json({ error: 'Database error', details: error.message });
+    }
+};

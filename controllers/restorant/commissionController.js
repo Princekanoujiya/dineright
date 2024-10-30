@@ -75,7 +75,6 @@ exports.withdrawalPayment = async (req, res) => {
                 commission_transactions 
             WHERE 
                 userId = ?
-                AND payment_mod = 'online' 
                 AND is_payout = 0
                 AND status = 'completed'
         `;
@@ -98,7 +97,6 @@ exports.withdrawalPayment = async (req, res) => {
             UPDATE commission_transactions 
             SET is_payout = 1 
             WHERE userId = ? 
-                AND payment_mod = 'online'
                 AND is_payout = 0 
                 AND status = 'completed'
         `;

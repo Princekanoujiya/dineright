@@ -161,3 +161,52 @@ exports.getMyBookingsByRestaurantId = async (req, res) => {
     res.status(500).json({ error_msg: err.message, response: false });
   }
 };
+
+// get booking slots
+exports.getMyBookingSlots = async (req, res) => {
+  try {
+    const { userId, booking_date } = req.body;
+
+    // Validate the required fields
+    if (!userId || !booking_date) {
+      return res.status(400).json({ error_msg: "User ID and booking date are required", response: false });
+    }
+
+    // Query to fetch bookings for the provided date and restaurant ID
+    const bookingQuery = `
+      SELECT * 
+      FROM bookings 
+      WHERE booking_date = ? 
+        AND userId = ?
+        AND booking_status NOT IN ('completed')
+    `;
+    const [bookings] = await db.promise().query(bookingQuery, [booking_date, userId]);
+
+    // Prepare an array to store results with allocated tables
+    let bookingArray = [];
+    for (const booking of bookings) {
+      // Fetch allocated tables for each booking
+      const allocationTableQuery = `
+        SELECT booking_date, start_time, end_time, slot_time, table_status 
+        FROM allocation_tables 
+        WHERE booking_id = ?
+        AND table_status = 'allocated'
+      `;
+      const [allocationTables] = await db.promise().query(allocationTableQuery, [booking.booking_id]);
+
+      for(const table of allocationTables){
+        bookingArray.push(table)
+      }
+    }
+
+    // Return the response with updated booking details
+    return res.status(200).json({
+      success_msg: "Booking slots fetched successfully",
+      bookings: bookingArray,
+      response: true
+    });
+  } catch (err) {
+    // Return error message in case of any failure
+    res.status(500).json({ error_msg: err.message, response: false });
+  }
+};

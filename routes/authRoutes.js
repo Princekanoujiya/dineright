@@ -55,7 +55,7 @@ const { getRazorpayKey, razorpayVerifyPayment, razorpayVerifyPaymentUnpaidCommis
 //user
 const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, getUserProfileDetails, updateUserProfileDetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
 const { getCourseMenuAndMenuItems } = require('../controllers/customer/restorantConroller');
-const { getMyBookings, getMyBookingsByRestaurantId, getServiceAvailableOrNot } = require('../controllers/customer/bookingController');
+const { getMyBookings, getMyBookingsByRestaurantId, getServiceAvailableOrNot, getMyBookingSlots } = require('../controllers/customer/bookingController');
 
 // verify Token middleware
 const { verifySuperAdminToken } = require('../middlewares/superAdminMiddleware');
@@ -218,6 +218,7 @@ router.get('/getBookingById/:booking_id', verifyCustomerToken, getBookingById);
 router.get('/getMyBookings', verifyCustomerToken, getMyBookings);
 router.get('/getMyBookingsByRestaurantId/:userId', verifyCustomerToken, getMyBookingsByRestaurantId);
 router.post('/getServiceAvailableOrNot', verifyCustomerToken, getServiceAvailableOrNot);
+router.post('/getMyBookingSlots', verifyCustomerToken, getMyBookingSlots);
 //filters
 router.get('/getRestaurantType', getRestaurantType);
 router.get('/getcuisines', getCuisines);

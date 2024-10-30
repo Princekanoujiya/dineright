@@ -401,6 +401,7 @@ exports.searchAllRestorantByname = async (req, res) => {
 
       // Fetch the first related banner image
       const [bannerImages] = await db.promise().query(`SELECT banner_image FROM banner_images WHERE userId = ? LIMIT 1`, [userId]);
+     
 
       // If a banner image exists, prepend BASE_URL
       if (bannerImages.length > 0) {
@@ -408,6 +409,17 @@ exports.searchAllRestorantByname = async (req, res) => {
       } else {
         result.banner_image = null;
       }
+
+       // banner_galleries
+       const [banner_galleries] = await db.promise().query(`SELECT files FROM banner_galleries WHERE userId = ?`, [userId]);
+
+      // Map over the banner_galleries to prepend BASE_URL to each file
+      const updated_banners = banner_galleries.map(gallery => ({
+        ...gallery,
+        files: process.env.BASE_URL + gallery.files,
+      }));
+
+      result.banner_galleries = updated_banners;
 
       // Set static rating
       result.rating = 4;
@@ -663,7 +675,7 @@ exports.updateUserProfileDetails = async (req, res) => {
 
     // Get the old image path
     const oldImagePath = customerProfile[0].customer_profile_image;
-    
+
     // Upload the new file and remove the old file if it exists
     const uploadedFile = await updateFile(req.file, `user_profiles/${customer_id.toString()}`, oldImagePath);
     console.log('uploadedFile', uploadedFile);

@@ -54,7 +54,7 @@ const { getRazorpayKey, razorpayVerifyPayment, razorpayVerifyPaymentUnpaidCommis
 
 //user
 const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, getUserProfileDetails, updateUserProfileDetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
-const { getCourseMenuAndMenuItems } = require('../controllers/customer/restorantConroller');
+const { getCourseMenuAndMenuItems, getMenuItemsByItemIds } = require('../controllers/customer/restorantConroller');
 const { getMyBookings, getMyBookingsByRestaurantId, getServiceAvailableOrNot, getMyBookingSlots } = require('../controllers/customer/bookingController');
 
 // verify Token middleware
@@ -227,6 +227,7 @@ router.get('/getRestroInfo', getRestroInfo);
 router.get('/getUserInfoWithCuisinesAndRestaurantTypes', getUserInfoWithCuisinesAndRestaurantTypes);
 router.get('/getUserIdsByFilters', getUserIdsByFilters);
 router.get('/getCourseMenuAndMenuItems/:userId', getCourseMenuAndMenuItems);
+router.post('/getMenuItemsByItemIds', getMenuItemsByItemIds);
 router.post('/searchAllRestorantByname', searchAllRestorantByname);
 router.get('/blogs', blogController.getAllBlogs);
 //flutter

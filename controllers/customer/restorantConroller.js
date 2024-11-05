@@ -49,7 +49,7 @@ exports.getCourseMenuAndMenuItems = async (req, res) => {
 
       // beverage
       const beverages = await getBeveragesWithItems(userId);
-      
+
       menuItemArray.push(beverages);
 
       course.menus = menuItemArray;
@@ -110,5 +110,34 @@ const getBeveragesWithItems = async (userId) => {
   } catch (error) {
     console.error('Error fetching beverages:', error);
     throw error;
+  }
+};
+
+exports.getMenuItemsByItemIds = async (req, res) => {
+  try {
+    const { userId, menu_item_ids } = req.body;
+
+    if (!userId || !menu_item_ids || !Array.isArray(menu_item_ids) || menu_item_ids.length === 0) {
+      return res.status(400).json({ error_msg: 'Invalid userId or item_ids provided', response: false });
+    }
+
+    const query = `SELECT * FROM master_items WHERE master_item_id IN (?) AND userId = ?`;
+    const [menuItems] = await db.promise().query(query, [menu_item_ids, userId]); // Pass item_ids and userId as query parameters
+
+    // Create a new array with updated master_item_image
+    const updatedItems = menuItems.map(item => {
+      return {
+        ...item, // Spread the existing properties of the item
+        master_item_image: process.env.BASE_URL + item.master_item_image // Update the master_item_image field
+      };
+    });
+
+    res.status(200).json({
+      success_msg: 'Menu Items details retrieved successfully',
+      response: true,
+      data: updatedItems
+    });
+  } catch (err) {
+    res.status(500).json({ error_msg: err.message, response: false });
   }
 };

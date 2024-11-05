@@ -79,49 +79,176 @@ exports.createOrUpdateCustomer = (req, res) => {
     }
   });
 };
-exports.verifyCustomerOtp = (req, res) => {
+
+// Function to send user registration success email
+const sendRegistrationSuccessEmail = (email, customerName) => {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_SERVICE,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    }
+  });
+
+  const mailOptions = {
+    from: '"DineRights" <' + process.env.EMAIL_SERVICE + '>', // Sender name
+    to: email,
+    subject: 'Welcome to DineRights!',
+    text: `Hi ${customerName},
+
+Welcome to DineRights!
+
+We’re excited to have you join our community. You can now log in to your account and start exploring all the features we offer.
+
+If you have any questions, feel free to reach out to us at any time.
+
+Best regards,
+The DineRights Team`,
+    html: `<p>Hi ${customerName},</p>
+           <p>Welcome to <strong>DineRights</strong>!</p>
+           <p>We’re excited to have you join our community. You can now log in to your account and start exploring all the features we offer.</p>
+           <p>If you have any questions, feel free to reach out to us at any time.</p>
+           <p>Best regards,<br>The DineRights Team</p>`
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error('Error sending email:', error);
+      return { error_msg: 'Error sending registration email', details: error.message, response: false }
+    }
+    console.log('Registration success email sent to:', email);
+    return { success_msg: 'Registration success email sent successfully', response: true }
+  });
+};
+
+exports.verifyCustomerOtp = async (req, res) => {
   const { customer_id, otp } = req.body;
 
   // Check if required fields are provided
   if (!customer_id || !otp) {
     return res.status(200).json({ error_msg: "Customer ID and OTP are required", response: false });
   }
-  const otpCheckQuery = 'SELECT * FROM customers WHERE customer_id = ? AND otp = ?';
-  db.query(otpCheckQuery, [customer_id, otp], (err, result) => {
-    if (err) {
-      return res.status(200).json({ error_msg: err.message, response: false });
-    }
+
+  try {
+    // Check if the customer exists and is not verified
+    const getCustomerQuery = `SELECT * FROM customers WHERE customer_id = ? AND is_verify = 0`;
+    const [getcustomer] = await db.promise().query(getCustomerQuery, [customer_id]);
+
+    let isNotVerify = getcustomer.length > 0 ? getcustomer[0] : null;
+
+    // Check if the OTP matches the customer's record
+    const otpCheckQuery = 'SELECT * FROM customers WHERE customer_id = ? AND otp = ?';
+    const [result] = await db.promise().query(otpCheckQuery, [customer_id, otp]);
+
     if (result.length === 0) {
       return res.status(200).json({ error_msg: "Invalid OTP or Customer ID", response: false });
     }
+
     const customer = result[0];
 
+    // Update customer record to clear the OTP
     const verifyCustomerQuery = 'UPDATE customers SET otp = NULL WHERE customer_id = ?';
-    db.query(verifyCustomerQuery, [customer_id], (err, result) => {
-      if (err) {
-        return res.status(200).json({ error_msg: err.message, response: false });
-      }
+    const [updateResult] = await db.promise().query(verifyCustomerQuery, [customer_id]);
 
-      if (result.affectedRows === 0) {
-        return res.status(200).json({ error_msg: "Customer not found", response: false });
-      }
+    if (updateResult.affectedRows === 0) {
+      return res.status(200).json({ error_msg: "Customer not found", response: false });
+    }
 
-      // Generate JWT token
-      const token = jwt.sign(
-        { customer_id: customer.customer_id, customer_email: customer.customer_email },
-        process.env.JWT_SECRET,
-        { expiresIn: 31536000 * 90 }
-      );
+    // Generate JWT token
+    const token = jwt.sign(
+      { customer_id: customer.customer_id, customer_email: customer.customer_email },
+      process.env.JWT_SECRET,
+      { expiresIn: 31536000 * 90 }
+    );
 
-      res.status(200).json({
-        success_msg: "OTP verified successfully",
-        token: token,
-        customer_id: customer.customer_id,
-        response: true,
-      });
+    // Send registration success email if the customer was not previously verified
+    if (isNotVerify) {
+      const verifyEmailQuery = 'UPDATE customers SET is_verify = true WHERE customer_id = ?';
+      await db.promise().query(verifyEmailQuery, [customer_id]);
+
+      sendRegistrationSuccessEmail(customer.customer_email, customer.customer_name);
+    }
+
+    res.status(200).json({
+      success_msg: "OTP verified successfully",
+      token: token,
+      customer_id: customer.customer_id,
+      response: true,
     });
-  });
+  } catch (error) {
+    console.error("Error verifying OTP:", error);
+    return res.status(200).json({ error_msg: error.message, response: false });
+  }
 };
+
+
+
+// exports.verifyCustomerOtp = async (req, res) => {
+//   const { customer_id, otp } = req.body;
+
+//   // Check if required fields are provided
+//   if (!customer_id || !otp) {
+//     return res.status(200).json({ error_msg: "Customer ID and OTP are required", response: false });
+//   }
+
+//   let isNotVerify = null;
+//   const getCustomerQuery = `SELECT * FROM customers WHERE customer_id = ? AND is_verify = 0`;
+//   const [getcustomer] = await db.promise().query(getCustomerQuery, [customer_id]);
+
+//   if(getcustomer.length > 0){
+//     isNotVerify = getcustomer[0];
+//   }
+
+ 
+
+//   const otpCheckQuery = 'SELECT * FROM customers WHERE customer_id = ? AND otp = ?';
+//   db.query(otpCheckQuery, [customer_id, otp], (err, result) => {
+//     if (err) {
+//       return res.status(200).json({ error_msg: err.message, response: false });
+//     }
+//     if (result.length === 0) {
+//       return res.status(200).json({ error_msg: "Invalid OTP or Customer ID", response: false });
+//     }
+//     const customer = result[0];   
+
+//     const verifyCustomerQuery = 'UPDATE customers SET otp = NULL, WHERE customer_id = ?';
+//     db.query(verifyCustomerQuery, [customer_id], async (err, result) => {
+//       if (err) {
+//         return res.status(200).json({ error_msg: err.message, response: false });
+//       }
+
+//       if (result.affectedRows === 0) {
+//         return res.status(200).json({ error_msg: "Customer not found", response: false });
+//       }
+
+//       // Generate JWT token
+//       const token = jwt.sign(
+//         { customer_id: customer.customer_id, customer_email: customer.customer_email },
+//         process.env.JWT_SECRET,
+//         { expiresIn: 31536000 * 90 }
+//       );
+
+//       // send registration mail
+//       if(isNotVerify){
+//         const verifyEmailQuery = 'UPDATE customers SET is_verify = true, WHERE customer_id = ?';
+//         const [veriFyEmail] = await db.promise().query(verifyEmailQuery, [customer_id]);
+
+//         sendRegistrationSuccessEmail(customer.customer_email, customer.customer_name);
+//       }
+
+//       res.status(200).json({
+//         success_msg: "OTP verified successfully",
+//         token: token,
+//         customer_id: customer.customer_id,
+//         response: true,
+//       });
+//     });
+//   });
+// };
+
 exports.getAllCustomers = (req, res) => {
   const selectQuery = 'SELECT * FROM customers WHERE is_deleted=0';
 
@@ -401,7 +528,7 @@ exports.searchAllRestorantByname = async (req, res) => {
 
       // Fetch the first related banner image
       const [bannerImages] = await db.promise().query(`SELECT banner_image FROM banner_images WHERE userId = ? LIMIT 1`, [userId]);
-     
+
 
       // If a banner image exists, prepend BASE_URL
       if (bannerImages.length > 0) {
@@ -410,8 +537,8 @@ exports.searchAllRestorantByname = async (req, res) => {
         result.banner_image = null;
       }
 
-       // banner_galleries
-       const [banner_galleries] = await db.promise().query(`SELECT files FROM banner_galleries WHERE userId = ?`, [userId]);
+      // banner_galleries
+      const [banner_galleries] = await db.promise().query(`SELECT files FROM banner_galleries WHERE userId = ?`, [userId]);
 
       // Map over the banner_galleries to prepend BASE_URL to each file
       const updated_banners = banner_galleries.map(gallery => ({

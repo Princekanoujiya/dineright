@@ -539,18 +539,18 @@ exports.getTableAvailableOrNot = async (req, res) => {
 
     // If no dining areas have sufficient capacity
     if (!sufficientCapacity) {
-      return res.json({ message: 'Sorry, no tables are available for the selected number of guests.' });
+      return res.json({ message: 'Sorry, no tables are available for the selected number of guests.', response: false });
     }
 
     // Calculate the total seating capacity of available tables
     const totalGuestsAvailable = availableTables.reduce((total, table) => total + table.table_no_of_seats, 0);
 
     if (totalGuestsAvailable < booking_no_of_guest) {
-      return res.json({ message: 'Unfortunately, we do not have enough available tables for your reservation.' });
+      return res.json({ message: 'Unfortunately, we do not have enough available tables for your reservation.', response: false });
     }
 
     // If sufficient tables are available
-    return res.json({ message: 'Great news! We have enough tables available for your booking.' });
+    return res.json({ message: 'Great news! We have enough tables available for your booking.', response: true });
 
   } catch (error) {
     console.error(error);

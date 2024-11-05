@@ -325,7 +325,7 @@ exports.getsingleRestaurantbyId = async (req, res) => {
     try {
       // Base SQL query with joins to `selected_restaurant_types`, `selected_cuisines`, and `cities`
       let selectQuery = `
-        SELECT u.id, u.username, u.email, u.restaurantName, u.restaurantAddress, c.city_name, u.phone
+        SELECT u.id, u.username, u.email, u.restaurantName, u.restaurantAddress, c.city_name, u.phone, u.resataurantDescription
         FROM users u
         LEFT JOIN selected_restaurant_types srt ON u.id = srt.userId
         LEFT JOIN selected_cuisines sc ON u.id = sc.userId
@@ -369,8 +369,10 @@ exports.getsingleRestaurantbyId = async (req, res) => {
         WHERE st.userId = ?
       `, [userId]);
   
+      result.rating = 4;
+
       // Add timing data to the result
-      result.timingData = timingData;
+      result.timingData = timingData;      
   
       // Send the response with the restaurant data
       res.status(200).json({

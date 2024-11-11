@@ -388,7 +388,7 @@ exports.book_product = async (req, res) => {
 
     } else if (payment_mod === 'cod') {
       // Update the booking status to 'confirmed'
-      const updateBookingStatusQuery = `UPDATE bookings SET booking_status = 'upcomming' WHERE booking_id = ?`;
+      const updateBookingStatusQuery = `UPDATE bookings SET booking_status = 'upcoming' WHERE booking_id = ?`;
 
       await new Promise((resolve, reject) => {
         db.query(updateBookingStatusQuery, [bookingId], (err, result) => {

@@ -124,6 +124,7 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
       for (const table of allocatedTables) {
         table.booking_status = booking.booking_status;
         table.details = {
+          booking_id: booking.booking_id,
           booking_name: booking.booking_name,
           booking_email: booking.booking_email,
           customer_profile_image: customer_profile_image,
@@ -166,7 +167,7 @@ exports.newBookingInsert = async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-  const booking_status = 'upcomming';
+  const booking_status = 'upcoming';
 
   try {
     // check no of guest
@@ -721,6 +722,24 @@ const getRestorauntServiceTimeAvaibility = async (date, time, userId, db) => {
     return { message: error.message };
   }
 };
+
+// release table
+exports.releaseTable = async (req, res) => {
+  try {
+    const { booking_id } = req.params;
+
+    const updateQuery = `UPDATE bookings SET booking_status = 'completed', payment_status = 'paid' WHERE booking_id = ?`;
+    await db.promise().query(updateQuery, [booking_id]);
+
+    const updateTableQuery = `UPDATE allocation_tables SET table_status = 'released' WHERE booking_id = ?`;
+    await db.promise().query(updateTableQuery, [booking_id]);
+
+    res.status(200).json({ message: 'Table release Successfully', response: true })
+
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+}
 
 
 

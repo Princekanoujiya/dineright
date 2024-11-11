@@ -20,7 +20,7 @@
 // // getAllDiningAreasWithTables --- restaurant dining area with table list --- done
 
 // // booking_status --- done
-// 'pending','confirmed', 'upcomming', 'inprogress','completed','cancelled'
+// 'pending','confirmed', 'upcoming', 'inprogress','completed','cancelled'
 
 
 // // mail name - DineRights
@@ -29,4 +29,6 @@
 
 
 // shedule check 
+
+'pending','confirmed','upcoming','inprogress','completed','cancelled'
 

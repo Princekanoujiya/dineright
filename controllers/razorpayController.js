@@ -108,7 +108,7 @@ exports.razorpayVerifyPayment = async (req, res, next) => {
           });
 
         // Update the booking status to 'confirmed'
-        const updateBookingStatusQuery = `UPDATE bookings SET razorpay_payment_id = ?, payment_status = 'paid', razorpay_status = 'success', booking_status = 'upcomming' WHERE booking_id = ?`;
+        const updateBookingStatusQuery = `UPDATE bookings SET razorpay_payment_id = ?, payment_status = 'paid', razorpay_status = 'success', booking_status = 'upcoming' WHERE booking_id = ?`;
 
         const bookingData = await new Promise((resolve, reject) => {
           db.query(updateBookingStatusQuery, [razorpay_payment_id, booking.booking_id], (err, result) => {

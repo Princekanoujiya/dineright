@@ -18,7 +18,7 @@ const { insertOrUpdateBannerSection, getAllBannerSections, getBannerSectionById 
 const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionById } = require('../controllers/superadmin/cuisinsController');
 
 //restroadmin
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility } = require('../controllers/restorant/restorantBookingController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable } = require('../controllers/restorant/restorantBookingController');
 const {
   createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllDiningAreasWithTables, getAllCities, resendrestaurantOtp,
   getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
@@ -55,7 +55,7 @@ const { getRazorpayKey, razorpayVerifyPayment, razorpayVerifyPaymentUnpaidCommis
 //user
 const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, getUserProfileDetails, updateUserProfileDetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
 const { getCourseMenuAndMenuItems, getMenuItemsByItemIds } = require('../controllers/customer/restorantConroller');
-const { getMyBookings, getMyBookingsByRestaurantId, getServiceAvailableOrNot, getMyBookingSlots } = require('../controllers/customer/bookingController');
+const { getMyBookings, getMyBookingsByRestaurantId, getServiceAvailableOrNot, getMyBookingSlots, bookingCancel } = require('../controllers/customer/bookingController');
 
 // verify Token middleware
 const { verifySuperAdminToken } = require('../middlewares/superAdminMiddleware');
@@ -193,13 +193,14 @@ router.patch('/updateBookingPayment', verifyToken, updateBookingPayment);
 router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
 router.get('/getTimingDatabyResrtoId', verifyToken, getTimingDatabyResrtoId);
 router.post('/updateTimingData', updateTimingData);
+router.post('/releaseTable/:booking_id', verifyToken, releaseTable);
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done
 router.get('/customers', getAllCustomers); //done
 router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
-router.post('/customer_login', loginWithEmail); //done
+router.post('/customer_login', loginWithEmail); //done 
 router.post('/customer_resend_otp', resendOtp); //done
 router.get('/getMasterCard', getMasterCard);
 router.get('/getMasterBeverage', getMasterBeverage);
@@ -219,6 +220,9 @@ router.get('/getMyBookings', verifyCustomerToken, getMyBookings);
 router.get('/getMyBookingsByRestaurantId/:userId', verifyCustomerToken, getMyBookingsByRestaurantId);
 router.post('/getServiceAvailableOrNot', verifyCustomerToken, getServiceAvailableOrNot);
 router.post('/getMyBookingSlots', verifyCustomerToken, getMyBookingSlots);
+router.post('/bookingCancel/:booking_id', verifyCustomerToken, bookingCancel);
+
+
 //filters
 router.get('/getRestaurantType', getRestaurantType);
 router.get('/getcuisines', getCuisines);

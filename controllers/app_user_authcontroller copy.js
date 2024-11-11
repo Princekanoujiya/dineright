@@ -580,6 +580,102 @@ exports.searchAllRestorantByname = async (req, res) => {
 
 
 // get user profile
+// exports.getUserProfileDetails = async (req, res) => {
+//   const customer_id = req.customer_id;
+
+//   // Query to fetch user profile details
+//   const userProfileQuery = `SELECT customer_name, customer_email, customer_profile_image FROM customers WHERE customer_id = ?`;
+
+//   try {
+//     const [userProfileResults] = await db.promise().query(userProfileQuery, [customer_id]);
+
+//     if (userProfileResults.length === 0) {
+//       return res.status(200).json({
+//         error_msg: 'Customer not found',
+//         response: false,
+//       });
+//     }
+
+//     let userProfileDetails = userProfileResults[0];
+
+//     // Prepend BASE_URL to customer_profile_image if it exists
+//     if (userProfileDetails.customer_profile_image) {
+//       userProfileDetails.customer_profile_image = process.env.BASE_URL + userProfileDetails.customer_profile_image;
+//     }
+
+//     const bookingQuery = `
+//       SELECT u.id, u.username, u.email, u.restaurantName, u.restaurantAddress, u.phone, c.city_name
+//       FROM users u
+//       JOIN bookings b ON u.id = b.userId
+//       JOIN cities c ON u.city_id = c.city_id
+//       WHERE u.is_deleted = 0 AND u.status = 'Activated' AND b.booking_status = 'completed' AND b.customer_id = ?
+//       GROUP BY u.id
+//     `;
+
+//     const [bookingResults] = await db.promise().query(bookingQuery, [customer_id]);
+
+//     for (const result of bookingResults) {
+//       // Fetch the first related banner image for each restaurant
+//       const [bannerImages] = await db.promise().query(
+//         `SELECT banner_image FROM banner_images WHERE userId = ? LIMIT 1`,
+//         [result.id]
+//       );
+
+//       // If a banner image exists, prepend BASE_URL
+//       result.banner_image = bannerImages.length > 0
+//         ? `${process.env.BASE_URL}${bannerImages[0].banner_image}`
+//         : null;
+
+//       // Set static rating (this can be dynamic depending on your requirements)
+//       result.rating = 4;
+
+//       // Fetch timing data for each restaurant (userId)
+//       const [timingData] = await db.promise().query(`
+//         SELECT st.day_id, dl.day_name, st.start_time, st.end_time, st.status 
+//         FROM service_time st
+//         JOIN days_listing dl ON st.day_id = dl.day_id
+//         WHERE st.userId = ?
+//     `, [result.id]);
+
+//       // Add timing data to the result
+//       result.timingData = timingData;
+//     }
+
+//     const rewardsQuery = `SELECT customer_id, SUM(reward_points) AS total_points FROM rewards WHERE customer_id = ? GROUP BY customer_id`;
+
+//     const [rewards] = await db.promise().query(rewardsQuery, [customer_id]);
+
+//     // If no userIds found, return response
+//     if (bookingResults.length === 0) {
+//       return res.status(200).json({
+//         success_msg: 'Customer details fetched successfully',
+//         customer_id,
+//         userProfileDetails,
+//         rewards: rewards.length > 0 ? rewards[0].total_points : 0,
+//         visitedrestaurant: [],
+//         response: true,
+//       });
+//     }
+
+//     // Return success response with user details and visited restaurant details
+//     res.status(200).json({
+//       success_msg: 'Customer details fetched successfully',
+//       customer_id,
+//       userProfileDetails,
+//       rewards: rewards[0].total_points,
+//       visitedrestaurant: bookingResults,
+//       response: true,
+//     });
+
+//   } catch (err) {
+//     console.error('Database error:', err);
+//     res.status(500).json({
+//       error_msg: 'Database error while fetching details',
+//       details: err.message,
+//       response: false,
+//     });
+//   }
+// };
 exports.getUserProfileDetails = async (req, res) => {
   const customer_id = req.customer_id;
 
@@ -614,7 +710,7 @@ exports.getUserProfileDetails = async (req, res) => {
 
     const [bookingResults] = await db.promise().query(bookingQuery, [customer_id]);
 
-    await Promise.all(bookingResults.map(async (result) => {
+    for (const result of bookingResults) {
       // Fetch the first related banner image for each restaurant
       const [bannerImages] = await db.promise().query(
         `SELECT banner_image FROM banner_images WHERE userId = ? LIMIT 1`,
@@ -635,23 +731,26 @@ exports.getUserProfileDetails = async (req, res) => {
         FROM service_time st
         JOIN days_listing dl ON st.day_id = dl.day_id
         WHERE st.userId = ?
-      `, [result.id]);
+    `, [result.id]);
 
       // bookings
       const getbookingQuery = `SELECT booking_id, userId, customer_id, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, billing_amount, payment_mod, payment_status, booking_comment, booking_status FROM bookings WHERE userId = ?`;
       const [myBookings] = await db.promise().query(getbookingQuery, [result.id]);
 
-      result.my_bookings = await Promise.all(myBookings.map(async (myBooking) => {
+      let myBookingArray = [];
+      for (const myBooking of myBookings) {
         const getbookingProductQuery = `SELECT mi.*, bcp.product_quantity
         FROM booking_connected_products bcp
         JOIN master_items mi ON mi.master_item_id = bcp.master_item_id
         WHERE bcp.booking_id = ?`;
         const [bookigProducts] = await db.promise().query(getbookingProductQuery, [myBooking.booking_id]);
 
-        myBooking.booking_items = bookigProducts.map(product => ({
+        const updated_bookigProducts = bookigProducts.map(product => ({
           ...product,
           master_item_image: process.env.BASE_URL + product.master_item_image,
         }));
+
+        myBooking.booking_items = updated_bookigProducts;
 
         // allocation_tables
         const getAllocationTablesQuery = `SELECT allocation_id, booking_id, dining_area_id, table_id, table_status FROM allocation_tables WHERE booking_id = ?`;
@@ -659,12 +758,14 @@ exports.getUserProfileDetails = async (req, res) => {
 
         myBooking.allocated_tables = allocationTables.length > 0 ? allocationTables : [];
 
-        return myBooking;
-      }));
+        myBookingArray.push(myBooking);
+      }
+
+      result.my_bookings = myBookingArray;
 
       // Add timing data to the result
       result.timingData = timingData;
-    }));
+    }
 
     const rewardsQuery = `SELECT customer_id, SUM(reward_points) AS total_points FROM rewards WHERE customer_id = ? GROUP BY customer_id`;
     const [rewards] = await db.promise().query(rewardsQuery, [customer_id]);
@@ -686,7 +787,7 @@ exports.getUserProfileDetails = async (req, res) => {
       success_msg: 'Customer details fetched successfully',
       customer_id,
       userProfileDetails,
-      rewards: rewards[0] ? rewards[0].total_points : 0,
+      rewards: rewards[0].total_points,
       visitedrestaurant: bookingResults,
       response: true,
     });
@@ -700,7 +801,6 @@ exports.getUserProfileDetails = async (req, res) => {
     });
   }
 };
-
 
 
 

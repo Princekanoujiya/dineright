@@ -93,7 +93,9 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
       const bookingItemsQuery = `
       SELECT 
         mi.master_item_id, 
-        mi.master_item_name, 
+        mi.master_item_name,
+        mi.master_item_image,
+        bcp.product_quantity, 
         CONCAT(?, mi.master_item_image) AS master_item_image, 
         mi.master_item_price, 
         mi.master_item_description 
@@ -104,13 +106,28 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
 
       const [bookingItems] = await db.promise().query(bookingItemsQuery, [process.env.BASE_URL, booking.booking_id]);
 
+      // customer details
+      const getCustomer = `SELECT * FROM customers WHERE customer_id = ?`;
+      const [customers] = await db.promise().query(getCustomer, [booking.customer_id]);
+
+      // Ensure the customer exists before accessing the profile image
+      const customer_profile_image = customers.length > 0 ? process.env.BASE_URL + customers[0].customer_profile_image : null;
+
+      // Map over the master item image to prepend BASE_URL to each file
+      const updated_bookingItems = bookingItems.map(item => ({
+        ...item,
+        master_item_image: process.env.BASE_URL + item.master_item_image,
+      }));
+
+
       // Append booking and item details to each table
       for (const table of allocatedTables) {
         table.booking_status = booking.booking_status;
         table.details = {
           booking_name: booking.booking_name,
           booking_email: booking.booking_email,
-          menu: bookingItems,
+          customer_profile_image: customer_profile_image,
+          menu: updated_bookingItems,
           billing_amount: booking.billing_amount,
           payment_status: booking.payment_status
         };

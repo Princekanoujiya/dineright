@@ -32,3 +32,4 @@
 
 'pending','confirmed','upcoming','inprogress','completed','cancelled'
 
+'upcoming','inprogress','completed'

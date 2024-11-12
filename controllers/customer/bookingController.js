@@ -216,13 +216,13 @@ exports.bookingCancel = async (req, res) => {
   try {
     const { booking_id } = req.params;
 
-    const updateQuery = `UPDATE bookings SET booking_status = 'cancelled', payment_status = 'paid' WHERE booking_id = ?`;
+    const updateQuery = `UPDATE bookings SET booking_status = 'cancelled' WHERE booking_id = ?`;
     await db.promise().query(updateQuery, [booking_id]);
 
     const updateTableQuery = `UPDATE allocation_tables SET table_status = 'released' WHERE booking_id = ?`;
     await db.promise().query(updateTableQuery, [booking_id]);
 
-    res.status(200).json({ message: 'Table release Successfully', response: true })
+    res.status(200).json({ message: 'Table cancel Successfully', response: true })
 
   } catch (error) {
     res.status(500).json({ message: error.message })

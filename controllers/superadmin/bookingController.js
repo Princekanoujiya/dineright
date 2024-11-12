@@ -100,29 +100,38 @@ exports.getBookingDetails = async (req, res) => {
 };
 
 
+// get all cancelled bookings
+exports.getAllCancelledBookings = (req, res) => {
 
+  // Query to fetch allocated tables for a specific user
+  const bookingQuery = `SELECT * FROM bookings WHERE booking_status = 'cancelled'`;
 
+  db.query(bookingQuery, (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error fetching cancel bookings', details: err.message });
+    }
 
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'No Cancel bookings found' });
+    }
 
+    // Return the fetched data
+    res.status(200).json({ data: result });
+  });
+};
 
+exports.refundStatusChange = async (req, res) => {
+  try {
+    const { booking_id, refund_amount, refund_status, refund_transaction_id } = req.body;
 
+    const updateQuery = `UPDATE bookings SET refund_status = ?, refund_amount = ?, refund_transaction_id = ? WHERE booking_id = ?`;
+    await db.promise().query(updateQuery, [refund_status, refund_amount, refund_transaction_id, booking_id]);
+    
 
+    res.status(200).json({ message: 'Refund status Changed Successfully', response: true });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
 

@@ -18,7 +18,7 @@ const { insertOrUpdateBannerSection, getAllBannerSections, getBannerSectionById 
 const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionById } = require('../controllers/superadmin/cuisinsController');
 
 //restroadmin
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable } = require('../controllers/restorant/restorantBookingController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable, inprogressTable } = require('../controllers/restorant/restorantBookingController');
 const {
   createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllDiningAreasWithTables, getAllCities, resendrestaurantOtp,
   getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
@@ -194,6 +194,7 @@ router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
 router.get('/getTimingDatabyResrtoId', verifyToken, getTimingDatabyResrtoId);
 router.post('/updateTimingData', updateTimingData);
 router.post('/releaseTable/:booking_id', verifyToken, releaseTable);
+router.post('/inprogressTable/:booking_id', verifyToken, inprogressTable);
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done

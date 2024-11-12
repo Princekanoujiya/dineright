@@ -257,9 +257,11 @@ exports.book_product = async (req, res) => {
     // Get restaurant dining areas
     const diningAreas = await getSelectedDiningArea(userId);
     let availableTables = [];
+    let tableNoOfGuestArray = [];
 
     // Iterate through dining areas and find available tables
     for (const diningArea of diningAreas) {
+      let availableTableArray = [];
       const tables = await getTables(diningArea.dining_area_id, userId);
 
       // Check each table's allocation asynchronously
@@ -282,13 +284,33 @@ exports.book_product = async (req, res) => {
 
       // Wait for all table queries to finish and filter out null values
       const availableDiningAreaTables = (await Promise.all(tableDataPromises)).filter((table) => table !== null);
-      availableTables = availableTables.concat(availableDiningAreaTables);
+      availableTableArray = availableTableArray.concat(availableDiningAreaTables);
+      availableTables = availableTableArray.concat(availableDiningAreaTables);
+
+      // console.log('availableTableArray', availableTableArray);
+
+      // Calculate the total number of seats
+      const totalSeats = availableTableArray.reduce((total, table) => total + table.table_no_of_seats, 0);
+
+      console.log('totalSeats', totalSeats)
+
+      tableNoOfGuestArray.push(totalSeats);
     }
 
     // Calculate the total number of seats
-    const totalSeats = availableTables.reduce((total, table) => total + table.table_no_of_seats, 0);
+    // const totalSeats = availableTables.reduce((total, table) => total + table.table_no_of_seats, 0);
 
-    if (totalSeats < booking_no_of_guest) {
+
+    // if (totalSeats < booking_no_of_guest) {
+    //   return res.status(400).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
+    // }
+
+    // Check if any table can accommodate the number of guests
+    const availableTable = tableNoOfGuestArray.some(seatCount => seatCount >= booking_no_of_guest);
+
+    console.log('availableTable', availableTable)
+
+    if (!availableTable) {
       return res.status(400).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
     }
 
@@ -356,6 +378,7 @@ exports.book_product = async (req, res) => {
     }
 
     // Check if all required seats are allocated
+    console.log('bookingSeats', bookingSeats)
     if (bookingSeats > 0) {
       return res.status(400).json({ message: 'Not enough seating available for the entire booking.' });
     }
@@ -825,3 +848,11 @@ const checkServiceAvailability = async (date, time, userId, db) => {
   // Return result and the matched service times
   return { isAvailable, serviTimes };
 };
+
+
+
+
+
+
+
+

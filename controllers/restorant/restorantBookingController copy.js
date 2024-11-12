@@ -731,32 +731,48 @@ const getRestorauntServiceTimeAvaibility = async (date, time, userId, db) => {
   }
 };
 
-// Round to the next 15-minute interval in IST
-function roundToNext15MinuteInterval() {
-  const now = moment().tz('Asia/Kolkata');  // Get the current time in IST using moment-timezone
-  const minutes = now.minutes();
 
-  console.log('Current India Time:', now.format('YYYY-MM-DD HH:mm:ss'));
+// round To Next 15 Minute Interval
+function roundToNext15MinuteInterval() {
+  const now = new Date();
+  const minutes = now.getMinutes();
+
+  // Convert the current time to IST
+  const indiaTime = moment(now).tz('Asia/Kolkata').toDate();
+
+  console.log('now', indiaTime);
+  console.log('minutes', minutes);
 
   // Check if the current minutes are already on a 15-minute interval (e.g., 0, 15, 30, 45)
   if (minutes % 15 === 0) {
-    return {
-      roundedTime: now.format('HH:mm'),  // Return the time in HH:mm format
-      timestamp: now.valueOf()  // Return timestamp in milliseconds
-    };
+    indiaTime.setSeconds(0);
+    indiaTime.setMilliseconds(0);
+    return indiaTime.toTimeString().slice(0, 5); // Return in "HH:MM" format
   }
 
   // Calculate the number of minutes to add to round up to the next 15-minute interval
   const remainder = 15 - (minutes % 15);
-  now.add(remainder, 'minutes');
+  indiaTime.setMinutes(indiaTime.getMinutes() + remainder);
+
+  // Check if the minute adjustment pushes the time to the next hour
+  if (indiaTime.getMinutes() >= 60) {
+    indiaTime.setMinutes(0);
+    indiaTime.setHours(indiaTime.getHours() + 1);
+  }
+
+  indiaTime.setSeconds(0);
+  indiaTime.setMilliseconds(0);
 
   return {
-    roundedTime: now.format('HH:mm'),  // Return the rounded time in HH:mm format
-    timestamp: now.valueOf()  // Return timestamp in milliseconds
+    roundedTime: indiaTime.toTimeString().slice(0, 5), // Return in "HH:MM" format
+    timestamp: indiaTime.getTime() // Return timestamp
   };
 }
 
+
+// release table
 function getTimeDifferenceInMinutes(bookingDate, startTime, timeStamp) {
+
   // Validate that startTime is a valid string in "HH:MM" format
   if (!startTime || typeof startTime !== 'string') {
     throw new Error('Invalid time format. startTime must be a string in "HH:MM" format.');
@@ -770,31 +786,17 @@ function getTimeDifferenceInMinutes(bookingDate, startTime, timeStamp) {
     throw new Error('Invalid time format. Could not parse hours and minutes.');
   }
 
-  // Log the inputs for debugging
-  console.log('bookingDate:', bookingDate);
-  console.log('startTime:', startTime);
+  // Create Date object for the booking timestamp
+  const bookingTimestamp = new Date(`${bookingDate}T${startTime}`);
 
-  // Extract the date part from bookingDate (YYYY-MM-DD format) and combine with startTime
-  const bookingDateString = moment(bookingDate).format('YYYY-MM-DD') + ' ' + startTime;
-  console.log('Constructed booking date string:', bookingDateString); // Check the format of the date string
-
-  // Use moment to parse the date string and ensure it is in the correct format
-  const bookingTimestamp = moment.tz(bookingDateString, 'YYYY-MM-DD HH:mm', 'Asia/Kolkata');
-
-  if (!bookingTimestamp.isValid()) {
-    console.log('Error: Invalid booking timestamp');
-    throw new Error('Invalid booking time.');
-  }
-
-  // Convert the given timestamp to a moment object in IST
-  const timeStampDate = moment.tz(timeStamp, 'Asia/Kolkata');
-  if (!timeStampDate.isValid()) {
-    console.log('Error: Invalid timeStamp');
+  // Ensure the timeStamp is a valid Date object or a valid string
+  const timeStampDate = new Date(timeStamp);
+  if (isNaN(timeStampDate)) {
     throw new Error('Invalid timestamp.');
   }
 
   // Calculate the difference in milliseconds between the booking time and the provided timestamp
-  const differenceInMilliseconds = timeStampDate.diff(bookingTimestamp);
+  const differenceInMilliseconds = timeStampDate - bookingTimestamp;
 
   // Convert the difference from milliseconds to minutes
   const differenceInMinutes = differenceInMilliseconds / (1000 * 60);
@@ -803,7 +805,7 @@ function getTimeDifferenceInMinutes(bookingDate, startTime, timeStamp) {
 }
 
 
-// Release table API
+// release table
 exports.releaseTable = async (req, res) => {
   try {
     const { booking_id } = req.params;
@@ -817,16 +819,16 @@ exports.releaseTable = async (req, res) => {
       return res.status(400).json({ message: 'Booking not found', response: false });
     }
 
-    // Ensure the time is in a valid format
+    // Make sure the time is in a valid format
     if (!existingBooking.booking_time || typeof existingBooking.booking_time !== 'string') {
       return res.status(400).json({ message: 'Invalid time format in booking data', response: false });
     }
 
-    const { roundedTime, timestamp } = roundToNext15MinuteInterval();
+    const {roundedTime, timestamp} = roundToNext15MinuteInterval();
 
     const timeDifference = getTimeDifferenceInMinutes(existingBooking.booking_date, existingBooking.booking_time, timestamp);
 
-    console.log('Time Difference in Minutes:', timeDifference);
+    console.log('timeDifference', timeDifference)
 
     // Update booking status
     const updateQuery = `UPDATE bookings SET booking_status = 'completed', payment_status = 'paid' WHERE booking_id = ?`;
@@ -842,6 +844,7 @@ exports.releaseTable = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 
 exports.inprogressTable = async (req, res) => {

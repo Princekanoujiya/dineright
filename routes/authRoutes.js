@@ -17,8 +17,10 @@ const { getAllPayments, getPaymentsByUserId, getAllWithdrawalRequests, getWithdr
 const { insertOrUpdateBannerSection, getAllBannerSections, getBannerSectionById } = require('../controllers/superadmin/uploadController');
 const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionById } = require('../controllers/superadmin/cuisinsController');
 
+const superAdnimBookingController = require('../controllers/superadmin/bookingController');
+
 //restroadmin
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable } = require('../controllers/restorant/restorantBookingController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable, inprogressTable } = require('../controllers/restorant/restorantBookingController');
 const {
   createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllDiningAreasWithTables, getAllCities, resendrestaurantOtp,
   getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
@@ -194,6 +196,7 @@ router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
 router.get('/getTimingDatabyResrtoId', verifyToken, getTimingDatabyResrtoId);
 router.post('/updateTimingData', updateTimingData);
 router.post('/releaseTable/:booking_id', verifyToken, releaseTable);
+router.post('/inprogressTable/:booking_id', verifyToken, inprogressTable);
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done
@@ -201,7 +204,7 @@ router.get('/customers', getAllCustomers); //done
 router.post('/customers/verifyOtp', verifyCustomerOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done 
-router.post('/customer_resend_otp', resendOtp); //done
+router.post('/customer_resend_otp', resendOtp); //done 
 router.get('/getMasterCard', getMasterCard);
 router.get('/getMasterBeverage', getMasterBeverage);
 router.post('/book_product', verifyCustomerToken, book_product);
@@ -265,5 +268,8 @@ router.get('/getAllWithdrawalRequests', verifySuperAdminToken, getAllWithdrawalR
 router.get('/getWithdrawalRequestsByuserId/:userId', verifySuperAdminToken, getWithdrawalRequestsByuserId);
 router.get('/getOneWithdrawalRequest/:id', verifySuperAdminToken, getOneWithdrawalRequest);
 router.patch('/updateWithdrawalRequest', verifySuperAdminToken, updateWithdrawalRequest);
+router.get('/getAllCancelledBookings', verifySuperAdminToken, superAdnimBookingController.getAllCancelledBookings);
+router.post('/refundStatusChange', verifySuperAdminToken,  superAdnimBookingController.refundStatusChange);
+
 
 module.exports = router;

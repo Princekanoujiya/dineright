@@ -30,9 +30,20 @@ exports.getAllPayments = async (req, res) => {
             `;
             const [totals] = await db.promise().query(sumQuery, [user.id]);
 
+            const withdrawalQuery = `SELECT * FROM withdrawal WHERE userId = ? AND status IN ('pending', 'approved')`;
+            const [withdrawalResults] = await db.promise().query(withdrawalQuery, [user.id]);
+
+            const total_withdrawal = withdrawalResults.reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
+
+            let total = totals[0];
+            total.total_withdrawal = total_withdrawal;
+
+
             // Combine the commission data and summed totals for each user
             return {
                 userId: user.id,
+                username: user.username,
+                restaurantName: user.restaurantName,
                 total: totals[0]
             };
         }));
@@ -104,6 +115,65 @@ exports.getPaymentsByUserId = (req, res) => {
 exports.getAllWithdrawalRequests = async (req, res) => {
     try {
 
+        // Query for total withdrawal amount
+        const withdrawalQuery = `SELECT * FROM withdrawal`;
+        const [withdrawalResults] = await db.promise().query(withdrawalQuery);
+
+        // Calculate total withdrawal for 'pending' or 'approved' status
+        const total_withdrawal = withdrawalResults.filter(table => table.status === 'pending' || table.status === 'approved')
+            .reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
+
+        const total_pending_withdrawal = withdrawalResults.filter(table => table.status === 'pending')
+            .reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
+
+        const total_approved_withdrawal = withdrawalResults.filter(table => table.status === 'approved')
+            .reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
+
+        const total_rejected_withdrawal = withdrawalResults.filter(table => table.status === 'rejected')
+            .reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
+
+        // Query to get commission transactions data  AND is_payout = 0 
+        const commissionQuery = `SELECT * FROM commission_transactions WHERE status = 'completed'`;
+        const [commissionResults] = await db.promise().query(commissionQuery);
+
+        // payout
+        const total_payout_balance = commissionResults.reduce((total, table) => total + parseInt(table.payout_balance), 0);
+        const total_online_payout_balance = commissionResults.filter(table => table.payment_mod === 'online')
+            .reduce((total, table) => total + parseInt(table.payout_balance), 0);
+        const total_cod_payout_balance = commissionResults.filter(table => table.payment_mod === 'cod')
+            .reduce((total, table) => total + parseInt(table.payout_balance), 0);
+
+        // commission
+        const total_commition_amount = commissionResults.reduce((total, table) => total + parseInt(table.commition_amount), 0);
+        const total_online_commition_amount = commissionResults.filter(table => table.payment_mod === 'online')
+            .reduce((total, table) => total + parseInt(table.commition_amount), 0);
+        const total_cod_commition_amount = commissionResults.filter(table => table.payment_mod === 'cod')
+            .reduce((total, table) => total + parseInt(table.commition_amount), 0);
+
+        // billing
+        const billing_amount = commissionResults.reduce((total, table) => total + parseInt(table.billing_amount), 0);
+        const online_billing_amount = commissionResults.filter(table => table.payment_mod === 'online')
+            .reduce((total, table) => total + parseInt(table.billing_amount), 0);
+        const cod_billing_amount = commissionResults.filter(table => table.payment_mod === 'cod')
+            .reduce((total, table) => total + parseInt(table.billing_amount), 0);
+
+
+        const total = {
+            total_payout_balance: total_payout_balance || 0,
+            total_online_payout_balance: total_online_payout_balance || 0,
+            total_cod_payout_balance: total_cod_payout_balance || 0,
+            total_commition_amount: total_commition_amount || 0,
+            total_online_commition_amount: total_online_commition_amount || 0,
+            total_cod_commition_amount: total_cod_commition_amount || 0,
+            total_billing_amount: billing_amount || 0,
+            total_online_billing_amount: online_billing_amount || 0,
+            total_cod_billing_amount: cod_billing_amount || 0,
+            total_withdrawal: total_withdrawal || 0,
+            total_pending_withdrawal: total_pending_withdrawal || 0,
+            total_approved_withdrawal: total_approved_withdrawal || 0,
+            total_rejected_withdrawal: total_rejected_withdrawal || 0
+        };
+
         const query = `
         SELECT 
             w.*, 
@@ -127,6 +197,7 @@ exports.getAllWithdrawalRequests = async (req, res) => {
         // Return the withdrawals
         res.status(200).json({
             message: 'Withdrawals fetched successfully',
+            total,
             data: withdrawals
         });
     } catch (error) {
@@ -248,6 +319,7 @@ exports.updateWithdrawalRequest = async (req, res) => {
         // Return success response
         res.status(200).json({
             message: 'Withdrawal updated successfully',
+            response: true,
             data: {
                 id,
                 transaction_id,
@@ -257,6 +329,139 @@ exports.updateWithdrawalRequest = async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating withdrawal:', error);
+        res.status(500).json({ error: 'Database error', details: error.message });
+    }
+};
+
+// Get All dashboard data
+exports.getAllDashboardData = async (req, res) => {
+    try {
+
+        // Query for total users
+        const usersQuery = `SELECT * FROM users`;
+        const [users] = await db.promise().query(usersQuery);
+
+        // Count of various types of restaurants
+        const total_restaurant = users.filter(table => table.is_deleted === 0 && table.signup_status === 1).length;
+        const total_activated_restaurant = users.filter(table => table.is_deleted === 0 && table.signup_status === 1 && table.status === 'Activated').length;
+        const total_deactivated_restaurant = users.filter(table => table.is_deleted === 0 && table.signup_status === 1 && table.status === 'Deactivated' && table.timestamp !== null).length;
+        const total_deleted_restaurant = users.filter(table => table.is_deleted === 1).length;
+        const total_uncompleted_restaurant = users.filter(table => table.is_deleted === 0 && table.signup_status === 0).length;
+        const total_new_registered_restaurant = users.filter(table => table.is_deleted === 0 && table.signup_status === 1 && table.timestamp === null && table.status === 'Deactivated').length;
+
+        // Query for total customers
+        const customersQuery = `SELECT * FROM customers`;
+        const [customers] = await db.promise().query(customersQuery);
+
+        // Count of various types of customers
+        const total_customers = customers.filter(table => table.is_deleted === 0).length;
+        const total_deleted_customers = customers.filter(table => table.is_deleted === 1).length;
+
+        // Query for total bookings
+        const bookingsQuery = `SELECT * FROM bookings`;
+        const [bookings] = await db.promise().query(bookingsQuery);
+
+         // Count of various types of customers
+         const total_bookings = bookings.length;
+         const total_online_pending_bookings = bookings.filter(table => table.payment_mod === 'online' && table.booking_status === 'pending').length;
+         const total_cod_pending_bookings = bookings.filter(table => table.payment_mod === 'cod' && table.booking_status === 'pending').length;
+         const total_online_upcoming_bookings = bookings.filter(table => table.payment_mod === 'online' && table.booking_status === 'upcoming').length;
+         const total_cod_upcoming_bookings = bookings.filter(table => table.payment_mod === 'cod' && table.booking_status === 'upcoming').length;
+         const total_online_inprogress_bookings = bookings.filter(table => table.payment_mod === 'online' && table.booking_status === 'inprogress').length;
+         const total_cod_inprogress_bookings = bookings.filter(table => table.payment_mod === 'cod' && table.booking_status === 'inprogress').length;
+         const total_online_completed_bookings = bookings.filter(table => table.payment_mod === 'online' && table.booking_status === 'completed').length;
+         const total_cod_completed_bookings = bookings.filter(table => table.payment_mod === 'cod' && table.booking_status === 'completed').length;          
+         const total_online_cancelled_bookings = bookings.filter(table => table.payment_mod === 'online' && table.booking_status === 'cancelled').length;
+         const total_cod_cancelled_bookings = bookings.filter(table => table.payment_mod === 'cod' && table.booking_status === 'cancelled').length;
+
+        // Query for total withdrawal amount
+        const withdrawalQuery = `SELECT * FROM withdrawal`;
+        const [withdrawalResults] = await db.promise().query(withdrawalQuery);
+
+        // Calculate total withdrawal for 'pending' or 'approved' status
+        const total_withdrawal = withdrawalResults.filter(table => table.status === 'pending' || table.status === 'approved')
+            .reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
+
+        const total_pending_withdrawal = withdrawalResults.filter(table => table.status === 'pending')
+            .reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
+
+        const total_approved_withdrawal = withdrawalResults.filter(table => table.status === 'approved')
+            .reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
+
+        const total_rejected_withdrawal = withdrawalResults.filter(table => table.status === 'rejected')
+            .reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
+
+        // Query to get commission transactions data  AND is_payout = 0 
+        const commissionQuery = `SELECT * FROM commission_transactions WHERE status = 'completed'`;
+        const [commissionResults] = await db.promise().query(commissionQuery);
+
+        // payout
+        const total_payout_balance = commissionResults.reduce((total, table) => total + parseInt(table.payout_balance), 0);
+        const total_online_payout_balance = commissionResults.filter(table => table.payment_mod === 'online')
+            .reduce((total, table) => total + parseInt(table.payout_balance), 0);
+        const total_cod_payout_balance = commissionResults.filter(table => table.payment_mod === 'cod')
+            .reduce((total, table) => total + parseInt(table.payout_balance), 0);
+
+        // commission
+        const total_commition_amount = commissionResults.reduce((total, table) => total + parseInt(table.commition_amount), 0);
+        const total_online_commition_amount = commissionResults.filter(table => table.payment_mod === 'online')
+            .reduce((total, table) => total + parseInt(table.commition_amount), 0);
+        const total_cod_commition_amount = commissionResults.filter(table => table.payment_mod === 'cod')
+            .reduce((total, table) => total + parseInt(table.commition_amount), 0);
+
+        // billing
+        const billing_amount = commissionResults.reduce((total, table) => total + parseInt(table.billing_amount), 0);
+        const online_billing_amount = commissionResults.filter(table => table.payment_mod === 'online')
+            .reduce((total, table) => total + parseInt(table.billing_amount), 0);
+        const cod_billing_amount = commissionResults.filter(table => table.payment_mod === 'cod')
+            .reduce((total, table) => total + parseInt(table.billing_amount), 0);
+
+
+        const total = {
+            total_restaurant: total_restaurant || 0,
+            total_activated_restaurant: total_activated_restaurant || 0,
+            total_deactivated_restaurant: total_deactivated_restaurant || 0,
+            total_deleted_restaurant: total_deleted_restaurant || 0,
+            total_uncompleted_restaurant: total_uncompleted_restaurant || 0,
+            total_new_registered_restaurant: total_new_registered_restaurant || 0,
+
+            total_customers: total_customers || 0,
+            total_deleted_customers: total_deleted_customers || 0,
+
+            total_bookings: total_bookings || 0,
+            total_online_pending_bookings: total_online_pending_bookings || 0,
+            total_cod_pending_bookings: total_cod_pending_bookings || 0,
+            total_online_upcoming_bookings: total_online_upcoming_bookings || 0,
+            total_cod_upcoming_bookings: total_cod_upcoming_bookings || 0,
+            total_online_inprogress_bookings: total_online_inprogress_bookings || 0,
+            total_cod_inprogress_bookings: total_cod_inprogress_bookings || 0,
+            total_online_completed_bookings: total_online_completed_bookings || 0,
+            total_cod_completed_bookings: total_cod_completed_bookings || 0,
+            total_online_cancelled_bookings: total_online_cancelled_bookings || 0,
+            total_cod_cancelled_bookings: total_cod_cancelled_bookings || 0,
+
+            total_payout_balance: total_payout_balance || 0,
+            total_online_payout_balance: total_online_payout_balance || 0,
+            total_cod_payout_balance: total_cod_payout_balance || 0,
+            total_commition_amount: total_commition_amount || 0,
+            total_online_commition_amount: total_online_commition_amount || 0,
+            total_cod_commition_amount: total_cod_commition_amount || 0,
+            total_billing_amount: billing_amount || 0,
+            total_online_billing_amount: online_billing_amount || 0,
+            total_cod_billing_amount: cod_billing_amount || 0,
+            total_withdrawal: total_withdrawal || 0,
+            total_pending_withdrawal: total_pending_withdrawal || 0,
+            total_approved_withdrawal: total_approved_withdrawal || 0,
+            total_rejected_withdrawal: total_rejected_withdrawal || 0
+        };
+
+        // Return the withdrawals
+        res.status(200).json({
+            message: 'Dashboard data fetched successfully',
+            total,
+        });
+    } catch (error) {
+        console.error('Error fetching Dashboard:', error);
         res.status(500).json({ error: 'Database error', details: error.message });
     }
 };

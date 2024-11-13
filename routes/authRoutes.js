@@ -12,7 +12,7 @@ const { validateBookingPayment } = require('../validations');
 //superadmin
 const { loginSuperadmin, getGuests, getGuestsbyID, insertOrUpdateBlog, deleteBlog, getAllBlogs, getBlog, updateUserStatusAndCommission, updateCommissionStatus, getDeactivatedRestaurants } = require('../controllers/superadmin/superadmin_authcontroller');
 
-const { getAllPayments, getPaymentsByUserId, getAllWithdrawalRequests, getWithdrawalRequestsByuserId, getOneWithdrawalRequest, updateWithdrawalRequest } = require('../controllers/superadmin/commissionController');
+const { getAllPayments, getPaymentsByUserId, getAllWithdrawalRequests, getWithdrawalRequestsByuserId, getOneWithdrawalRequest, updateWithdrawalRequest, getAllDashboardData } = require('../controllers/superadmin/commissionController');
 
 const { insertOrUpdateBannerSection, getAllBannerSections, getBannerSectionById } = require('../controllers/superadmin/uploadController');
 const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionById } = require('../controllers/superadmin/cuisinsController');
@@ -33,7 +33,7 @@ const restorantMenuController = require('../controllers/restorant/menuController
 
 const { getBookingUsers } = require('../controllers/restorant/bookingUsersController');
 
-const { getMyPayments, withdrawalPayment, getAllWithdrawals, getMyUnpaidCommission, PayMyUnpaidCommission } = require('../controllers/restorant/commissionController');
+const { getMyPayments, withdrawalPayment, getAllWithdrawals, getMyUnpaidCommission, PayMyUnpaidCommission, getPaymentHistory } = require('../controllers/restorant/commissionController');
 
 const blogController = require('../controllers/customer/blogController');
 
@@ -97,6 +97,7 @@ router.post('/withdrawalPayment', verifyToken, withdrawalPayment);
 router.get('/getAllWithdrawals', verifyToken, getAllWithdrawals);
 router.get('/getMyUnpaidCommission', verifyToken, getMyUnpaidCommission);
 router.post('/PayMyUnpaidCommission', verifyToken, PayMyUnpaidCommission);
+router.get('/getPaymentHistory', verifyToken, getPaymentHistory);
 
 router.get('/user/:userId', getUserInfo);//done
 router.get('/timing/:userId', getTimingData);//done
@@ -270,6 +271,7 @@ router.get('/getOneWithdrawalRequest/:id', verifySuperAdminToken, getOneWithdraw
 router.patch('/updateWithdrawalRequest', verifySuperAdminToken, updateWithdrawalRequest);
 router.get('/getAllCancelledBookings', verifySuperAdminToken, superAdnimBookingController.getAllCancelledBookings);
 router.post('/refundStatusChange', verifySuperAdminToken,  superAdnimBookingController.refundStatusChange);
+router.get('/getAllDashboardData', verifySuperAdminToken, getAllDashboardData);
 
 // autoInprogressTable
 router.patch('/autoInprogressTable', autoInprogressTable);

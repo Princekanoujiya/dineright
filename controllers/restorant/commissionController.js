@@ -12,26 +12,29 @@ exports.getMyPayments = async (req, res) => {
 
         const total_withdrawal = withdrawalResults.reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
 
-        // Query to get commission transactions data
+        // Query to get commission transactions data  AND is_payout = 0 
         const commissionQuery = `
             SELECT * 
             FROM commission_transactions 
-            WHERE userId = ?
-            AND is_payout = 0 
+            WHERE userId = ?           
             AND status = 'completed'
         `;
         const [commissionResults] = await db.promise().query(commissionQuery, [userId]);
 
-        const total_payout_balance = commissionResults.reduce((total, table) => total + parseInt(table.payout_balance), 0);
+        // const total_payout_balance = commissionResults.reduce((total, table) => total + parseInt(table.payout_balance), 0);
+        const total_payout_balance = commissionResults.reduce(
+            (total, table) => table.is_payout === 0 ? total + parseInt(table.payout_balance) : total,
+            0
+        );
         const total_commition_amount = commissionResults.reduce((total, table) => total + parseInt(table.commition_amount), 0);
         const billing_amount = commissionResults.reduce((total, table) => total + parseInt(table.billing_amount), 0);
-       
+
 
         const total = {
             total_withdrawal: total_withdrawal || 0,
             total_payout_balance: total_payout_balance || 0,
             total_commition_amount: total_commition_amount || 0,
-            billing_amount: billing_amount || 0
+            total_billing_amount: billing_amount || 0
         };
 
         // Return the data with total sums
@@ -155,9 +158,9 @@ exports.getMyUnpaidCommission = (req, res) => {
 
     const sumQuery = `
         SELECT 
-            SUM(payout_balance) AS total_payout_balance,
-            SUM(commition_amount) AS total_commition_amount,
-            SUM(billing_amount) AS total_billing_amount
+            COALESCE(SUM(payout_balance), 0) AS total_payout_balance,
+                COALESCE(SUM(commition_amount), 0) AS total_commition_amount,
+                COALESCE(SUM(billing_amount), 0) AS total_billing_amount
         FROM 
             commission_transactions 
         WHERE 
@@ -171,13 +174,6 @@ exports.getMyUnpaidCommission = (req, res) => {
     db.query(commissionQuery, [userId], (err, result) => {
         if (err) {
             return res.status(500).json({ error: 'Database error fetching Unpain Commission', details: err.message });
-        }
-
-        if (result.length === 0) {
-            return res.status(200).json({
-                total: 0,
-                data: result
-            });
         }
 
         // Execute the second query to get the sums
@@ -207,9 +203,9 @@ exports.PayMyUnpaidCommission = async (req, res) => {
 
     const sumQuery = `
         SELECT 
-            SUM(payout_balance) AS total_payout_balance,
-            SUM(commition_amount) AS total_commission_amount,
-            SUM(billing_amount) AS total_billing_amount
+            COALESCE(SUM(payout_balance), 0) AS total_payout_balance,
+                COALESCE(SUM(commition_amount), 0) AS total_commition_amount,
+                COALESCE(SUM(billing_amount), 0) AS total_billing_amount
         FROM 
             commission_transactions 
         WHERE 
@@ -251,4 +247,26 @@ exports.PayMyUnpaidCommission = async (req, res) => {
     });
 };
 
+
+// Withdrawal Payment
+exports.getPaymentHistory = async (req, res) => {
+    try {
+        const userId = req.userId;
+
+        console.log('userId', userId)
+
+        // Query for payment history
+        const paymentHistoryQuery = `SELECT * FROM commission_deposit WHERE userId = ?`;
+        const [paymentHistory] = await db.promise().query(paymentHistoryQuery, [userId]);
+
+        // Return the payment history data
+        res.status(200).json({
+            message: 'Payment history processed successfully',
+            data: paymentHistory
+        });
+    } catch (error) {
+        console.error('Error processing payment history:', error);
+        res.status(500).json({ error: 'Database error', details: error.message });
+    }
+};
 

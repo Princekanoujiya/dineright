@@ -947,6 +947,9 @@ exports.autoInprogressTable = async (req, res) => {
     const currentDate = indiaDateTime.format('YYYY-MM-DD'); // Format and display the current date
     const currentTime = indiaDateTime.format('HH:mm:ss'); // Get the current time in IST
 
+    console.log('currentDate', currentDate)
+    console.log('currentTime', currentTime)
+
     // Query to get bookings before current time on the current date
     const bookingQuery = `SELECT * FROM bookings WHERE booking_status = 'upcoming' AND booking_date = ? AND booking_time < ?`;
     const [bookings] = await db.promise().query(bookingQuery, [currentDate, currentTime]);
@@ -1034,20 +1037,62 @@ function convertTo12HourFormat(time24) {
 }
 
 
+// // update booking start and end time
+// exports.updateBookingTimes = async (req, res) => {
+//   try {
+//     const { booking_id, booking_time, booking_end_time, slot_time } = req.params;
+
+//     const updateQuery = `UPDATE bookings SET booking_time = ? WHERE booking_id = ?`;
+//     await db.promise().query(updateQuery, [booking_time, booking_id]);
+
+//     const updateAllocatedTableQuery = `UPDATE allocation_tables SET start_time = ?, end_time = ?, slot_time = ? WHERE booking_id = ?`;
+//     await db.promise().query(updateAllocatedTableQuery, [booking_time, booking_end_time, slot_time, booking_id]);
+
+//     res.status(200).json({ message: 'Table inprogress Successfully', response: true });
+
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// }
+
 // update booking start and end time
 exports.updateBookingTimes = async (req, res) => {
   try {
-    const { booking_id, booking_time, booking_end_time, slot_time } = req.params;
+    // Destructure and validate input parameters from the request body
+    const { booking_id, booking_time, booking_end_time, slot_time } = req.body;
 
-    const updateQuery = `UPDATE bookings SET booking_time = ? WHERE booking_id = ?`;
-    await db.promise().query(updateQuery, [booking_time, booking_id]);
+    // Validate input parameters
+    if (!booking_id || !booking_time || !booking_end_time || !slot_time) {
+      return res.status(400).json({ message: 'All parameters (booking_id, booking_time, booking_end_time, slot_time) are required' });
+    }
 
+    // Additional validation for format (optional, but recommended)
+    if (isNaN(Date.parse(booking_time)) || isNaN(Date.parse(booking_end_time))) {
+      return res.status(400).json({ message: 'Invalid date format for booking_time or booking_end_time' });
+    }
+
+    // Update the `bookings` table
+    const updateBookingQuery = `UPDATE bookings SET booking_time = ? WHERE booking_id = ?`;
+    const [bookingResult] = await db.promise().query(updateBookingQuery, [booking_time, booking_id]);
+
+    // Check if the `bookings` update was successful
+    if (bookingResult.affectedRows === 0) {
+      return res.status(400).json({ message: 'Booking not found or not updated' });
+    }
+
+    // Update the `allocation_tables` table
     const updateAllocatedTableQuery = `UPDATE allocation_tables SET start_time = ?, end_time = ?, slot_time = ? WHERE booking_id = ?`;
-    await db.promise().query(updateAllocatedTableQuery, [booking_time, booking_end_time, slot_time, booking_id]);
+    const [allocationResult] = await db.promise().query(updateAllocatedTableQuery, [booking_time, booking_end_time, slot_time, booking_id]);
 
-    res.status(200).json({ message: 'Table inprogress Successfully', response: true });
+    // Check if the `allocation_tables` update was successful
+    if (allocationResult.affectedRows === 0) {
+      return res.status(400).json({ message: 'Allocation table not found or not updated' });
+    }
+
+    res.status(200).json({ message: 'Table updated successfully', response: true });
 
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error updating booking times:', error);
+    res.status(500).json({ message: 'Internal server error', details: error.message });
   }
-}
+};

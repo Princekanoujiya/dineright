@@ -527,11 +527,41 @@ exports.getTableAvailableOrNot = async (req, res) => {
   const { booking_no_of_guest, booking_date, booking_time, userId } = req.body;
 
   try {
-    console.log(req.body);
+
+    // service_time
+    const serviceTimeQuery = `SELECT * FROM service_time WHERE userId = ? AND status = 'open'`;
+    const [serviceTimes] = await db.promise().query(serviceTimeQuery, [userId]);
+
+    let defaultSpendingTime = 180;
+    const spendingTimeQuery = `SELECT restro_spending_time FROM restro_guest_time_duration WHERE restro_guest = ? AND userId = ?`;
+    const [spendingTime] = await db.promise().query(spendingTimeQuery, [booking_no_of_guest, userId]);
+
+    if (spendingTime.length > 0) {
+      defaultSpendingTime = spendingTime[0].restro_spending_time;
+    }
+
+    const { bookingTimestamp, updatedTimestamp } = getBookingAndUpdatedTimestamp(booking_date, booking_time, defaultSpendingTime);
+    // let endTime = moment(updatedTimestamp).format('HH:mm');
+    let endTime = moment(updatedTimestamp).tz('Asia/Kolkata').format('HH:mm');
+
+    if (serviceTimes.length > 0) {
+      for (const serviceTime of serviceTimes) {
+
+        const endTimestamp = convertTimeToTimestamp(serviceTime.end_time);
+        console.log('serviceTime.end_time', serviceTime.end_time);
+        console.log('endTime', endTime)
+        // Assuming endTime and serviceTime.end_time are in 'HH:MM' format
+        if (serviceTime.end_time <= endTime || serviceTime.start_time > endTime) {
+          const updatedTime = convertTo12HourFormat(serviceTime.end_time);
+          return res.status(200).json({ message: `Restaurant is closed at ${updatedTime}`, response: false });
+        }
+      }
+    }
+    // 
 
     const serviceCheck = await getRestorauntServiceTimeAvaibility(booking_date, booking_time, userId, db);
 
-    console.log('serviceCheck', serviceCheck)
+    // console.log('serviceCheck', serviceCheck)
 
     if (serviceCheck.isAvailable === false) {
       return res.status(200).json({ message: serviceCheck.message, response: false })
@@ -558,7 +588,7 @@ exports.getTableAvailableOrNot = async (req, res) => {
     `;
 
     // Query to get all available tables for the user
-    const allTablesQuery = `SELECT * FROM all_tables WHERE userId = ? AND is_deleted = 0`;
+    const allTablesQuery = `SELECT * FROM all_tables WHERE userId = ? AND dining_area_id = ? AND is_deleted = 0`;
 
     // Fetch dining areas associated with the user
     const [diningAreas] = await db.promise().query(diningAreaQuery, [userId]);
@@ -566,6 +596,7 @@ exports.getTableAvailableOrNot = async (req, res) => {
     let sufficientCapacity = false;
     let availableTables = [];
 
+    let totalSeatsArray = [];
     for (const diningArea of diningAreas) {
       const [capacityResult] = await db.promise().query(capacityQuery, [diningArea.dining_area_id, userId]);
 
@@ -575,11 +606,13 @@ exports.getTableAvailableOrNot = async (req, res) => {
       // Check if the dining area has enough capacity
       if (totalCapacity >= booking_no_of_guest) {
         sufficientCapacity = true;
+        // totalSeats.push(totalCapacity);
       }
 
       // Fetch all tables for the user
-      const [allTables] = await db.promise().query(allTablesQuery, [userId]);
+      const [allTables] = await db.promise().query(allTablesQuery, [userId, diningArea.dining_area_id]);
 
+      let tableArray = [];
       for (const table of allTables) {
         const [allocatedTables] = await db.promise().query(allocatedTablesQuery, [
           userId,
@@ -591,11 +624,25 @@ exports.getTableAvailableOrNot = async (req, res) => {
         // Check if the table is already allocated
         const isAllocated = allocatedTables.some(t => t.table_id === table.table_id);
 
+        // console.log('isAllocated', isAllocated)
+
         // If not allocated, add to the available list
         if (!isAllocated) {
           availableTables.push(table);
+          tableArray.push(table)
         }
       }
+      console.log('tableArray', tableArray)
+      const totalSeats = tableArray.reduce((total, table) => total + parseInt(table.table_no_of_seats), 0);
+      tableArray = []
+      if (totalSeats && totalSeats >= booking_no_of_guest) {
+        totalSeatsArray.push(totalSeats);
+      }
+    }
+    // Calculate the total number of seats
+
+    if (totalSeatsArray.length === 0) {
+      return res.json({ message: 'Sorry, no tables are available for the selected number of guests.', response: false });
     }
 
     // If no dining areas have sufficient capacity
@@ -924,5 +971,83 @@ exports.autoInprogressTable = async (req, res) => {
 }
 
 
+function getBookingAndUpdatedTimestamp(booking_date, booking_time, minutesToAdd) {
+  // Combine booking_date and booking_time into a single string
+  let bookingDateTime = `${booking_date} ${booking_time}`;
+
+  // Create a moment object from the combined string in IST (India Standard Time)
+  let indiaTime = moment.tz(bookingDateTime, 'YYYY-MM-DD HH:mm', 'Asia/Kolkata');
+
+  // Format the initial booking timestamp in ISO 8601 format with IST timezone offset (+05:30)
+  let bookingTimestamp = indiaTime.format('YYYY-MM-DDTHH:mm:ss.SSSZ');
+
+  // Add the specified number of minutes to the booking time
+  indiaTime.add(minutesToAdd, 'minutes');
+
+  // Format the updated timestamp in ISO 8601 format with IST timezone offset (+05:30)
+  let updatedTimestamp = indiaTime.format('YYYY-MM-DDTHH:mm:ss.SSSZ');
+
+  // Return both booking timestamp and updated timestamp
+  return {
+    bookingTimestamp,
+    updatedTimestamp
+  };
+}
 
 
+
+function convertTimeToTimestamp(time) {
+  // Get the current date in YYYY-MM-DD format
+  let currentDate = moment().format('YYYY-MM-DD');
+
+  // Combine the current date with the provided time (e.g., "18:00")
+  let dateTime = `${currentDate} ${time}`;
+
+  // Create a moment object from the combined string in IST (India Standard Time)
+  let indiaTime = moment.tz(dateTime, 'YYYY-MM-DD HH:mm', 'Asia/Kolkata');
+
+  // Format the resulting timestamp in ISO 8601 format with IST timezone offset (+05:30)
+  let timestamp = indiaTime.format('YYYY-MM-DDTHH:mm:ss.SSSZ');
+
+  // Return the timestamp
+  return timestamp;
+}
+
+function convertTo12HourFormat(time24) {
+  let [hours, minutes] = time24.split(':');
+  let period = 'AM';
+
+  hours = parseInt(hours, 10);
+
+  if (hours >= 12) {
+    period = 'PM';
+    if (hours > 12) hours -= 12;
+  } else if (hours === 0) {
+    hours = 12; // Midnight
+  }
+
+  // Pad hours and minutes with leading zeroes if necessary
+  hours = hours.toString().padStart(2, '0');
+  minutes = minutes.padStart(2, '0');
+
+  return `${hours}:${minutes} ${period}`;
+}
+
+
+// update booking start and end time
+exports.updateBookingTimes = async (req, res) => {
+  try {
+    const { booking_id, booking_time, booking_end_time, slot_time } = req.params;
+
+    const updateQuery = `UPDATE bookings SET booking_time = ? WHERE booking_id = ?`;
+    await db.promise().query(updateQuery, [booking_time, booking_id]);
+
+    const updateAllocatedTableQuery = `UPDATE allocation_tables SET start_time = ?, end_time = ?, slot_time = ? WHERE booking_id = ?`;
+    await db.promise().query(updateAllocatedTableQuery, [booking_time, booking_end_time, slot_time, booking_id]);
+
+    res.status(200).json({ message: 'Table inprogress Successfully', response: true });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}

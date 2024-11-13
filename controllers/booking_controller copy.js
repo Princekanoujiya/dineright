@@ -124,25 +124,23 @@ const getSelectedDiningArea = (userId) => {
 
 
 // External function to retrieve selected dining areas (now using async/await)
-const getTables = async (diningAreaId, userId) => {
-  try {
+const getTables = (diningAreaId, userId) => {
+  return new Promise((resolve, reject) => {
     const selectedDiningAreaQuery = `SELECT * FROM all_tables WHERE dining_area_id = ? AND userId = ?`;
 
     // Execute the query to retrieve selected dining areas
-    const result = await new Promise((resolve, reject) => {
-      db.query(selectedDiningAreaQuery, [diningAreaId, userId], (err, result) => {
-        if (err) {
-          return reject(err); // Reject the promise with an error
-        }
-        resolve(result); // Resolve with the result
-      });
-    });
+    db.query(selectedDiningAreaQuery, [diningAreaId, userId], (err, result) => {
+      if (err) {
+        return reject(err);  // Reject the promise with an error
+      }
 
-    // Return an empty array if no dining areas are found
-    return result.length > 0 ? result : [];
-  } catch (error) {
-    throw error; // Propagate error for further handling
-  }
+      if (result.length === 0) {
+        return resolve({ message: 'No dining areas found for this user.' });  // Resolve with message if no areas found
+      }
+
+      resolve(result);  // Resolve with the result
+    });
+  });
 };
 
 // calculate booking Items price
@@ -264,75 +262,48 @@ exports.book_product = async (req, res) => {
       for (const serviceTime of serviceTimes) {
         // Assuming endTime and serviceTime.end_time are in 'HH:MM' format
         if (serviceTime.end_time <= endTime) {
-          return res.status(200).json({ message: `Restaurant is closed at ${serviceTime.end_time}`, response: false });
+          return res.status(400).json({ message: `Restaurant is closed at ${serviceTime.end_time}`, response: false });
         }
       }
     }
 
 
-    // get dining areas
-    const selectedDiningAreaQuery = `SELECT * FROM selected_dining_areas WHERE userId = ?`;
-    const [diningAreas] = await db.promise().query(selectedDiningAreaQuery, [userId]);
-
-    if (!diningAreas || diningAreas.length === 0) {
-      return res.status(400).json({ message: 'Dining Area not found', response: false });
-    }
-
+    // Get restaurant dining areas
+    const diningAreas = await getSelectedDiningArea(userId);
     let availableTables = [];
-    let availableSeats = [];
 
     // Iterate through dining areas and find available tables
-    if (diningAreas.length > 0) {
-      for (const diningArea of diningAreas) {
-        const tables = await getTables(diningArea.dining_area_id, userId);
+    for (const diningArea of diningAreas) {
+      const tables = await getTables(diningArea.dining_area_id, userId);
 
-        // Check each table's allocation asynchronously
-        const tableDataPromises = tables.map((table) => {
-          return new Promise((resolve, reject) => {
-            const allocatedTablesQuery = `SELECT * FROM allocation_tables WHERE table_status = 'allocated' AND booking_date = ? AND (start_time <= ? AND end_time > ?)`;
+      // Check each table's allocation asynchronously
+      const tableDataPromises = tables.map((table) => {
+        return new Promise((resolve, reject) => {
+          const allocatedTablesQuery = `SELECT * FROM allocation_tables WHERE table_status = 'allocated' AND booking_date = ? AND (start_time <= ? AND end_time > ?)`;
 
-            // Query to check for allocated tables
-            db.query(allocatedTablesQuery, [booking_date, booking_time, booking_time], (err, result) => {
-              if (err) {
-                return reject(err); // Handle the error by rejecting the promise
-              }
+          // Query to check for allocated tables
+          db.query(allocatedTablesQuery, [booking_date, booking_time, booking_time], (err, result) => {
+            if (err) {
+              return reject(err); // Handle the error by rejecting the promise
+            }
 
-              // Check if the current table is not allocated by comparing it with the result
-              const isTableAllocated = result.some((allocatedTable) => allocatedTable.table_id === table.table_id);
-
-              resolve(isTableAllocated ? null : table); // Resolve with table or null
-            });
+            // Check if the current table is not allocated by comparing it with the result
+            const isTableAllocated = result.some((allocatedTable) => allocatedTable.table_id === table.table_id);
+            resolve(isTableAllocated ? null : table); // Resolve with table or null
           });
         });
+      });
 
-        // Wait for all table queries to finish and filter out null values
-        const availableDiningAreaTables = (await Promise.all(tableDataPromises)).filter((table) => table !== null);
-        availableTables = availableTables.concat(availableDiningAreaTables);       
-
-       
-        if (Array.isArray(availableDiningAreaTables) && availableDiningAreaTables.length > 0) {         
-          const totalSeats = availableDiningAreaTables.reduce((total, table) => total + table.table_no_of_seats, 0);
-          
-          if (totalSeats < booking_no_of_guest) {
-            availableSeats.push(totalSeats);
-          }
-        }
-
-
-      }
-    }
-
-    // return res.json(availableTables)
-    if(availableSeats === 0){
-      return res.status(200).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
+      // Wait for all table queries to finish and filter out null values
+      const availableDiningAreaTables = (await Promise.all(tableDataPromises)).filter((table) => table !== null);
+      availableTables = availableTables.concat(availableDiningAreaTables);
     }
 
     // Calculate the total number of seats
     const totalSeats = availableTables.reduce((total, table) => total + table.table_no_of_seats, 0);
 
-
     if (totalSeats < booking_no_of_guest) {
-      return res.status(200).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
+      return res.status(400).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
     }
 
     const billingAmount = await calculateTotalItemCost(items);

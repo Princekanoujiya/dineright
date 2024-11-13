@@ -33,3 +33,6 @@
 'pending','confirmed','upcoming','inprogress','completed','cancelled'
 
 'upcoming','inprogress','completed'
+
+// https://dineright.techfluxsolutions.com/api/auth/autoInprogressTable
+// wget -O /dev/null https://dineright.techfluxsolutions.com/api/auth/autoInprogressTable

@@ -2,57 +2,48 @@ const db = require('../../config');
 const { razorPayCreateOrderUnpaidCommission } = require('../../controllers/razorpayController');
 
 // get balance
-exports.getMyPayments = (req, res) => {
+exports.getMyPayments = async (req, res) => {
     const userId = req.userId;
 
-    const commissionQuery = `
-        SELECT * 
-        FROM commission_transactions 
-        WHERE userId = ?
-        AND is_payout = 0 
-        AND status = 'completed'
-    `;
+    try {
+        // Query for total withdrawal amount
+        const withdrawalQuery = `SELECT * FROM withdrawal WHERE userId = ? AND status IN ('pending', 'approved')`;
+        const [withdrawalResults] = await db.promise().query(withdrawalQuery, [userId]);
 
-    const sumQuery = `
-        SELECT 
-            SUM(payout_balance) AS total_payout_balance,
-            SUM(commition_amount) AS total_commition_amount,
-            SUM(billing_amount) AS total_billing_amount
-        FROM 
-            commission_transactions 
-        WHERE 
-            userId = ? 
+        const total_withdrawal = withdrawalResults.reduce((total, table) => total + parseInt(table.withdrawal_amount), 0);
+
+        // Query to get commission transactions data
+        const commissionQuery = `
+            SELECT * 
+            FROM commission_transactions 
+            WHERE userId = ?
             AND is_payout = 0 
             AND status = 'completed'
-    `;
+        `;
+        const [commissionResults] = await db.promise().query(commissionQuery, [userId]);
 
-    // Execute the first query to get all data
-    db.query(commissionQuery, [userId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error fetching Balance', details: err.message });
-        }
+        const total_payout_balance = commissionResults.reduce((total, table) => total + parseInt(table.payout_balance), 0);
+        const total_commition_amount = commissionResults.reduce((total, table) => total + parseInt(table.commition_amount), 0);
+        const billing_amount = commissionResults.reduce((total, table) => total + parseInt(table.billing_amount), 0);
+       
 
-        if (result.length === 0) {
-            return res.status(200).json({
-                total: 0,
-                data: result
-            });
-        }
+        const total = {
+            total_withdrawal: total_withdrawal || 0,
+            total_payout_balance: total_payout_balance || 0,
+            total_commition_amount: total_commition_amount || 0,
+            billing_amount: billing_amount || 0
+        };
 
-        // Execute the second query to get the sums
-        db.query(sumQuery, [userId], (sumErr, sumResult) => {
-            if (sumErr) {
-                return res.status(500).json({ error: 'Database error fetching Balance Sum', details: sumErr.message });
-            }
-
-            // Return all data along with the summed values
-            return res.status(200).json({
-                total: sumResult[0],
-                data: result
-            });
+        // Return the data with total sums
+        return res.status(200).json({
+            total,
+            data: commissionResults
         });
-    });
+    } catch (error) {
+        return res.status(500).json({ error: 'Database error fetching payment data', details: error.message });
+    }
 };
+
 
 
 // Withdrawal Payment

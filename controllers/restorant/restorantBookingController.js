@@ -135,6 +135,7 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
           booking_name: booking.booking_name,
           booking_email: booking.booking_email,
           booking_no_of_guest: booking.booking_no_of_guest,
+          table_booked_by_resto_admin: booking.table_booked_by_resto_admin,
           customer_profile_image: customer_profile_image,
           menu: updated_bookingItems,
           billing_amount: booking.billing_amount,
@@ -151,70 +152,103 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
   }
 };
 
+
 // ---------------------------------------------------------------------------------------------------------------------------------
+
+const getTables = async (diningAreaId, userId) => {
+  try {
+    const selectedDiningAreaQuery = `SELECT * FROM all_tables WHERE dining_area_id = ? AND userId = ?`;
+
+    // Execute the query to retrieve selected dining areas
+    return new Promise((resolve, reject) => {
+      db.query(selectedDiningAreaQuery, [diningAreaId, userId], (err, result) => {
+        if (err) {
+          return reject(err); // Reject with an error if the query fails
+        }
+
+        // Always return an array, even if no tables are found
+        resolve(Array.isArray(result) ? result : []);
+      });
+    });
+  } catch (error) {
+    throw new Error(`Error retrieving tables: ${error.message}`);
+  }
+};
+
 // Endpoint for inserting a new booking
 exports.newBookingInsert = async (req, res) => {
-  const {
-    booking_name,
-    booking_email,
-    booking_no_of_guest,
-    booking_date,
-    booking_time,
-    dining_area_id,
-    booking_comment,
-    table_ids, // Array of table IDs for multiple tables
-    items, // Array of items IDs for multiple items
+  const { booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, dining_area_id, booking_comment, table_ids, items,
     start_time,
   } = req.body;
 
-  const userId = req.userId; // Assuming userId is obtained from authentication
-
-  // Insert booking query
-  const insertBookingQuery = `
-    INSERT INTO bookings (userId, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, booking_comment, payment_mod, booking_status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-
-  const booking_status = 'upcoming';
+  const userId = req.userId;
+  console.log('userId', userId)
 
   try {
-    // check no of guest
-    if (booking_no_of_guest > 10) {
-      return res.status(400).json({
-        message: 'We’re sorry, but we can only accommodate a maximum of 10 guests for this booking. Please consider splitting your group into smaller bookings.'
-      });
+
+
+    let defaultSpendingTime = 180;
+
+    const spendingTimeQuery = `SELECT restro_spending_time FROM restro_guest_time_duration WHERE restro_guest = ? AND userId = ?`;
+    const allSpendingTimeQuery = `SELECT restro_spending_time FROM restro_guest_time_duration WHERE userId = ?`;
+
+    const [spendingTime] = await db.promise().query(spendingTimeQuery, [booking_no_of_guest, userId]);
+
+    if (spendingTime.length > 0) {
+      defaultSpendingTime = spendingTime[0].restro_spending_time;
+    } else {
+      const [allSpendingTime] = await db.promise().query(allSpendingTimeQuery, [userId]);
+
+      if (allSpendingTime.length > 0) {
+        const allTimes = allSpendingTime.map(row => row.restro_spending_time);
+        defaultSpendingTime = Math.max(...allTimes);
+      } else {
+        defaultSpendingTime = 180;
+      }
     }
 
-    // Default time in minutes
-    let slotTime = await getRestroSpendingTime(userId, booking_no_of_guest);
+    const restroSpendingTime = defaultSpendingTime;
+
+    const start_time = booking_time;
 
     // Calculate the end time
-    const endTime = addMinutesToTime(booking_time, slotTime);
+    const endTime = addMinutesToTime(booking_time, defaultSpendingTime);
+    // Default time in minutes
+    // let slotTime = await getRestroSpendingTime(userId, booking_no_of_guest);
+
+    // Calculate the end time
+    // const endTime = addMinutesToTime(booking_time, slotTime);
+
+    // Insert booking query
+    const insertBookingQuery = `
+  INSERT INTO bookings (userId, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, booking_comment, payment_mod, booking_status, table_booked_by_resto_admin)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const payment_mod = 'cod';
+    const booking_status = 'upcoming';
+    const table_booked_by_resto_admin = true;
 
     // Insert booking
     const bookingResult = await new Promise((resolve, reject) => {
-      db.query(insertBookingQuery, [userId, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, booking_comment, payment_mod, booking_status], (err, result) => {
+      db.query(insertBookingQuery, [userId, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, booking_comment, payment_mod, booking_status, table_booked_by_resto_admin], (err, result) => {
         if (err) return reject(err);
         resolve(result);
       });
     });
 
     const bookingId = bookingResult.insertId;
-
     // Insert connected items
-    const connectedItems = await insertConnectedProducts(bookingId, items);
-
+    // const connectedItems = await insertConnectedProducts(bookingId, items);
     const table_status = 'allocated';
 
     // Insert allocation for multiple tables
-    const allocationData = await insertTableAllocations(bookingId, dining_area_id, table_ids, booking_date, start_time, endTime, slotTime, booking_no_of_guest, userId, table_status);
+    const allocationData = await insertTableAllocations(bookingId, dining_area_id, table_ids, booking_date, start_time, endTime, restroSpendingTime, booking_no_of_guest, userId, table_status, table_booked_by_resto_admin);
 
     // Respond with success message or relevant data
     res.json({
       message: "Booking inserted successfully",
+      response: true,
       bookingId: bookingId,
-      bookingItems: connectedItems,
+      // bookingItems: connectedItems,
       allocationData,
     });
   } catch (error) {
@@ -224,11 +258,11 @@ exports.newBookingInsert = async (req, res) => {
 };
 
 // Function to insert multiple table allocations
-const insertTableAllocations = (bookingId, dining_area_id, table_ids, booking_date, start_time, endTime, slot_time, no_of_guest, userId, table_status) => {
+const insertTableAllocations = (bookingId, dining_area_id, table_ids, booking_date, start_time, endTime, slot_time, no_of_guest, userId, table_status, table_booked_by_resto_admin) => {
   return new Promise((resolve, reject) => {
     // Prepare allocation query for each table
     const allocationTableQuery = `
-      INSERT INTO allocation_tables (booking_id, dining_area_id, table_id, booking_date, start_time, end_time, slot_time, no_of_guest, userId, table_status)
+      INSERT INTO allocation_tables (booking_id, dining_area_id, table_id, booking_date, start_time, end_time, slot_time, no_of_guest, userId, table_status, table_booked_by_resto_admin)
       VALUES ?
     `;
 
@@ -243,7 +277,8 @@ const insertTableAllocations = (bookingId, dining_area_id, table_ids, booking_da
       slot_time,
       no_of_guest,
       userId,
-      table_status
+      table_status,
+      table_booked_by_resto_admin
     ]);
 
     // Execute the batch insert and return inserted rows
@@ -857,5 +892,37 @@ exports.inprogressTable = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 }
+
+// auto inprogress
+exports.autoInprogressTable = async (req, res) => {
+  try {
+    const indiaDateTime = moment.tz('Asia/Kolkata'); // Get the current date and time in IST
+    const currentDate = indiaDateTime.format('YYYY-MM-DD'); // Format and display the current date
+    const currentTime = indiaDateTime.format('HH:mm:ss'); // Get the current time in IST
+
+    // Query to get bookings before current time on the current date
+    const bookingQuery = `SELECT * FROM bookings WHERE booking_status = 'upcoming' AND booking_date = ? AND booking_time < ?`;
+    const [bookings] = await db.promise().query(bookingQuery, [currentDate, currentTime]);
+
+    let totalUpdated = 0; // Initialize a counter for updated bookings
+
+    if (bookings.length > 0) {
+      for (const booking of bookings) {
+        const updateQuery = `UPDATE bookings SET booking_status = 'inprogress' WHERE booking_id = ?`;
+        await db.promise().query(updateQuery, [booking.booking_id]);
+        totalUpdated++; // Increment the counter for each updated booking
+      }
+
+      res.status(200).json({ message: `${totalUpdated} table(s) marked as inprogress successfully`, response: true });
+    } else {
+      res.status(200).json({ message: 'No bookings to update', response: false });
+    }
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+
 
 

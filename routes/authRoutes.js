@@ -20,7 +20,7 @@ const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionBy
 const superAdnimBookingController = require('../controllers/superadmin/bookingController');
 
 //restroadmin
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable, inprogressTable } = require('../controllers/restorant/restorantBookingController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable, inprogressTable, autoInprogressTable } = require('../controllers/restorant/restorantBookingController');
 const {
   createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllDiningAreasWithTables, getAllCities, resendrestaurantOtp,
   getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
@@ -270,6 +270,9 @@ router.get('/getOneWithdrawalRequest/:id', verifySuperAdminToken, getOneWithdraw
 router.patch('/updateWithdrawalRequest', verifySuperAdminToken, updateWithdrawalRequest);
 router.get('/getAllCancelledBookings', verifySuperAdminToken, superAdnimBookingController.getAllCancelledBookings);
 router.post('/refundStatusChange', verifySuperAdminToken,  superAdnimBookingController.refundStatusChange);
+
+// autoInprogressTable
+router.patch('/autoInprogressTable', autoInprogressTable);
 
 
 module.exports = router;

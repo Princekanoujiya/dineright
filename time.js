@@ -1,8 +1,12 @@
- array = [5,8,9,40]
+const moment = require('moment-timezone');
 
- booking_no_of_guest = 6;
+// Get the current date and time in IST
+const indiaDateTime = moment.tz('Asia/Kolkata');
 
+// Format and display the current date and time
+const currentDate = indiaDateTime.format('YYYY-MM-DD');
+// Get the current time in IST
+const currentTime = indiaDateTime.format('HH:mm:ss');
 
- if (array < booking_no_of_guest) {
-  console.log({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
-}
+console.log('Current Date (IST):', currentDate);
+console.log('Current Time (IST):', currentTime);

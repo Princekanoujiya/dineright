@@ -20,7 +20,7 @@ const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionBy
 const superAdnimBookingController = require('../controllers/superadmin/bookingController');
 
 //restroadmin
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable, inprogressTable, autoInprogressTable } = require('../controllers/restorant/restorantBookingController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable, inprogressTable, autoInprogressTable, updateBookingTimes } = require('../controllers/restorant/restorantBookingController');
 const {
   createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllDiningAreasWithTables, getAllCities, resendrestaurantOtp,
   getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
@@ -198,6 +198,7 @@ router.get('/getTimingDatabyResrtoId', verifyToken, getTimingDatabyResrtoId);
 router.post('/updateTimingData', updateTimingData);
 router.post('/releaseTable/:booking_id', verifyToken, releaseTable);
 router.post('/inprogressTable/:booking_id', verifyToken, inprogressTable);
+router.patch('/updateBookingTimes', verifyToken, updateBookingTimes);
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done

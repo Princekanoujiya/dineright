@@ -1066,11 +1066,6 @@ exports.updateBookingTimes = async (req, res) => {
       return res.status(400).json({ message: 'All parameters (booking_id, booking_time, booking_end_time, slot_time) are required' });
     }
 
-    // Additional validation for format (optional, but recommended)
-    if (isNaN(Date.parse(booking_time)) || isNaN(Date.parse(booking_end_time))) {
-      return res.status(400).json({ message: 'Invalid date format for booking_time or booking_end_time' });
-    }
-
     // Update the `bookings` table
     const updateBookingQuery = `UPDATE bookings SET booking_time = ? WHERE booking_id = ?`;
     const [bookingResult] = await db.promise().query(updateBookingQuery, [booking_time, booking_id]);

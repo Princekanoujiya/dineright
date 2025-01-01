@@ -84,7 +84,8 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
         at.table_name, 
         alct.no_of_guest, 
         alct.customer_id, 
-        alct.start_time, 
+        alct.start_time,
+        alct.end_time,
         alct.slot_time
       FROM allocation_tables alct
       JOIN all_tables at ON at.table_id = alct.table_id
@@ -129,20 +130,114 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
 
       // Append booking and item details to each table
       for (const table of allocatedTables) {
-        table.booking_status = booking.booking_status;
-        table.details = {
-          booking_id: booking.booking_id,
-          booking_name: booking.booking_name,
-          booking_email: booking.booking_email,
-          booking_no_of_guest: booking.booking_no_of_guest,
-          table_booked_by_resto_admin: booking.table_booked_by_resto_admin,
-          customer_profile_image: customer_profile_image,
-          menu: updated_bookingItems,
-          billing_amount: booking.billing_amount,
-          payment_status: booking.payment_status
-        };
+        // table.booking_status = booking.booking_status;
+        // table.details = {
+        //   booking_id: booking.booking_id,
+        //   booking_name: booking.booking_name,
+        //   booking_email: booking.booking_email,
+        //   booking_no_of_guest: booking.booking_no_of_guest,
+        //   table_booked_by_resto_admin: booking.table_booked_by_resto_admin,
+        //   customer_profile_image: customer_profile_image,
+        //   menu: updated_bookingItems,
+        //   billing_amount: booking.billing_amount,
+        //   payment_status: booking.payment_status
+        // };
         diningAreaArray.push(table);
       }
+    }
+
+    res.json(diningAreaArray);
+  } catch (error) {
+    console.error('Error fetching dining areas and tables:', error);
+    res.status(500).json({ message: 'Error fetching dining areas and tables', error });
+  }
+};
+
+// Get all dining areas and their allocated tables
+exports.getAllDiningAreaBookingAndAllocatedTables = async (req, res) => {
+  const userId = req.userId;
+  const bookingDate = req.query.booking_date;
+
+  if (!bookingDate) {
+    return res.status(400).json({ message: 'booking_date is required' });
+  }
+
+  try {
+    // Fetch all bookings for the user, sorted by booking date or ID
+    // const bookingQuery = `SELECT * FROM bookings WHERE userId = ? ORDER BY booking_date ASC`;
+    const bookingQuery = `
+  SELECT * 
+  FROM bookings 
+  WHERE userId = ? 
+    AND booking_status IN ('upcoming', 'inprogress', 'completed')
+  ORDER BY booking_date ASC
+`;
+    const [bookings] = await db.promise().query(bookingQuery, [userId]);
+
+    let diningAreaArray = [];
+
+    for (const booking of bookings) {
+      // Fetch allocated tables for each booking, sorted by table name or ID
+      const allocatedTablesQuery = `
+      SELECT 
+        at.table_id, 
+        at.dining_area_id, 
+        at.table_name, 
+        alct.no_of_guest, 
+        alct.customer_id, 
+        alct.start_time,
+        alct.end_time,
+        alct.slot_time
+      FROM allocation_tables alct
+      JOIN all_tables at ON at.table_id = alct.table_id
+      WHERE alct.booking_id = ? 
+        AND alct.booking_date = ?
+        AND at.userId = ? 
+        AND at.is_deleted = 0
+      ORDER BY at.table_name ASC`;
+
+      const [allocatedTables] = await db.promise().query(allocatedTablesQuery, [booking.booking_id, bookingDate, userId]);
+
+       // Map table_name into a single string for the booking
+       const tableNamesString = allocatedTables.map(table => table.table_name).join(', ');
+       booking.tables = allocatedTables.length > 0 ? tableNamesString : null;
+
+      // Fetch connected products for each booking, sorted by item name
+      const bookingItemsQuery = `
+      SELECT 
+        mi.master_item_id, 
+        mi.master_item_name,
+        mi.master_item_image,
+        bcp.product_quantity, 
+        CONCAT(?, mi.master_item_image) AS master_item_image, 
+        mi.master_item_price, 
+        mi.master_item_description 
+      FROM booking_connected_products bcp
+      JOIN master_items mi ON mi.master_item_id = bcp.master_item_id
+      WHERE bcp.booking_id = ?
+      ORDER BY mi.master_item_name ASC`;
+
+      const [bookingItems] = await db.promise().query(bookingItemsQuery, [process.env.BASE_URL, booking.booking_id]);
+
+      // customer details
+      const getCustomer = `SELECT * FROM customers WHERE customer_id = ?`;
+      const [customers] = await db.promise().query(getCustomer, [booking.customer_id]);
+
+      // Ensure the customer exists before accessing the profile image
+      const customer_profile_image = customers.length > 0 ? process.env.BASE_URL + customers[0].customer_profile_image : null;
+
+      // Map over the master item image to prepend BASE_URL to each file
+      const updated_bookingItems = bookingItems.map(item => ({
+        ...item,
+        master_item_image: process.env.BASE_URL + item.master_item_image,
+      }));
+
+
+      booking.booking_items = updated_bookingItems;
+
+      if(booking.tables){
+        diningAreaArray.push(booking);
+      }      
     }
 
     res.json(diningAreaArray);
@@ -553,7 +648,7 @@ exports.getTableAvailableOrNot = async (req, res) => {
         // Assuming endTime and serviceTime.end_time are in 'HH:MM' format
         if (serviceTime.end_time <= endTime || serviceTime.start_time > endTime) {
           const updatedTime = convertTo12HourFormat(serviceTime.end_time);
-          return res.status(200).json({ message: `Restaurant is closed at ${updatedTime}`, response: false });
+          return res.status(200).json({ message: `The restaurant is available on your chosen date from 9:00 AM to 10:00 PM.`, response: false });
         }
       }
     }
@@ -595,6 +690,7 @@ exports.getTableAvailableOrNot = async (req, res) => {
 
     let sufficientCapacity = false;
     let availableTables = [];
+    let dining_area_id = null;
 
     let totalSeatsArray = [];
     for (const diningArea of diningAreas) {
@@ -637,6 +733,7 @@ exports.getTableAvailableOrNot = async (req, res) => {
       tableArray = []
       if (totalSeats && totalSeats >= booking_no_of_guest) {
         totalSeatsArray.push(totalSeats);
+        dining_area_id = diningArea.dining_area_id;
       }
     }
     // Calculate the total number of seats
@@ -658,7 +755,7 @@ exports.getTableAvailableOrNot = async (req, res) => {
     }
 
     // If sufficient tables are available
-    return res.json({ message: 'Great news! We have enough tables available for your booking.', response: true });
+    return res.json({ message: 'Great news! We have enough tables available for your booking.', response: true, dining_area_id });
 
   } catch (error) {
     console.error(error);

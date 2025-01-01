@@ -36,3 +36,27 @@
 
 // https://dineright.techfluxsolutions.com/api/auth/autoInprogressTable
 // wget -O /dev/null https://dineright.techfluxsolutions.com/api/auth/autoInprogressTable
+
+const courseArray = [
+    {
+        "course_id": 1
+    },
+    {
+        "course_id": 2
+    },
+    {
+        "course_id": 3
+    },
+    {
+        "course_id": 4
+    },
+    {
+        "course_id": 5
+    },
+    {
+        "course_id": 6
+    }
+]
+
+// ORDER BY created_at DESC
+// getUserProfileDetails

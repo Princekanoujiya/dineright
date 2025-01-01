@@ -1,48 +1,24 @@
 const moment = require('moment-timezone');
 
-// // Get the current date and time in IST
-// const indiaDateTime = moment.tz('Asia/Kolkata');
+// Example booking time
+let bookingTime = '2024-11-15 17:34:56';
 
-// // Format and display the current date and time
-// const currentDate = indiaDateTime.format('YYYY-MM-DD');
-// // Get the current time in IST
-// const currentTime = indiaDateTime.format('HH:mm:ss');
+// Parse the booking time and set it to IST
+let bookingMoment = moment.tz(bookingTime, 'YYYY-MM-DD HH:mm:ss', 'Asia/Kolkata');
 
-// console.log('Current Date (IST):', currentDate);
-// console.log('Current Time (IST):', currentTime);
+// Get the current time in IST
+let currentTime = moment.tz('Asia/Kolkata');
 
-// const time1 = '19:16';
+// Subtract 2 hours from the booking time
+let timeBeforeTwoHours = bookingMoment.clone().subtract(2, 'hours');
 
-// const time2 = '19:15';
+// Print the current time, booking time, and time before 2 hours in IST
+console.log("Current Time (IST): " + currentTime.format('YYYY-MM-DD HH:mm:ss'));
+console.log("Booking Time (IST): " + bookingMoment.format('YYYY-MM-DD HH:mm:ss'));
+console.log("Time Before 2 Hours (IST): " + timeBeforeTwoHours.format('YYYY-MM-DD HH:mm:ss'));
 
-// if(time1 <= time2){
-//     console.log('true ',time1, ': ', time2)
-// }
-
-function getBookingAndUpdatedTimestamp(booking_date, booking_time, minutesToAdd) {
-    // Combine booking_date and booking_time into a single string
-    let bookingDateTime = `${booking_date} ${booking_time}`;
-
-    // Create a moment object from the combined string in IST (India Standard Time)
-    let indiaTime = moment.tz(bookingDateTime, 'YYYY-MM-DD HH:mm', 'Asia/Kolkata');
-
-    // Format the initial booking timestamp in ISO 8601 format with IST timezone offset (+05:30)
-    let bookingTimestamp = indiaTime.format('YYYY-MM-DDTHH:mm:ss.SSSZ');
-
-    // Add the specified number of minutes to the booking time
-    indiaTime.add(minutesToAdd, 'minutes');
-
-    // Format the updated timestamp in ISO 8601 format with IST timezone offset (+05:30)
-    let updatedTimestamp = indiaTime.format('YYYY-MM-DDTHH:mm:ss.SSSZ');
-
-    // Return both booking timestamp and updated timestamp
-    return {
-        bookingTimestamp,
-        updatedTimestamp
-    };
+if(timeBeforeTwoHours > currentTime){
+    console.log('booton', true)
+} else {
+    console.log('booton', false)
 }
-
-
-
-const time = getBookingAndUpdatedTimestamp('2024-11-13','18:00', 45)
-console.log('time', time)

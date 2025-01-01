@@ -7,7 +7,7 @@ const { uploadFile, updateFile } = require('../utils/multer/attachments');
 // exports.insertOrUpdateBannerImage = async (req, res) => {
 
 //   const userId = req.userId; // Assuming req.userId is set previously in the middleware
- 
+
 //   const { banner_image_id } = req.body;
 
 //  let bannerImage = null;    
@@ -67,16 +67,18 @@ exports.insertOrUpdateBannerImage = async (req, res) => {
 
       const oldImage = image[0].banner_image;
 
-      // Upload the new image, replacing the old one if a file is uploaded
-      const uploadedFile = await updateFile(req.file, `banner_images/${userId}`, oldImage);
-      bannerImage = uploadedFile.newFileName || oldImage;
+      if (req.file) {
+        // Upload the new image, replacing the old one if a file is uploaded
+        const uploadedFile = await updateFile(req.file, `banner_images/${userId}`, oldImage);
+        bannerImage = uploadedFile.newFileName || oldImage;
 
-      // Update the banner image in the database
-      const updateQuery = `UPDATE banner_images SET banner_image = ? WHERE banner_image_id = ? AND userId = ?`;
-      const [result] = await db.promise().query(updateQuery, [bannerImage, banner_image_id, userId]);
+        // Update the banner image in the database
+        const updateQuery = `UPDATE banner_images SET banner_image = ? WHERE banner_image_id = ? AND userId = ?`;
+        const [result] = await db.promise().query(updateQuery, [bannerImage, banner_image_id, userId]);
 
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error_msg: 'Banner image not found or user not authorized', response: false });
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ error_msg: 'Banner image not found or user not authorized', response: false });
+        }
       }
 
       return res.status(200).json({ success_msg: 'Banner image updated successfully', banner_image_id, response: true });

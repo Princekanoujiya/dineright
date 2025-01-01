@@ -57,10 +57,15 @@ exports.getCourseMenuAndMenuItems = async (req, res) => {
 
     }
 
+    const prioritizedArray = [
+      ...courseArray.filter(course => course.course_id === 5),
+      ...courseArray.filter(course => course.course_id !== 5)
+  ];
+
     res.status(200).json({
       success_msg: 'Course menu details retrieved successfully',
       response: true,
-      data: courseArray
+      data: prioritizedArray
     });
   } catch (err) {
     res.status(500).json({ error_msg: err.message, response: false });

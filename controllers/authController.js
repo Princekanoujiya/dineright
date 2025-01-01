@@ -182,6 +182,11 @@ exports.createOrUpdateOneStep = async (req, res) => {
       return res.status(200).json({ error_msg: 'Email is already in use', response: false });
     }
 
+    const incompleteUserQuery = `SELECT * FROM users WHERE email = ? AND signup_status = 0`;
+    const [incompleteUsers] = await db.promise().query(incompleteUserQuery, [email]);
+
+    const incompleteUser = incompleteUsers.length > 0 ? incompleteUsers[0].id : null;
+
     if (id) {
       // Update user if id is provided
       const getUserQuery = 'SELECT license_image FROM users WHERE id = ?';

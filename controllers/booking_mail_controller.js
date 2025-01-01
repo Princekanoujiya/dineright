@@ -3,6 +3,21 @@ const nodemailer = require('nodemailer');
 const db = require('../config');
 
 
+function convertToAmPm(time) {
+  // Split the time into hours, minutes, and seconds
+  const [hour, minute, second] = time.split(":").map(Number);
+
+  // Determine AM or PM
+  const period = hour >= 12 ? "PM" : "AM";
+
+  // Convert hour to 12-hour format
+  const hour12 = hour % 12 || 12; // If hour is 0 or 12, set it to 12
+
+  // Return the formatted string
+  return `${String(hour12).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${period}`;
+}
+
+
 // Function to create booking message
 function createSimpleBookingMessage(data) {
   const {
@@ -21,6 +36,8 @@ function createSimpleBookingMessage(data) {
     seatingDetails
   } = data;
 
+  const payment_status = payment_mod === 'online' ? 'paid' : 'unpaid';
+
   // Create an HTML string for the items in table format
   const itemsHTML = items.map(item => {
     const totalPrice = item.master_item_price * item.product_quantity; // Calculate total price
@@ -36,8 +53,8 @@ function createSimpleBookingMessage(data) {
 
   // Create an HTML string for the seating details
   const seatingHTML = seatingDetails.map(area => `
-    <h4>${area.dining_area_type}</h4>
-    <p>Tables: ${area.tables.join(', ')}</p>
+    <h4>Dining Area: ${area.dining_area_type}</h4>
+    <p>Tables Name: ${area.tables.join(', ')}</p>
   `).join('');
 
   return `<!DOCTYPE html>
@@ -122,7 +139,7 @@ function createSimpleBookingMessage(data) {
             <p><strong>Restaurant Name:</strong> ${restaurantName}</p>
             <p><strong>Restaurant Address:</strong> ${restaurantAddress}</p>
             <p><strong>Date:</strong> ${formatDate(booking_date)}</p>
-            <p><strong>Booking Time:</strong> ${booking_time}</p>
+            <p><strong>Booking Time:</strong> ${convertToAmPm(booking_time)}</p>
             <p><strong>Number of Guests:</strong> ${booking_no_of_guest}</p>
             <div class="status"><strong>Booking Status:</strong> ${booking_status}</div>
         </div>
@@ -156,7 +173,7 @@ function createSimpleBookingMessage(data) {
         </div>
 
         <div class="payment">
-            <h3>Payment Information:</h3>
+            <h3>Payment status: ${payment_status}</h3>
             <p><strong>Payment Method:</strong> ${payment_mod}</p>
         </div>
 

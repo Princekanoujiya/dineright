@@ -189,6 +189,11 @@ async function calculateTotalItemCost(items) {
 }
 
 
+// 
+
+
+
+
 
 // book product
 exports.book_product = async (req, res) => {
@@ -270,18 +275,18 @@ exports.book_product = async (req, res) => {
       }
     }
 
+    // Data to be sent in the POST request
+    const requestData = {
+      userId,
+      booking_date,
+      booking_time,
+      booking_no_of_guest,
+    };
+
     // Function to make the POST request
     async function checkTableAvailability() {
       try {
-        const apiUrl = `${process.env.BASE_URL}/api/auth/getTableAvailableOrNot-booking`;
-
-        const requestData = {
-          userId,
-          booking_date,
-          booking_time,
-          booking_no_of_guest,
-        };
-
+        const apiUrl = `${process.env.BASE_URL}/api/auth/getTableAvailableOrNot-booking`
         const response = await axios.post(apiUrl, requestData);
         // console.log('API Response:', response.data);
         return response.data;
@@ -304,61 +309,10 @@ exports.book_product = async (req, res) => {
       return res.json(ctaData);
     }
 
-
-    // get dining areas
-    // const selectedDiningAreaQuery = `SELECT * FROM selected_dining_areas WHERE userId = ?`;
-    // const [diningAreas] = await db.promise().query(selectedDiningAreaQuery, [userId]);
-
-    // if (!diningAreas || diningAreas.length === 0) {
-    //   return res.status(400).json({ message: 'Dining Area not found', response: false });
-    // }
+    // return res.json(ctaData);
 
     let availableTables = [];
     let availableSeats = [];
-
-    if (ctaData.dining_area_id) {
-      const [tables] = await db.promise().query(`SELECT * FROM all_tables WHERE dining_area_id = ? AND userId = ?`, [ctaData.dining_area_id, userId]);
-
-      // Check each table's allocation asynchronously
-      const tableDataPromises = tables.map(async (table) => {
-        const allocatedTablesQuery = `SELECT * FROM allocation_tables WHERE dining_area_id = ? AND table_status = 'allocated' AND booking_date = ? AND (start_time <= ? AND end_time > ?)`;
-
-        const [result] = await db.promise().query(allocatedTablesQuery, [ctaData.dining_area_id, booking_date, booking_time, booking_time]);
-
-        // Check if the current table is not allocated by comparing it with the result
-        const isTableAllocated = result.some((allocatedTable) => allocatedTable.table_id === table.table_id);
-
-        return isTableAllocated ? null : table; // Return with table or null
-      });
-
-      // Wait for all table queries to finish and filter out null values
-      const availableDiningAreaTables = (await Promise.all(tableDataPromises)).filter((table) => table !== null);
-      availableTables = availableTables.concat(availableDiningAreaTables);
-
-
-      if (Array.isArray(availableDiningAreaTables) && availableDiningAreaTables.length > 0) {
-        const totalSeats = availableDiningAreaTables.reduce((total, table) => total + table.table_no_of_seats, 0);
-
-        if (totalSeats < booking_no_of_guest) {
-          availableSeats.push(totalSeats);
-        }
-      }
-    }
-
-    // return res.json({availableSeats, availableTables})
-
-    // return res.json(availableTables)
-    if (availableSeats === 0) {
-      return res.status(200).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
-    }
-
-    // Calculate the total number of seats
-    const totalSeats = availableTables.reduce((total, table) => total + table.table_no_of_seats, 0);
-
-
-    if (totalSeats < booking_no_of_guest) {
-      return res.status(200).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
-    }
 
     const billingAmount = await calculateTotalItemCost(items);
 
@@ -383,7 +337,54 @@ exports.book_product = async (req, res) => {
 
     // Allocate tables for the booking
     let allocationData = [];
-    let bookingSeats = booking_no_of_guest;
+    let bookingSeats = booking_no_of_guest;    
+
+    if (ctaData.dining_area_id) {
+      const tables = await getTables(ctaData.dining_area_id, userId);
+
+      // Check each table's allocation asynchronously
+      const tableDataPromises = tables.map((table) => {
+        return new Promise((resolve, reject) => {
+          const allocatedTablesQuery = `SELECT * FROM allocation_tables WHERE dining_area_id = ? AND table_status = 'allocated' AND booking_date = ? AND (start_time <= ? AND end_time > ?)`;          
+
+          // Query to check for allocated tables
+          db.query(allocatedTablesQuery, [ctaData.dining_area_id, booking_date, booking_time, booking_time], (err, result) => {
+            if (err) {
+              return reject(err); // Handle the error by rejecting the promise
+            }
+
+            return res.json(result);
+
+            // Check if the current table is not allocated by comparing it with the result
+            const isTableAllocated = result.some((allocatedTable) => allocatedTable.table_id === table.table_id);
+
+            resolve(isTableAllocated ? null : table); // Resolve with table or null
+          });
+        });
+      });
+
+      // Wait for all table queries to finish and filter out null values
+      const availableDiningAreaTables = (await Promise.all(tableDataPromises)).filter((table) => table !== null);
+      availableTables = availableTables.concat(availableDiningAreaTables);
+
+
+      if (Array.isArray(availableDiningAreaTables) && availableDiningAreaTables.length > 0) {
+        const totalSeats = availableDiningAreaTables.reduce((total, table) => total + table.table_no_of_seats, 0);
+
+        if (totalSeats < booking_no_of_guest) {
+          availableSeats.push(totalSeats);
+        }
+      }
+    }
+
+     // return res.json(availableTables)
+     if(availableSeats === 0){
+      return res.status(200).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
+    }
+
+    // Calculate the total number of seats
+    const totalSeats = availableTables.reduce((total, table) => total + table.table_no_of_seats, 0);
+
     const sortedTables = availableTables.sort((a, b) => a.table_no_of_seats - b.table_no_of_seats);
 
     for (const table of sortedTables) {
@@ -396,17 +397,10 @@ exports.book_product = async (req, res) => {
           const start_time = booking_time;
           const slot_time = restroSpendingTime;
 
-          const allocationTableQuery = `
-            INSERT INTO allocation_tables (booking_id, dining_area_id, table_id, booking_date, start_time, end_time, slot_time, no_of_guest, notes, customer_id, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `;
+          const allocationTableQuery = `INSERT INTO allocation_tables (booking_id, dining_area_id, table_id, booking_date, start_time, end_time, slot_time, no_of_guest, notes, customer_id, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
           // Insert allocation
-          const allocationResult = await new Promise((resolve, reject) => {
-            db.query(allocationTableQuery, [bookingId, dining_area_id, table_id, booking_date, start_time, endTime, slot_time, currentTableSeats, "", customer_id, userId], (err, result) => {
-              if (err) return reject(err);
-              resolve(result);
-            });
-          });
+          const allocationResult = await db.promise().query(allocationTableQuery, [bookingId, dining_area_id, table_id, booking_date, start_time, endTime, slot_time, currentTableSeats, "", customer_id, userId]);
 
           // Push the allocation data into the array
           allocationData.push({
@@ -422,6 +416,8 @@ exports.book_product = async (req, res) => {
         }
       }
     }
+
+    // return res.json(bookingSeats)
 
     // Check if all required seats are allocated
     if (bookingSeats > 0) {
@@ -833,7 +829,7 @@ const sendEmail = (email, message, res) => {
 // Helper function to convert incoming Indian time to UTC
 const convertToUTC = (date, time) => {
   // Create a JavaScript Date object in IST (Indian Standard Time)
-  const istDateTime = new Date(`${date}T${time}:00+00:00`); // Indian time (UTC+5:30)
+  const istDateTime = new Date(`${date}T${time}+00:00`); // Indian time (UTC+5:30)
 
   // Convert the IST Date object to UTC using toISOString()
   const utcDateTime = new Date(istDateTime.toISOString());

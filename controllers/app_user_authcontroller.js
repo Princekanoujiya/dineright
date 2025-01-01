@@ -1,4 +1,5 @@
 const db = require('../config');
+const moment = require('moment-timezone');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const path = require('path');
@@ -638,10 +639,69 @@ exports.getUserProfileDetails = async (req, res) => {
       `, [result.id]);
 
       // bookings
-      const getbookingQuery = `SELECT booking_id, userId, customer_id, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, billing_amount, payment_mod, payment_status, booking_comment, booking_status FROM bookings WHERE userId = ?`;
+      const getbookingQuery = `SELECT booking_id, userId, customer_id, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, billing_amount, payment_mod, payment_status, booking_comment, booking_status FROM bookings WHERE userId = ? ORDER BY booking_id DESC`;
       const [myBookings] = await db.promise().query(getbookingQuery, [result.id]);
 
-      result.my_bookings = await Promise.all(myBookings.map(async (myBooking) => {
+      // const updatedBooking = myBookings.map(booking => {
+      //   const dateTimeString = `${booking.booking_date} ${booking.booking_time}`;
+      //   const dateObj = new Date(dateTimeString);
+
+      //   return {
+      //     ...booking,
+      //     bookingDateTime: dateTimeString,
+      //     timestamp: dateObj.getTime() || null, // Ensure it returns null if the timestamp is invalid
+      //   };
+      // });
+
+
+      // const updatedBooking = myBookings.map(booking => {
+      //   // Combine the booking date and time, then convert to IST timestamp
+      //   const bookingDateTime = moment.tz(`${booking.booking_date} ${booking.booking_time}`, "Asia/Kolkata");
+
+      //   // Get the current time in IST and subtract 2 hours
+      //   const currentTime = moment.tz("Asia/Kolkata");
+      //   const twoHoursBefore = currentTime.subtract(2, 'hours');
+
+      //   // Check if booking is 2 hours before the current time
+      //   const cancelButton = bookingDateTime.isBefore(twoHoursBefore);
+
+      //   return {
+      //     ...booking,
+      //     bookingDateTime: bookingDateTime.valueOf(),
+      //     twoHoursBefore,
+      //     cancel_button: cancelButton, // Set the cancel_button based on the condition
+      //   };
+      // });
+
+      const updatedBooking = myBookings.map(booking => {
+
+        const bookingDate = moment.utc(booking.booking_date).tz('Asia/Kolkata').format('YYYY-MM-DD');     
+
+        const timezone = 'Asia/Kolkata'; // Change to your desired timezone
+        // const bookingDateTime = moment.tz(`${bookingDate} ${booking.booking_time}`, timezone).toISOString();
+        const bookingDateTime = `${bookingDate}T${booking.booking_time}.000Z`;
+        const currentDateTime = moment.tz(timezone).toISOString();
+
+        // Subtract 2 hours from the booking time
+        const adjustedBookingDateTime = moment.tz(`${bookingDate} ${booking.booking_time}`, timezone).subtract(2, 'hours').toISOString();
+
+        let cancel_button = adjustedBookingDateTime > currentDateTime ? true : false;
+
+        if(booking.booking_status === 'inprogress' || booking.booking_status === 'completed' || booking.booking_status === 'cancelled'){
+          cancel_button = false
+        }
+
+
+        return {
+          ...booking,
+          cancel_button
+        };
+      });
+
+      //  // let bookingDateTime = `${booking_date} ${booking_time}`;
+
+
+      result.my_bookings = await Promise.all(updatedBooking.map(async (myBooking) => {
         const getbookingProductQuery = `SELECT mi.*, bcp.product_quantity
         FROM booking_connected_products bcp
         JOIN master_items mi ON mi.master_item_id = bcp.master_item_id
@@ -652,6 +712,8 @@ exports.getUserProfileDetails = async (req, res) => {
           ...product,
           master_item_image: process.env.BASE_URL + product.master_item_image,
         }));
+
+
 
         // allocation_tables
         const getAllocationTablesQuery = `SELECT allocation_id, booking_id, dining_area_id, table_id, table_status FROM allocation_tables WHERE booking_id = ?`;
@@ -705,50 +767,121 @@ exports.getUserProfileDetails = async (req, res) => {
 
 
 // Update user profile details
+// exports.updateUserProfileDetails = async (req, res) => {
+//   const customer_id = req.customer_id;
+
+//   try {
+//     // If no file is uploaded, return an error
+//     if (!req.file) {
+//       return res.status(400).json({ error_msg: 'No file uploaded', response: false });
+//     }
+
+//     const { customer_name, customer_email } = req.body;
+
+//     // Validate that required fields are provided
+//     if (!customer_name || !customer_email) {
+//       return res.status(200).json({ error_msg: 'All required fields must be filled', response: false });
+//     }
+
+//     // SQL query to fetch the old profile image path from the database
+//     const profileQuery = `SELECT customer_profile_image FROM customers WHERE customer_id = ?`;
+//     const [customerProfile] = await db.promise().query(profileQuery, [customer_id]);
+
+//     if (customerProfile.length === 0) {
+//       return res.status(200).json({ error_msg: 'User not found', response: false });
+//     }
+
+//     // Get the old image path
+//     const oldImagePath = customerProfile[0].customer_profile_image;
+
+//     // Upload the new file and remove the old file if it exists
+//     const uploadedFile = await updateFile(req.file, `user_profiles/${customer_id.toString()}`, oldImagePath);
+//     console.log('uploadedFile', uploadedFile);
+
+//     // SQL query to update the customer record
+//     const updateQuery = `
+//       UPDATE customers 
+//       SET customer_name = ?, customer_email = ?, customer_profile_image = ? 
+//       WHERE customer_id = ?`;
+//     const values = [customer_name, customer_email, uploadedFile.newFileName, customer_id];
+
+//     // Execute the query to update the profile
+//     const [result] = await db.promise().query(updateQuery, values);
+
+//     // If no rows were updated, return an error
+//     if (result.affectedRows === 0) {
+//       return res.status(200).json({ error_msg: 'No changes made to the user profile', response: false });
+//     }
+
+//     res.status(200).json({ success_msg: 'User profile details updated successfully', response: true });
+//   } catch (error) {
+//     console.error('Error updating profile:', error);
+//     return res.status(500).json({ error_msg: 'An error occurred while updating profile details', details: error.message, response: false });
+//   }
+// };
+
+// Update user profile details
 exports.updateUserProfileDetails = async (req, res) => {
   const customer_id = req.customer_id;
 
   try {
-    // If no file is uploaded, return an error
-    if (!req.file) {
-      return res.status(400).json({ error_msg: 'No file uploaded', response: false });
-    }
-
     const { customer_name, customer_email } = req.body;
-
-    // Validate that required fields are provided
-    if (!customer_name || !customer_email) {
-      return res.status(400).json({ error_msg: 'All required fields must be filled', response: false });
-    }
 
     // SQL query to fetch the old profile image path from the database
     const profileQuery = `SELECT customer_profile_image FROM customers WHERE customer_id = ?`;
     const [customerProfile] = await db.promise().query(profileQuery, [customer_id]);
 
     if (customerProfile.length === 0) {
-      return res.status(404).json({ error_msg: 'User not found', response: false });
+      return res.status(200).json({ error_msg: 'User not found', response: false });
     }
 
     // Get the old image path
     const oldImagePath = customerProfile[0].customer_profile_image;
 
-    // Upload the new file and remove the old file if it exists
-    const uploadedFile = await updateFile(req.file, `user_profiles/${customer_id.toString()}`, oldImagePath);
-    console.log('uploadedFile', uploadedFile);
+    let newImagePath = oldImagePath;
+    if (req.file) {
+      // Upload the new file and remove the old file if it exists
+      const uploadedFile = await updateFile(req.file, `user_profiles/${customer_id.toString()}`, oldImagePath);
+      console.log('uploadedFile', uploadedFile);
+      newImagePath = uploadedFile.newFileName;
+    }
 
-    // SQL query to update the customer record
+    // Dynamically build the SQL query to update only the provided fields
+    const fieldsToUpdate = [];
+    const values = [];
+
+    if (customer_name) {
+      fieldsToUpdate.push('customer_name = ?');
+      values.push(customer_name);
+    }
+
+    if (customer_email) {
+      fieldsToUpdate.push('customer_email = ?');
+      values.push(customer_email);
+    }
+
+    if (req.file) {
+      fieldsToUpdate.push('customer_profile_image = ?');
+      values.push(newImagePath);
+    }
+
+    // If no fields are provided to update, return an error
+    if (fieldsToUpdate.length === 0) {
+      return res.status(200).json({ error_msg: 'No fields provided for update', response: false });
+    }
+
+    values.push(customer_id);
     const updateQuery = `
       UPDATE customers 
-      SET customer_name = ?, customer_email = ?, customer_profile_image = ? 
+      SET ${fieldsToUpdate.join(', ')} 
       WHERE customer_id = ?`;
-    const values = [customer_name, customer_email, uploadedFile.newFileName, customer_id];
 
     // Execute the query to update the profile
     const [result] = await db.promise().query(updateQuery, values);
 
     // If no rows were updated, return an error
     if (result.affectedRows === 0) {
-      return res.status(404).json({ error_msg: 'No changes made to the user profile', response: false });
+      return res.status(200).json({ error_msg: 'No changes made to the user profile', response: false });
     }
 
     res.status(200).json({ success_msg: 'User profile details updated successfully', response: true });
@@ -757,6 +890,7 @@ exports.updateUserProfileDetails = async (req, res) => {
     return res.status(500).json({ error_msg: 'An error occurred while updating profile details', details: error.message, response: false });
   }
 };
+
 
 
 

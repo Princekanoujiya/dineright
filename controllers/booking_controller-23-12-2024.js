@@ -3,7 +3,6 @@ const nodemailer = require('nodemailer');
 const db = require('../config');
 const { razorPayCreateOrder } = require('./razorpayController');
 const { sendBookingEmail } = require('./booking_mail_controller');
-const axios = require('axios');
 
 exports.getMasterCard = (req, res) => {
   const { userId } = req.body;
@@ -270,85 +269,61 @@ exports.book_product = async (req, res) => {
       }
     }
 
-    // Function to make the POST request
-    async function checkTableAvailability() {
-      try {
-        const apiUrl = `${process.env.BASE_URL}/api/auth/getTableAvailableOrNot-booking`;
-
-        const requestData = {
-          userId,
-          booking_date,
-          booking_time,
-          booking_no_of_guest,
-        };
-
-        const response = await axios.post(apiUrl, requestData);
-        // console.log('API Response:', response.data);
-        return response.data;
-      } catch (error) {
-        // console.error('Error calling the API:', error.message);
-
-        if (error.response) {
-          // console.error('API Error Response:', error.response.data);
-          return error.response.data
-        } else {
-          return { response: false, message: error.message };
-        }
-      }
-    }
-
-    const ctaData = await checkTableAvailability();
-
-    // checkTableAvailability - error response
-    if (ctaData.response === false) {
-      return res.json(ctaData);
-    }
-
 
     // get dining areas
-    // const selectedDiningAreaQuery = `SELECT * FROM selected_dining_areas WHERE userId = ?`;
-    // const [diningAreas] = await db.promise().query(selectedDiningAreaQuery, [userId]);
+    const selectedDiningAreaQuery = `SELECT * FROM selected_dining_areas WHERE userId = ?`;
+    const [diningAreas] = await db.promise().query(selectedDiningAreaQuery, [userId]);
 
-    // if (!diningAreas || diningAreas.length === 0) {
-    //   return res.status(400).json({ message: 'Dining Area not found', response: false });
-    // }
+    if (!diningAreas || diningAreas.length === 0) {
+      return res.status(400).json({ message: 'Dining Area not found', response: false });
+    }
 
     let availableTables = [];
     let availableSeats = [];
 
-    if (ctaData.dining_area_id) {
-      const [tables] = await db.promise().query(`SELECT * FROM all_tables WHERE dining_area_id = ? AND userId = ?`, [ctaData.dining_area_id, userId]);
+    // Iterate through dining areas and find available tables
+    if (diningAreas.length > 0) {
+      for (const diningArea of diningAreas) {
+        const tables = await getTables(diningArea.dining_area_id, userId);
 
-      // Check each table's allocation asynchronously
-      const tableDataPromises = tables.map(async (table) => {
-        const allocatedTablesQuery = `SELECT * FROM allocation_tables WHERE dining_area_id = ? AND table_status = 'allocated' AND booking_date = ? AND (start_time <= ? AND end_time > ?)`;
+        // Check each table's allocation asynchronously
+        const tableDataPromises = tables.map((table) => {
+          return new Promise((resolve, reject) => {
+            const allocatedTablesQuery = `SELECT * FROM allocation_tables WHERE table_status = 'allocated' AND booking_date = ? AND (start_time <= ? AND end_time > ?)`;
 
-        const [result] = await db.promise().query(allocatedTablesQuery, [ctaData.dining_area_id, booking_date, booking_time, booking_time]);
+            // Query to check for allocated tables
+            db.query(allocatedTablesQuery, [booking_date, booking_time, booking_time], (err, result) => {
+              if (err) {
+                return reject(err); // Handle the error by rejecting the promise
+              }
 
-        // Check if the current table is not allocated by comparing it with the result
-        const isTableAllocated = result.some((allocatedTable) => allocatedTable.table_id === table.table_id);
+              // Check if the current table is not allocated by comparing it with the result
+              const isTableAllocated = result.some((allocatedTable) => allocatedTable.table_id === table.table_id);
 
-        return isTableAllocated ? null : table; // Return with table or null
-      });
+              resolve(isTableAllocated ? null : table); // Resolve with table or null
+            });
+          });
+        });
 
-      // Wait for all table queries to finish and filter out null values
-      const availableDiningAreaTables = (await Promise.all(tableDataPromises)).filter((table) => table !== null);
-      availableTables = availableTables.concat(availableDiningAreaTables);
+        // Wait for all table queries to finish and filter out null values
+        const availableDiningAreaTables = (await Promise.all(tableDataPromises)).filter((table) => table !== null);
+        availableTables = availableTables.concat(availableDiningAreaTables);       
 
-
-      if (Array.isArray(availableDiningAreaTables) && availableDiningAreaTables.length > 0) {
-        const totalSeats = availableDiningAreaTables.reduce((total, table) => total + table.table_no_of_seats, 0);
-
-        if (totalSeats < booking_no_of_guest) {
-          availableSeats.push(totalSeats);
+       
+        if (Array.isArray(availableDiningAreaTables) && availableDiningAreaTables.length > 0) {         
+          const totalSeats = availableDiningAreaTables.reduce((total, table) => total + table.table_no_of_seats, 0);
+          
+          if (totalSeats < booking_no_of_guest) {
+            availableSeats.push(totalSeats);
+          }
         }
+
+
       }
     }
 
-    // return res.json({availableSeats, availableTables})
-
     // return res.json(availableTables)
-    if (availableSeats === 0) {
+    if(availableSeats === 0){
       return res.status(200).json({ message: 'Oops! It looks like all tables are currently occupied. Would you like to join our waiting list?' });
     }
 

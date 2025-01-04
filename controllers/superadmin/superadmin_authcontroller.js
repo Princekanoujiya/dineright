@@ -3,52 +3,53 @@ const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const { uploadFile, updateFile } = require('../../utils/multer/attachments');
 
 
 exports.loginSuperadmin = (req, res) => {
-    const { superadmin_email, superadmin_password } = req.body;
+  const { superadmin_email, superadmin_password } = req.body;
 
-    // Check if required fields are provided
-    if (!superadmin_email || !superadmin_password) {
-        return res.status(200).json({ error_msg: "Email and Password are required",response:false });
+  // Check if required fields are provided
+  if (!superadmin_email || !superadmin_password) {
+    return res.status(200).json({ error_msg: "Email and Password are required", response: false });
+  }
+
+  // Query to find the superadmin by email
+  const query = `SELECT * FROM superadmin_login WHERE superadmin_email = ?`;
+  db.query(query, [superadmin_email], (err, result) => {
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ error_msg: 'Database error', response: false });
     }
 
-    // Query to find the superadmin by email
-    const query = `SELECT * FROM superadmin_login WHERE superadmin_email = ?`;
-    db.query(query, [superadmin_email], (err, result) => {
-        if (err) {
-            console.error('Database error_msg:', err);
-            return res.status(200).json({ error_msg: 'Database error' ,response:false});
-        }
+    // Check if superadmin exists
+    if (result.length === 0) {
+      return res.status(200).json({ error_msg: 'Invalid email or password', response: false });
+    }
 
-        // Check if superadmin exists
-        if (result.length === 0) {
-            return res.status(200).json({ error_msg: 'Invalid email or password',response:false });
-        }
+    // Superadmin found, now compare the password
+    const superadmin = result[0];
 
-        // Superadmin found, now compare the password
-        const superadmin = result[0];
+    // Directly compare the password (no bcrypt)
+    if (superadmin_password !== superadmin.superadmin_password) {
+      return res.status(200).json({ error_msg: 'Invalid email or password', response: false });
+    }
 
-        // Directly compare the password (no bcrypt)
-        if (superadmin_password !== superadmin.superadmin_password) {
-            return res.status(200).json({ error_msg: 'Invalid email or password' ,response:false});
-        }
+    // Passwords match, generate JWT token
+    const token = jwt.sign(
+      { superadmin_id: superadmin.superadmin_id, email: superadmin.superadmin_email },
+      process.env.JWT_SECRET,
+      { expiresIn: '365d' }
+    );
 
-        // Passwords match, generate JWT token
-        const token = jwt.sign(
-            { superadmin_id: superadmin.superadmin_id, email: superadmin.superadmin_email },
-            process.env.JWT_SECRET,
-            { expiresIn: '9h' }     
-        );
-
-        // Send success response with token
-        return res.status(200).json({
-            success_msg: 'Login successful',
-            token: token,
-            superadmin_id: superadmin.superadmin_id,
-            response:true,
-        });
+    // Send success response with token
+    return res.status(200).json({
+      success_msg: 'Login successful',
+      token: token,
+      superadmin_id: superadmin.superadmin_id,
+      response: true,
     });
+  });
 };
 exports.getGuests = (req, res) => {
   const query = `
@@ -116,16 +117,16 @@ exports.getDeactivatedRestaurants = (req, res) => {
     // Modify the result to include the full URL for `restaurant_fassai_images` and `license_image`
     results.forEach(user => {
       // Handle restaurant_fassai_images array
-      user.restaurant_fassai_images = user.restaurant_fassai_images ? 
-          user.restaurant_fassai_images.split(',').map(image => `${baseUrl}/uploads/registered_restaurants/${user.id}/${image}`) : [];
-      
+      user.restaurant_fassai_images = user.restaurant_fassai_images ?
+        user.restaurant_fassai_images.split(',').map(image => `${baseUrl}/uploads/registered_restaurants/${user.id}${image}`) : [];
+
       // Handle license_image by appending the base URL
       if (user.license_image) {
-          user.license_image = `${baseUrl}/uploads/registered_restaurants/${user.id}/${user.license_image}`;
+        user.license_image = `${baseUrl}/uploads/registered_restaurants/${user.id}/${user.license_image}`;
       } else {
-          user.license_image = null; 
+        user.license_image = null;
       }
-  });
+    });
     res.status(200).json({ users: results, response: true, success_msg: 'Deactivated users retrieved successfully' });
   });
 };
@@ -137,7 +138,7 @@ exports.getGuestsbyID = (req, res) => {
     FROM users u
     LEFT JOIN restaurant_fassai_images rfi ON u.id = rfi.userID
   `;
-  
+
   const queryParams = [];
 
   if (id) {
@@ -155,7 +156,7 @@ exports.getGuestsbyID = (req, res) => {
       return res.status(200).json({ error_msg: 'User not found', response: false });
     }
 
-    const baseUrl = `${process.env.BASE_URL}`;
+    const baseUrl = process.env.BASE_URL;
     const usersMap = new Map(); // To store users and aggregate their images
 
     results.forEach(user => {
@@ -165,17 +166,14 @@ exports.getGuestsbyID = (req, res) => {
         usersMap.set(user.id, {
           ...user,
           restaurant_fassai_image_name: user.restaurant_fassai_image_name
-            ? [`${baseUrl}/uploads/registered_restaurants/${user.id}/${user.restaurant_fassai_image_name}`]
-            : [],
-          license_image: user.license_image
-            ? `${baseUrl}/uploads/registered_restaurants/${user.id}/${user.license_image}`
-            : null
+            ? [`${baseUrl}${user.restaurant_fassai_image_name}`] : [],
+          license_image: user.license_image ? `${baseUrl}${user.license_image}` : ''
         });
       } else {
         // If user already exists, just add the new image
         const existingUser = usersMap.get(user.id);
         if (user.restaurant_fassai_image_name) {
-          existingUser.restaurant_fassai_image_name.push(`${baseUrl}/uploads/registered_restaurants/${user.id}/${user.restaurant_fassai_image_name}`);
+          existingUser.restaurant_fassai_image_name.push(`${baseUrl}${user.restaurant_fassai_image_name}`);
         }
       }
     });
@@ -229,30 +227,30 @@ exports.updateUserStatusAndCommission = (req, res) => {
 
 
 exports.updateCommissionStatus = (req, res) => {
-    const { id } = req.params; // Get user id from the request parameters
-    const { commission_status } = req.body; // Get status and commission from the request body
-  
-    if (!commission_status == null) {
-      return res.status(200).json({ error_msg: 'Commission Status are required' ,response:false});
+  const { id } = req.params; // Get user id from the request parameters
+  const { commission_status } = req.body; // Get status and commission from the request body
+
+  if (!commission_status == null) {
+    return res.status(200).json({ error_msg: 'Commission Status are required', response: false });
+  }
+
+  // Update query
+  const updateQuery = 'UPDATE users SET commission_status = ? WHERE id = ?';
+
+  // Execute the update query
+  db.query(updateQuery, [commission_status, id], (err, result) => {
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
     }
-  
-    // Update query
-    const updateQuery = 'UPDATE users SET commission_status = ? WHERE id = ?';
-    
-    // Execute the update query
-    db.query(updateQuery, [commission_status, id], (err, result) => {
-      if (err) {
-        console.error('Database error_msg:', err);
-        return res.status(200).json({ error_msg: 'Database error', details: err.message ,response:false});
-      }
-  
-      if (result.affectedRows === 0) {
-        return res.status(200).json({ error_msg: 'User not found' ,response:false});
-      }
-  
-      res.status(200).json({ success_msg: 'User commission status updated successfully',id ,response:true});
-    });
-};  
+
+    if (result.affectedRows === 0) {
+      return res.status(200).json({ error_msg: 'User not found', response: false });
+    }
+
+    res.status(200).json({ success_msg: 'User commission status updated successfully', id, response: true });
+  });
+};
 
 // Multer setup for image upload, storing images in 'uploads/blogs/blog_id/'
 const storage = multer.diskStorage({
@@ -277,68 +275,55 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage }).single('blog_image');
 
 // Insert or update blog
-exports.insertOrUpdateBlog = (req, res) => {
-  upload(req, res, function (err) {
-    if (err instanceof multer.MulterError || err) {
-      // Handle multer or other errors, but respond with status 200
-      return res.status(200).json({ error_msg: 'Error uploading file', details: err?.message, response: false });
+exports.insertOrUpdateBlog = async (req, res) => {
+
+  const { blog_id, blog_title, blog_description } = req.body;
+
+  if (!blog_title || !blog_description) {
+    return res.status(200).json({ error_msg: 'Title and description are required', response: false });
+  }
+
+  if (blog_id) {
+    const [blogResult] = await db.promise().query(`SELECT * FROM blogs WHERE blog_id`, [blog_id]);
+    const oldFile = blogResult.length > 0 ? blogResult.blog_image : '';
+    let newPath;
+    if(req.file){
+      const uploadedFile = await updateFile(req.file, `blogs`, oldFile);
+      newPath = uploadedFile.newFileName;
     }
+    // Update operation
+    const updateQuery = `UPDATE blogs 
+                         SET blog_title = ?, blog_description = ?, blog_image = ?
+                         WHERE blog_id = ?`;
+    db.query(updateQuery, [blog_title, blog_description, newPath, blog_id], (err, result) => {
+      if (err) {
+        return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
+      }
 
-    const blog_image = req.file ? req.file.filename : null;
-    const { blog_id, blog_title, blog_description } = req.body;
+      
 
-    if (!blog_title || !blog_description) {
-      return res.status(200).json({ error_msg: 'Title and description are required', response: false });
+      // const imageURL = blog_image ? `${process.env.BASE_URL}/uploads/blogs/${blog_id}/${blog_image}` : null;
+      return res.status(200).json({ success_msg: 'Blog updated successfully', response: true });
+    });
+  } else {
+    let newPath;
+    if(req.file){
+      const uploadedFile = await uploadFile(req.file, `blogs`);
+      newPath = uploadedFile.newFileName;
     }
+    // Insert operation if blog_id is not provided
+    const insertQuery = `INSERT INTO blogs (blog_title, blog_description, blog_image) VALUES (?, ?, ?)`;
+    db.query(insertQuery, [blog_title, blog_description, newPath], (err, result) => {
+      if (err) {
+        return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
+      }
 
-    if (blog_id) {
-      // Update operation
-      const updateQuery = `UPDATE blogs 
-                           SET blog_title = ?, blog_description = ?, blog_image = ?
-                           WHERE blog_id = ?`;
-      db.query(updateQuery, [blog_title, blog_description, blog_image, blog_id], (err, result) => {
-        if (err) {
-          return res.status(200).json({ error_msg: 'Database error during update', details: err.message, response: false });
-        }
+      const newBlogId = result.insertId;
 
-        // Move image to 'uploads/blogs/blog_id/'
-        const newDir = `uploads/blogs/${blog_id}`;
-        if (blog_image && !fs.existsSync(newDir)) {
-          fs.mkdirSync(newDir, { recursive: true });
-        }
-        if (blog_image && fs.existsSync(req.file.path)) {
-          const newImagePath = `${newDir}/${blog_image}`;
-          fs.renameSync(req.file.path, newImagePath); // Move file to new directory
-        }
-
-        const imageURL = blog_image ? `${process.env.BASE_URL}/uploads/blogs/${blog_id}/${blog_image}` : null;
-        return res.status(200).json({ success_msg: 'Blog updated successfully', blog_id, blog_image_url: imageURL, response: true });
-      });
-    } else {
-      // Insert operation if blog_id is not provided
-      const insertQuery = `INSERT INTO blogs (blog_title, blog_description, blog_image) VALUES (?, ?, ?)`;
-      db.query(insertQuery, [blog_title, blog_description, blog_image], (err, result) => {
-        if (err) {
-          return res.status(200).json({ error_msg: 'Database error during insertion', details: err.message, response: false });
-        }
-
-        const newBlogId = result.insertId;
-
-        // Move image to 'uploads/blogs/newBlogId/'
-        const newDir = `uploads/blogs/${newBlogId}`;
-        if (blog_image && !fs.existsSync(newDir)) {
-          fs.mkdirSync(newDir, { recursive: true });
-        }
-        if (blog_image && fs.existsSync(req.file.path)) {
-          const newImagePath = `${newDir}/${blog_image}`;
-          fs.renameSync(req.file.path, newImagePath); // Move file to new directory
-        }
-
-        const imageURL = blog_image ? `${process.env.BASE_URL}/uploads/blogs/${newBlogId}/${blog_image}` : null;
-        return res.status(200).json({ success_msg: 'Blog inserted successfully', blog_id: newBlogId, blog_image_url: imageURL, response: true });
-      });
-    }
-  });
+      // const imageURL = blog_image ? `${process.env.BASE_URL}/uploads/blogs/${newBlogId}/${blog_image}` : null;
+      return res.status(200).json({ success_msg: 'Blog inserted successfully', response: true });
+    });
+  }
 };
 
 // Delete a blog (mark as deleted)
@@ -347,29 +332,29 @@ exports.deleteBlog = (req, res) => {
 
   // Check if blog_id is provided
   if (!blog_id) {
-      return res.status(200).json({ error_msg: 'Blog ID is required', response: false });
+    return res.status(200).json({ error_msg: 'Blog ID is required', response: false });
   }
 
   // Update query to mark the blog as deleted
   const query = `UPDATE blogs SET is_deleted = 1 WHERE blog_id = ?`;
   db.query(query, [blog_id], (err, result) => {
-      if (err) {
-          console.error('Database error_msg:', err);
-          return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
-      }
+    if (err) {
+      console.error('Database error_msg:', err);
+      return res.status(200).json({ error_msg: 'Database error', details: err.message, response: false });
+    }
 
-      if (result.affectedRows === 0) {
-          return res.status(200).json({ error_msg: 'Blog not found or already deleted', response: false });
-      }
+    if (result.affectedRows === 0) {
+      return res.status(200).json({ error_msg: 'Blog not found or already deleted', response: false });
+    }
 
-      res.status(200).json({ success_msg: 'Blog marked as deleted successfully', response: true });
+    res.status(200).json({ success_msg: 'Blog marked as deleted successfully', response: true });
   });
 };
 
 require('dotenv').config(); // Load environment variables
 
 exports.getBlog = (req, res) => {
-  const { blog_id } = req.body; // Changed to req.body to get blog_id from the request body
+  const { blog_id } = req.params; // Changed to req.body to get blog_id from the request body
 
   if (!blog_id) {
     return res.status(200).json({ error_msg: 'Blog ID is required', response: false });
@@ -389,7 +374,7 @@ exports.getBlog = (req, res) => {
     }
 
     const blog = result[0];
-    const blog_image_url = blog.blog_image ? `${process.env.BASE_URL}/uploads/blogs/${blog_id}/${blog.blog_image}` : null;
+    const blog_image_url = blog.blog_image ? `${process.env.BASE_URL}${blog.blog_image}` : '';
 
     return res.status(200).json({
       success_msg: 'Blog fetched successfully',
@@ -417,7 +402,7 @@ exports.getAllBlogs = (req, res) => {
     }
 
     const blogs = results.map(blog => {
-      const blog_image_url = blog.blog_image ? `${process.env.BASE_URL}/uploads/blogs/${blog.blog_id}/${blog.blog_image}` : null;
+      const blog_image_url = blog.blog_image ? `${process.env.BASE_URL}${blog.blog_image}` : '';
       return {
         blog_id: blog.blog_id,
         blog_title: blog.blog_title,

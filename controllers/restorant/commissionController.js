@@ -221,6 +221,8 @@ exports.PayMyUnpaidCommission = async (req, res) => {
             return res.status(500).json({ error: 'Database error fetching unpaid commission sum', details: sumErr.message });
         }
 
+        // return res.json(sumResult)
+
         // Check if there is a valid result and unpaid commissions exist
         if (!sumResult.length || !sumResult[0].total_payout_balance || sumResult[0].total_payout_balance >= 0) {
             return res.status(200).json({
@@ -229,10 +231,14 @@ exports.PayMyUnpaidCommission = async (req, res) => {
             });
         }
 
-        const commitionAmount = sumResult[0].total_commission_amount;
+        const commitionAmount = sumResult[0].total_commition_amount ? sumResult[0].total_commition_amount : 0;
+
+        // return res.json(commitionAmount)
 
         const data = { amount: commitionAmount, name: username, email, phone };
         const order = await razorPayCreateOrderUnpaidCommission(data);
+
+        console.log('order', order)
 
         const commissiondepositquery = `INSERT INTO commission_deposit (userId, deposit_amount, payment_mode, razorpay_order_id) 
           VALUES ( ?, ?, ?, ?)`;

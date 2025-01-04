@@ -231,7 +231,7 @@ exports.razorPayCreateOrderUnpaidCommission = async (data) => {
   try {
       const { amount, name, email, phone } = data;
       const options = {
-          amount: Number(amount * 100),
+          amount: Number(parseFloat(amount) * 100),
           currency: 'INR',
           receipt: email,
       };

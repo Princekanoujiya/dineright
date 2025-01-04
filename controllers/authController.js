@@ -765,8 +765,8 @@ exports.getRestroInfo = (req, res) => {
     let userData = [];
     for (const user of results) {
 
-      user.image = `${process.env.BASE_URL}/uploads/registered_restaurants/${user.id}/${user.image}`;
-      user.license_image = `${process.env.BASE_URL}/uploads/registered_restaurants/${user.id}/${user.license_image}`;
+      user.image = user.image ? `${process.env.BASE_URL}${user.image}` : '';
+      user.license_image = user.license_image ? `${process.env.BASE_URL}${user.license_image}`: '';
       userData.push(user);
     }
 

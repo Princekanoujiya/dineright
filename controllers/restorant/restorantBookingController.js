@@ -104,7 +104,6 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
         mi.master_item_name,
         mi.master_item_image,
         bcp.product_quantity, 
-        CONCAT(?, mi.master_item_image) AS master_item_image, 
         mi.master_item_price, 
         mi.master_item_description 
       FROM booking_connected_products bcp
@@ -112,7 +111,7 @@ exports.getAllDiningAreaAndAllocatedTables = async (req, res) => {
       WHERE bcp.booking_id = ?
       ORDER BY mi.master_item_name ASC`;
 
-      const [bookingItems] = await db.promise().query(bookingItemsQuery, [process.env.BASE_URL, booking.booking_id]);
+      const [bookingItems] = await db.promise().query(bookingItemsQuery, [booking.booking_id]);
 
       // customer details
       const getCustomer = `SELECT * FROM customers WHERE customer_id = ?`;

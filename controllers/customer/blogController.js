@@ -14,7 +14,7 @@ exports.getAllBlogs = (req, res) => {
       }
   
       const blogs = results.map(blog => {
-        const blog_image_url = blog.blog_image ? `${process.env.BASE_URL}/uploads/blogs/${blog.blog_id}/${blog.blog_image}` : null;
+        const blog_image_url = blog.blog_image ? `${process.env.BASE_URL}${blog.blog_image}` : '';
         return {
           blog_id: blog.blog_id,
           blog_title: blog.blog_title,

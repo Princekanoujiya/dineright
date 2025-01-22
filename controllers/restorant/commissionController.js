@@ -1,5 +1,6 @@
 const db = require('../../config');
 const { razorPayCreateOrderUnpaidCommission } = require('../../controllers/razorpayController');
+const { v4: uuidv4 } = require('uuid');
 
 // get balance
 exports.getMyPayments = async (req, res) => {
@@ -54,6 +55,8 @@ exports.withdrawalPayment = async (req, res) => {
     try {
         const userId = req.userId;
 
+        const uuId = uuidv4();
+
         const userQuery = `SELECT * FROM users WHERE id = ?`;
         const [user] = await db.promise().query(userQuery, [userId]);
 
@@ -81,20 +84,20 @@ exports.withdrawalPayment = async (req, res) => {
 
         // Step 2: Insert a single record into the withdrawal table with the total payout balance
         const withdrawalQuery = `
-            INSERT INTO withdrawal (userId, withdrawal_amount, bank_name, account_no, ifsc_code)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO withdrawal (userId, withdrawal_amount, bank_name, account_no, ifsc_code, uuid)
+            VALUES (?, ?, ?, ?, ?, ?)
         `;
-        await db.promise().query(withdrawalQuery, [userId, total_payout_balance, user[0].restaurant_bank_name, user[0].restaurant_bank_account_no, user[0].restaurant_ifsc_code]);
+        await db.promise().query(withdrawalQuery, [userId, total_payout_balance, user[0].restaurant_bank_name, user[0].restaurant_bank_account_no, user[0].restaurant_ifsc_code, uuId]);
 
         // Step 3: Update all commission_transactions to mark them as paid
         const updateCommissionQuery = `
             UPDATE commission_transactions 
-            SET is_payout = 1 
+            SET is_payout = 1, uuid = ?
             WHERE userId = ? 
                 AND is_payout = 0 
                 AND status = 'completed'
         `;
-        await db.promise().query(updateCommissionQuery, [userId]);
+        await db.promise().query(updateCommissionQuery, [uuId, userId]);
 
         // Step 4: Respond with a success message
         res.status(200).json({ message: 'Withdrawal processed successfully', totalPayout: total_payout_balance });

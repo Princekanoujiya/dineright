@@ -7,10 +7,11 @@ const fs = require('fs');
 const { uploadFile, updateFile } = require('../utils/multer/attachments');
 
 exports.createOrUpdateCustomer = (req, res) => {
-  const { customer_id, customer_name, customer_email } = req.body;
+  const { customer_name, customer_email } = req.body;
   if (!customer_name || !customer_email) {
     return res.status(200).json({ error_msg: "Customer name and email are required", response: false });
   }
+  let customer_id = null;
   // Check if the email is unique before insert or update
   const emailCheckQuery = 'SELECT * FROM customers WHERE customer_email = ? AND customer_id != ?';
   db.query(emailCheckQuery, [customer_email, customer_id || 0], (err, result) => {
@@ -18,8 +19,12 @@ exports.createOrUpdateCustomer = (req, res) => {
       return res.status(200).json({ error_msg: err.message, response: false });
     }
 
-    if (result.length > 0) {
+    if (result.length > 0 && result[0].is_verify === 1) {
       return res.status(200).json({ error_msg: "Email is already in use", response: false });
+    }
+
+    if (result.length > 0) {
+      customer_id = result[0].customer_id;
     }
 
     // Function to send OTP email
@@ -138,6 +143,10 @@ exports.verifyCustomerOtp = async (req, res) => {
     const getCustomerQuery = `SELECT * FROM customers WHERE customer_id = ? AND is_verify = 0`;
     const [getcustomer] = await db.promise().query(getCustomerQuery, [customer_id]);
 
+    if (getcustomer.length === 0) {
+      return res.status(200).json({ error_msg: "User not found", response: false });
+    }
+
     let isNotVerify = getcustomer.length > 0 ? getcustomer[0] : null;
 
     // Check if the OTP matches the customer's record
@@ -185,6 +194,61 @@ exports.verifyCustomerOtp = async (req, res) => {
   }
 };
 
+exports.verifyCustomerLoginOtp = async (req, res) => {
+  const { customer_id, otp } = req.body;
+
+  // Check if required fields are provided
+  if (!customer_id || !otp) {
+    return res.status(200).json({ error_msg: "Customer ID and OTP are required", response: false });
+  }
+
+  try {
+    // Check if the customer exists and is not verified
+    const getCustomerQuery = `SELECT * FROM customers WHERE customer_id = ? AND is_verify = 1`;
+    const [getcustomer] = await db.promise().query(getCustomerQuery, [customer_id]);
+
+    if (getcustomer.length === 0) {
+      return res.status(200).json({ error_msg: "User not found", response: false });
+    }
+
+    let isNotVerify = getcustomer.length > 0 ? getcustomer[0] : null;
+
+    // Check if the OTP matches the customer's record
+    const otpCheckQuery = 'SELECT * FROM customers WHERE customer_id = ? AND otp = ?';
+    const [result] = await db.promise().query(otpCheckQuery, [customer_id, otp]);
+
+    if (result.length === 0) {
+      return res.status(200).json({ error_msg: "Invalid OTP or Customer ID", response: false });
+    }
+
+    const customer = result[0];
+
+    // Update customer record to clear the OTP
+    const verifyCustomerQuery = 'UPDATE customers SET otp = NULL WHERE customer_id = ?';
+    const [updateResult] = await db.promise().query(verifyCustomerQuery, [customer_id]);
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(200).json({ error_msg: "Customer not found", response: false });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { customer_id: customer.customer_id, customer_email: customer.customer_email },
+      process.env.JWT_SECRET,
+      { expiresIn: 31536000 * 90 }
+    );
+
+    res.status(200).json({
+      success_msg: "OTP verified successfully",
+      token: token,
+      customer_id: customer.customer_id,
+      response: true,
+    });
+  } catch (error) {
+    console.error("Error verifying OTP:", error);
+    return res.status(200).json({ error_msg: error.message, response: false });
+  }
+};
 
 
 // exports.verifyCustomerOtp = async (req, res) => {
@@ -539,7 +603,7 @@ exports.searchAllRestorantByname = async (req, res) => {
       }
 
       // banner_galleries
-      const [banner_galleries] = await db.promise().query(`SELECT files FROM banner_galleries WHERE userId = ?`, [userId]);
+      const [banner_galleries] = await db.promise().query(`SELECT files FROM banner_galleries WHERE userId = ? AND is_deleted = 0`, [userId]);
 
       // Map over the banner_galleries to prepend BASE_URL to each file
       const updated_banners = banner_galleries.map(gallery => ({
@@ -613,6 +677,7 @@ exports.getUserProfileDetails = async (req, res) => {
       GROUP BY u.id
     `;
 
+
     const [bookingResults] = await db.promise().query(bookingQuery, [customer_id]);
 
     await Promise.all(bookingResults.map(async (result) => {
@@ -639,8 +704,8 @@ exports.getUserProfileDetails = async (req, res) => {
       `, [result.id]);
 
       // bookings
-      const getbookingQuery = `SELECT booking_id, userId, customer_id, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, billing_amount, payment_mod, payment_status, booking_comment, booking_status FROM bookings WHERE userId = ? ORDER BY booking_id DESC`;
-      const [myBookings] = await db.promise().query(getbookingQuery, [result.id]);
+      const getbookingQuery = `SELECT booking_id, userId, customer_id, booking_name, booking_email, booking_no_of_guest, booking_date, booking_time, billing_amount, payment_mod, payment_status, booking_comment, booking_status FROM bookings WHERE userId = ? AND customer_id = ? ORDER BY booking_id DESC`;
+      const [myBookings] = await db.promise().query(getbookingQuery, [result.id, customer_id]);
 
       // const updatedBooking = myBookings.map(booking => {
       //   const dateTimeString = `${booking.booking_date} ${booking.booking_time}`;
@@ -675,19 +740,24 @@ exports.getUserProfileDetails = async (req, res) => {
 
       const updatedBooking = myBookings.map(booking => {
 
-        const bookingDate = moment.utc(booking.booking_date).tz('Asia/Kolkata').format('YYYY-MM-DD');     
+
+
+        const bookingDate = moment.utc(booking.booking_date).tz('Asia/Kolkata').format('YYYY-MM-DD');
 
         const timezone = 'Asia/Kolkata'; // Change to your desired timezone
         // const bookingDateTime = moment.tz(`${bookingDate} ${booking.booking_time}`, timezone).toISOString();
         const bookingDateTime = `${bookingDate}T${booking.booking_time}.000Z`;
         const currentDateTime = moment.tz(timezone).toISOString();
 
+        // Convert time to 12-hour format with AM/PM
+        booking.formatted_booking_time = moment(booking.booking_time, 'HH:mm:ss').format('hh:mm A');
+
         // Subtract 2 hours from the booking time
         const adjustedBookingDateTime = moment.tz(`${bookingDate} ${booking.booking_time}`, timezone).subtract(2, 'hours').toISOString();
 
         let cancel_button = adjustedBookingDateTime > currentDateTime ? true : false;
 
-        if(booking.booking_status === 'inprogress' || booking.booking_status === 'completed' || booking.booking_status === 'cancelled'){
+        if (booking.booking_status === 'inprogress' || booking.booking_status === 'completed' || booking.booking_status === 'cancelled') {
           cancel_button = false
         }
 

@@ -188,6 +188,176 @@ function createSimpleBookingMessage(data) {
 `;
 }
 
+// Function to create booking message for restaurant
+function createRestaurantBookingMessage(data) {
+  const {
+    booking_id,
+    booking_date,
+    booking_time,
+    booking_no_of_guest,
+    payment_mod,
+    customer_name,
+    restaurantName,
+    restaurantAddress,
+    email,
+    billing_amount,
+    items,
+    booking_status,
+    seatingDetails
+  } = data;
+
+  const payment_status = payment_mod === 'online' ? 'paid' : 'unpaid';
+
+  // Create an HTML string for the items in table format
+  const itemsHTML = items.map(item => {
+    const totalPrice = item.master_item_price * item.product_quantity; // Calculate total price
+    return ` 
+      <tr>
+        <td>${item.master_item_name}</td>
+        <td>${item.product_quantity}</td>
+        <td>${formatCurrency(item.master_item_price)}</td>
+        <td>${formatCurrency(totalPrice)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Create an HTML string for the seating details
+  const seatingHTML = seatingDetails.map(area => ` 
+    <h4>Dining Area: ${area.dining_area_type}</h4>
+    <p>Tables Name: ${area.tables.join(', ')}</p>
+  `).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Booking Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            width: 80%;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+        }
+        .details {
+            margin-top: 20px;
+        }
+        .details p {
+            margin: 5px 0;
+        }
+        .status {
+            background-color: #ffd700;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .menu, .payment {
+            margin-top: 20px;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .footer p {
+            font-size: 0.9em;
+            color: #777;
+        }
+        .billing {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #d9534f;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>New Booking Notification</h1>
+        <p>Hello <strong>Restaurant Team</strong>,</p>
+        <p>A new booking has been made at <strong>${restaurantName}</strong>. Here are the details of the booking:</p>
+
+        <div class="details">
+            <h3>Booking Details:</h3>
+            <p><strong>Order ID:</strong> Order-${booking_id}</p>
+            <p><strong>Customer Name:</strong> ${customer_name}</p>
+            <p><strong>Booking Date:</strong> ${formatDate(booking_date)}</p>
+            <p><strong>Booking Time:</strong> ${convertToAmPm(booking_time)}</p>
+            <p><strong>Number of Guests:</strong> ${booking_no_of_guest}</p>
+            <div class="status"><strong>Booking Status:</strong> ${booking_status}</div>
+        </div>
+
+        <div class="details">
+            <h3>Billing Details:</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHTML}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="text-align: right;"><strong>Billing Amount:</strong></td>
+                        <td class="billing">${formatCurrency(billing_amount)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="details">
+            <h3>Seating Details:</h3>
+            ${seatingHTML}
+        </div>
+
+        <div class="payment">
+            <h3>Payment Status: ${payment_status}</h3>
+            <p><strong>Payment Method:</strong> ${payment_mod}</p>
+        </div>
+
+        <div class="footer">
+            <p>If you need to make any changes or have any queries, please reach out to <strong>${customer_name}</strong> at their email: ${email}.</p>
+            <p>We look forward to serving your customer!</p>
+            <p>Warm regards,<br><strong>Booking Management Team</strong></p>
+        </div>
+    </div>
+</body>
+</html>
+`;
+}
+
+
 // Helper function to format currency
 function formatCurrency(amount) {
   return `₹${parseFloat(amount).toFixed(2)}`;
@@ -351,10 +521,14 @@ exports.sendBookingEmail = async (bookingId) => {
 
     // Create email message
     const message = createSimpleBookingMessage(sanitizedData);
+    const message2 = createRestaurantBookingMessage(sanitizedData);
 
     // Recipients (customer, restaurant, and super admin)
-    const recipients = [customer_email, email, superAdminEmail];
+    const recipients = [customer_email, superAdminEmail];
     await sendEmail(recipients, message);
+
+    const recipients2 = [email];
+    await sendEmail(recipients2, message2);
 
   } catch (error) {
     console.error('Error sending booking email:', error);

@@ -12,13 +12,15 @@ const { validateBookingPayment } = require('../validations');
 //superadmin
 const { loginSuperadmin, getGuests, getGuestsbyID, insertOrUpdateBlog, deleteBlog, getAllBlogs, getBlog, updateUserStatusAndCommission, updateCommissionStatus, getDeactivatedRestaurants } = require('../controllers/superadmin/superadmin_authcontroller');
 
-const { getAllPayments, getPaymentsByUserId, getAllWithdrawalRequests, getWithdrawalRequestsByuserId, getOneWithdrawalRequest, updateWithdrawalRequest } = require('../controllers/superadmin/commissionController');
+const { getAllPayments, getPaymentsByUserId, getAllWithdrawalRequests, getWithdrawalRequestsByuserId, getOneWithdrawalRequest, updateWithdrawalRequest, getAllDashboardData } = require('../controllers/superadmin/commissionController');
 
 const { insertOrUpdateBannerSection, getAllBannerSections, getBannerSectionById } = require('../controllers/superadmin/uploadController');
 const { insertOrUpdateCuisineSection, getAllCuisinsSections, getCuisionSectionById } = require('../controllers/superadmin/cuisinsController');
 
+const superAdnimBookingController = require('../controllers/superadmin/bookingController');
+
 //restroadmin
-const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable, inprogressTable } = require('../controllers/restorant/restorantBookingController');
+const { getAllBookings, getOneBooking, getAllDiningAreaAndAllocatedTables, getAllDiningAreaBookingAndAllocatedTables, newBookingInsert, updateBookingPayment, getBookingDetails, getTableAvailableOrNot, getRestorauntServiceTimeAvaibility, releaseTable, inprogressTable, autoInprogressTable, updateBookingTimes } = require('../controllers/restorant/restorantBookingController');
 const {
   createOrUpdateOneStep, stepTwo, getAllDiningAreas, getAllDiningAreasWithTables, getAllCities, resendrestaurantOtp,
   getDaysListing, sendOtp, login, verifyOtp, setPassword, insertTimingData, insertDiningArea,
@@ -31,7 +33,7 @@ const restorantMenuController = require('../controllers/restorant/menuController
 
 const { getBookingUsers } = require('../controllers/restorant/bookingUsersController');
 
-const { getMyPayments, withdrawalPayment, getAllWithdrawals, getMyUnpaidCommission, PayMyUnpaidCommission } = require('../controllers/restorant/commissionController');
+const { getMyPayments, withdrawalPayment, getAllWithdrawals, getMyUnpaidCommission, PayMyUnpaidCommission, getPaymentHistory } = require('../controllers/restorant/commissionController');
 
 const blogController = require('../controllers/customer/blogController');
 
@@ -40,7 +42,7 @@ const { createOrUpdateMenu, getMenu, DeleteMenu } = require('../controllers/menu
 const { createOrUpdateMenuItem, getMenuItem, deleteMenuItem, softDeleteMenuItem } = require('../controllers/menuItemsController');
 const { getCourseMenu, getCourseMenuGroupByCourseId } = require('../controllers/master_card');
 const { getMasterCard, getMasterBeverage, book_product, getTableAvaibility, getBookings, getBookingById } = require('../controllers/booking_controller');
-const { enquiry } = require('../controllers/enquiryController');
+const { enquiry, getAllEnqueries } = require('../controllers/enquiryController');
 const { getRestaurantType, getCuisines, getUserIdsByFilters } = require('../controllers/filtersController');
 
 const menuItemsController = require('../controllers/menuItems_with_token');
@@ -52,8 +54,10 @@ const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
 const { getRazorpayKey, razorpayVerifyPayment, razorpayVerifyPaymentUnpaidCommission, getAllRazorpayPayments, getRazorpayPaymentByOrderId, getRazorpayPaymentById } = require('../controllers/razorpayController');
 
+const restaurantDashboardController = require('../controllers/restorant/dashboardController');
+
 //user
-const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, getUserProfileDetails, updateUserProfileDetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
+const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, verifyCustomerLoginOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, getUserProfileDetails, updateUserProfileDetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
 const { getCourseMenuAndMenuItems, getMenuItemsByItemIds } = require('../controllers/customer/restorantConroller');
 const { getMyBookings, getMyBookingsByRestaurantId, getServiceAvailableOrNot, getMyBookingSlots, bookingCancel } = require('../controllers/customer/bookingController');
 
@@ -95,6 +99,7 @@ router.post('/withdrawalPayment', verifyToken, withdrawalPayment);
 router.get('/getAllWithdrawals', verifyToken, getAllWithdrawals);
 router.get('/getMyUnpaidCommission', verifyToken, getMyUnpaidCommission);
 router.post('/PayMyUnpaidCommission', verifyToken, PayMyUnpaidCommission);
+router.get('/getPaymentHistory', verifyToken, getPaymentHistory);
 
 router.get('/user/:userId', getUserInfo);//done
 router.get('/timing/:userId', getTimingData);//done
@@ -188,6 +193,9 @@ router.get('/getAllBannerGalleries', verifyToken, uploadGalleryController.getAll
 router.get('/getAllbookings', verifyToken, getAllBookings);
 router.get('/getOneBooking/:booking_id', verifyToken, getOneBooking);
 router.get('/getAllocatedTables', verifyToken, getAllDiningAreaAndAllocatedTables);
+// getAllDiningAreaBookingAndAllocatedTables
+router.get('/getAllDiningAreaBookingAndAllocatedTables', verifyToken, getAllDiningAreaBookingAndAllocatedTables);
+
 router.post('/insertNewBooking', verifyToken, newBookingInsert);
 router.patch('/updateBookingPayment', verifyToken, updateBookingPayment);
 router.get('/getBookingDetails/:booking_id', verifyToken, getBookingDetails);
@@ -195,19 +203,23 @@ router.get('/getTimingDatabyResrtoId', verifyToken, getTimingDatabyResrtoId);
 router.post('/updateTimingData', updateTimingData);
 router.post('/releaseTable/:booking_id', verifyToken, releaseTable);
 router.post('/inprogressTable/:booking_id', verifyToken, inprogressTable);
+router.patch('/updateBookingTimes', verifyToken, updateBookingTimes);
+router.get('/restaurantDashboard', verifyToken, restaurantDashboardController.restaurantDashboard);
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done
 router.get('/customers', getAllCustomers); //done
 router.post('/customers/verifyOtp', verifyCustomerOtp); //done
+router.post('/customers/verifyLoginOtp', verifyCustomerLoginOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done 
-router.post('/customer_resend_otp', resendOtp); //done
+router.post('/customer_resend_otp', resendOtp); //done 
 router.get('/getMasterCard', getMasterCard);
 router.get('/getMasterBeverage', getMasterBeverage);
 router.post('/book_product', verifyCustomerToken, book_product);
 router.post('/getTableAvaibility', verifyCustomerToken, getTableAvaibility);
 router.post('/getTableAvailableOrNot', verifyCustomerToken, getTableAvailableOrNot);
+router.post('/getTableAvailableOrNot-booking', getTableAvailableOrNot);
 router.post('/getRestorauntServiceTimeAvaibility', verifyCustomerToken, getRestorauntServiceTimeAvaibility);
 router.get('/getrestrodaydetails', getrestrodaydetails);
 router.get('/getAllRestaurantWithTime', getAllRestaurantWithTime);
@@ -242,7 +254,6 @@ router.post('/getMasterBeverageItemsSelectedByRestro', flutter_controller.getMas
 router.post('/getBeveragesAndCourseMenuByRestroID', flutter_controller.getBeveragesAndCourseMenuByRestroID);
 router.get('/getsingleRestaurantbyId/:userId', flutter_controller.getsingleRestaurantbyId);
 
-
 // Razorpay Routes
 router.get('/razorpay_key', getRazorpayKey);
 router.post('/verify_payment', razorpayVerifyPayment);
@@ -255,10 +266,10 @@ router.get('/getGuests', verifySuperAdminToken, getGuests);
 router.get('/getGuestsbyID/:id', verifySuperAdminToken, getGuestsbyID);
 router.post('/updateUserStatusAndCommission', verifySuperAdminToken, updateUserStatusAndCommission);
 router.put('/updateCommissionStatus/:id', verifySuperAdminToken, updateCommissionStatus);
-router.post('/insertOrUpdateBlog', verifySuperAdminToken, insertOrUpdateBlog);
+router.post('/insertOrUpdateBlog', verifySuperAdminToken, upload.single('blog_image'), insertOrUpdateBlog);
 router.post('/deleteBlog', verifySuperAdminToken, deleteBlog);
 router.get('/getAllBlogs', verifySuperAdminToken, verifySuperAdminToken, getAllBlogs);
-router.post('/getBlog', verifySuperAdminToken, getBlog);
+router.get('/getBlog/:blog_id', verifySuperAdminToken, getBlog);
 router.get('/getDeactivatedRestaurants', verifySuperAdminToken, getDeactivatedRestaurants);
 router.get('/getAllPayments', verifySuperAdminToken, getAllPayments);
 router.get('/getPaymentsByUserId/:userId', verifySuperAdminToken, getPaymentsByUserId);
@@ -266,5 +277,15 @@ router.get('/getAllWithdrawalRequests', verifySuperAdminToken, getAllWithdrawalR
 router.get('/getWithdrawalRequestsByuserId/:userId', verifySuperAdminToken, getWithdrawalRequestsByuserId);
 router.get('/getOneWithdrawalRequest/:id', verifySuperAdminToken, getOneWithdrawalRequest);
 router.patch('/updateWithdrawalRequest', verifySuperAdminToken, updateWithdrawalRequest);
+router.get('/getAllCancelledBookings', verifySuperAdminToken, superAdnimBookingController.getAllCancelledBookings);
+router.post('/refundStatusChange', verifySuperAdminToken,  superAdnimBookingController.refundStatusChange);
+router.get('/getAllDashboardData', verifySuperAdminToken, getAllDashboardData);
+router.get('/getAllEnqueries', verifySuperAdminToken, getAllEnqueries);
+router.get('/getCustomerBookings/:customer_id', verifySuperAdminToken, superAdnimBookingController.getCustomerBookings);
+
+
+// autoInprogressTable
+router.patch('/autoInprogressTable', autoInprogressTable);
+
 
 module.exports = router;

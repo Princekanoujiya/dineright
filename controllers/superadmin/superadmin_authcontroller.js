@@ -420,3 +420,19 @@ exports.getAllBlogs = (req, res) => {
 };
 
 
+exports.getAllenquiries = (req, res) => {
+  const Query = `SELECT * FROM enquiries`;
+
+  db.query(Query, (err, results) => {
+    if (err) {
+      return res.status(200).json({ error_msg: 'Database error while fetching enquiries', details: err.message, response: false });
+    }
+
+    return res.status(200).json({
+      success_msg: 'enquiries fetched successfully',
+      response: true,
+      data: results
+    });
+  });
+};
+

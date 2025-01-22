@@ -54,8 +54,10 @@ const master_card = require('../controllers/master_card');
 const beverage_itemController = require('../controllers/beverage_itemController');
 const { getRazorpayKey, razorpayVerifyPayment, razorpayVerifyPaymentUnpaidCommission, getAllRazorpayPayments, getRazorpayPaymentByOrderId, getRazorpayPaymentById } = require('../controllers/razorpayController');
 
+const restaurantDashboardController = require('../controllers/restorant/dashboardController');
+
 //user
-const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, getUserProfileDetails, updateUserProfileDetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
+const { getAllCustomers, createOrUpdateCustomer, verifyCustomerOtp, verifyCustomerLoginOtp, getCustomerInfo, loginWithEmail, resendOtp, getAllRestaurantWithTime, getrestrodaydetails, getUserProfileDetails, updateUserProfileDetails, searchAllRestorantByname } = require('../controllers/app_user_authcontroller');
 const { getCourseMenuAndMenuItems, getMenuItemsByItemIds } = require('../controllers/customer/restorantConroller');
 const { getMyBookings, getMyBookingsByRestaurantId, getServiceAvailableOrNot, getMyBookingSlots, bookingCancel } = require('../controllers/customer/bookingController');
 
@@ -202,11 +204,13 @@ router.post('/updateTimingData', updateTimingData);
 router.post('/releaseTable/:booking_id', verifyToken, releaseTable);
 router.post('/inprogressTable/:booking_id', verifyToken, inprogressTable);
 router.patch('/updateBookingTimes', verifyToken, updateBookingTimes);
+router.get('/restaurantDashboard', verifyToken, restaurantDashboardController.restaurantDashboard);
 
 //user side api
 router.post('/customers', createOrUpdateCustomer); //done
 router.get('/customers', getAllCustomers); //done
 router.post('/customers/verifyOtp', verifyCustomerOtp); //done
+router.post('/customers/verifyLoginOtp', verifyCustomerLoginOtp); //done
 router.get('/customers/:customer_id', getCustomerInfo); //done
 router.post('/customer_login', loginWithEmail); //done 
 router.post('/customer_resend_otp', resendOtp); //done 
@@ -250,7 +254,6 @@ router.post('/getMasterBeverageItemsSelectedByRestro', flutter_controller.getMas
 router.post('/getBeveragesAndCourseMenuByRestroID', flutter_controller.getBeveragesAndCourseMenuByRestroID);
 router.get('/getsingleRestaurantbyId/:userId', flutter_controller.getsingleRestaurantbyId);
 
-
 // Razorpay Routes
 router.get('/razorpay_key', getRazorpayKey);
 router.post('/verify_payment', razorpayVerifyPayment);
@@ -278,6 +281,8 @@ router.get('/getAllCancelledBookings', verifySuperAdminToken, superAdnimBookingC
 router.post('/refundStatusChange', verifySuperAdminToken,  superAdnimBookingController.refundStatusChange);
 router.get('/getAllDashboardData', verifySuperAdminToken, getAllDashboardData);
 router.get('/getAllEnqueries', verifySuperAdminToken, getAllEnqueries);
+router.get('/getCustomerBookings/:customer_id', verifySuperAdminToken, superAdnimBookingController.getCustomerBookings);
+
 
 // autoInprogressTable
 router.patch('/autoInprogressTable', autoInprogressTable);

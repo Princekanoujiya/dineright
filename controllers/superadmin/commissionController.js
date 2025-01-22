@@ -305,6 +305,19 @@ exports.updateWithdrawalRequest = async (req, res) => {
             return res.status(400).json({ message: 'Invalid status. Status must be either "approved" or "rejected".' });
         }
 
+        const [existingWithdrawal] = await db.promise().query(`SELECT * FROM withdrawal WHERE id = ?`, [id]);
+
+        if(existingWithdrawal.length === 0){
+            return res.status(400).json({ message: 'Withdrawal not found".' });
+        }
+
+        const updateCommissionQuery = `
+        UPDATE commission_transactions 
+        SET is_payout = 0, uuid = ?
+        WHERE uuid = ?
+       `;
+       await db.promise().query(updateCommissionQuery, [null, existingWithdrawal[0].uuid]);
+
         // Prepare the query
         const query = `UPDATE withdrawal SET transaction_id = ?, status = ?, description = ? WHERE id = ?;`;
 
